@@ -368,3 +368,39 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .gate > p { text-align: center; margin: 0; }
 .gate-crest { display: grid; place-items: center; }
 .gate-crest svg { width: 112px; height: auto; filter: drop-shadow(0 0 24px #f2b85b55); }
+
+/* ---------- Castello in sezione e scheda stanza ---------- */
+.castle { position: relative; width: 100%; max-width: 520px; margin: 0 auto; line-height: 0; background: #1d1628; border-top: 2px solid var(--seam); }
+.castle > img { display: block; width: 100%; height: auto; }
+.rm { position: absolute; padding: 0; margin: 0; border: 0; background: none; color: inherit; cursor: pointer; overflow: hidden; line-height: 1.2; -webkit-tap-highlight-color: transparent; --lv: var(--candle); }
+.rm.lv1 { --lv: var(--moss); } .rm.lv2 { --lv: var(--arcane); } .rm.lv3 { --lv: var(--ember); }
+.rm::before { content: ""; position: absolute; inset: 0; pointer-events: none; }
+.rm.lv2::before { background: #2a1c3f; mix-blend-mode: multiply; opacity: .45; }
+.rm.lv3::before { background: #170f24; mix-blend-mode: multiply; opacity: .78; }
+.rm:active { box-shadow: inset 0 0 0 3px var(--candle-hi); }
+.rm:focus-visible { outline: 3px solid var(--candle); outline-offset: -3px; z-index: 2; }
+@media (hover: hover) { .rm:hover { box-shadow: inset 0 0 0 2px var(--candle); } }
+.rm-tag { position: absolute; left: 3px; bottom: 3px; max-width: calc(100% - 6px); display: inline-flex; align-items: center; gap: 3px; padding: 1px 4px 1px 3px; background: #150f1dd9; border: 1px solid var(--lv); border-radius: 2px; font: 800 10px/1.25 var(--f-body); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; z-index: 1; }
+.rm-tag .dot { width: 6px; height: 6px; background: var(--lv); flex: none; }
+.rm-tag b { margin-left: 2px; padding: 0 3px; background: var(--ember); color: #2a0e06; border-radius: 2px; }
+.rm.stretta .rm-tag { left: 50%; bottom: 4px; top: auto; transform: translateX(-50%); flex-direction: column; writing-mode: vertical-rl; padding: 4px 1px; max-width: none; max-height: calc(100% - 8px); background: #150f1dbf; font-size: 9.5px; }
+.rm.stretta .rm-tag b { margin: 2px 0 0; padding: 1px 0; }
+@media (min-width: 480px) { .rm-tag { font-size: 11px; } }
+
+/* polvere, ragnatele e scintille disegnate da codice */
+.veil { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.veil .cobweb { position: absolute; top: 0; width: 46%; max-width: 130px; transition: opacity .6s; }
+.veil .cobweb.l { left: 0; } .veil .cobweb.r { right: 0; transform: scaleX(-1); }
+.veil .dust { position: absolute; inset: 0; background: radial-gradient(circle at 20% 70%, #b0a3bd44 0 2px, transparent 3px) 0 0/38px 31px, radial-gradient(circle at 60% 30%, #b0a3bd38 0 1.5px, transparent 2.5px) 0 0/53px 47px; transition: opacity .6s; }
+.veil .tw { position: absolute; width: 6px; height: 6px; background: var(--candle-hi); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); opacity: 0; }
+@media (prefers-reduced-motion: no-preference) { .veil .tw { animation: olwTw 3.2s ease-in-out infinite; } }
+@media (prefers-reduced-motion: reduce) { .veil .tw { opacity: .7; } }
+@keyframes olwTw { 0%, 100% { opacity: 0; transform: scale(.6); } 50% { opacity: 1; transform: scale(1); } }
+
+.back { align-self: flex-start; }
+.room-hero .room-scene { position: relative; max-width: 520px; margin: 0 auto; line-height: 0; padding: 12px 6px 0; }
+.room-hero .room-scene > img { display: block; width: 100%; height: auto; }
+.room-hero .room-scene .veil { inset: 12px 6px 0; }
+.room-hero .room-scene .veil .cobweb { width: 20%; top: 14%; }
+.room-hero .room-scene .veil .cobweb.l { left: 7%; } .room-hero .room-scene .veil .cobweb.r { right: 7%; }
+.bar.big { height: 14px; }

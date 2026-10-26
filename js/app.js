@@ -7,6 +7,18 @@ document.documentElement.style.setProperty("--web", `url("${WEB}")`);
 const DIMORE = { castello: "Il Castello", hobbit: "La Casa Hobbit", caverna: "La Caverna", reggia: "La Reggia", torre: "La Torre", appartamento: "L'Appartamento" };
 const CLASSI = { cavaliere: "Cavaliere", strega: "Strega", ranger: "Ranger", alchimista: "Alchimista" };
 const STATI = ["Splendente", "In ordine", "Trascurata", "Abbandonata"];
+/* Mappa del castello: riquadri tappabili, in pixel dell'immagine 768×1376 (img/castello.webp) */
+const CASTELLO = { w: 768, h: 1376, stanze: [
+  { r: "Bagno", rect: [112, 283, 376, 530] },
+  { r: "Camera", rect: [392, 283, 656, 530] },
+  { r: "Sgabuzzino", rect: [112, 550, 312, 798] },
+  { r: "Tutta la casa", nome: "Corridoio", rect: [328, 550, 440, 898], stretta: true },
+  { r: "Cucina", rect: [456, 550, 656, 898] },
+  { r: "Ingresso", rect: [112, 918, 312, 1198] },
+  { r: "Salotto", rect: [328, 918, 656, 1198] },
+  { r: "Balcone", rect: [678, 400, 756, 1062], stretta: true }
+] };
+const IMG_STANZA = { "Bagno": "bagno", "Camera": "camera", "Sgabuzzino": "sgabuzzino", "Tutta la casa": "corridoio", "Cucina": "cucina", "Ingresso": "ingresso", "Salotto": "soggiorno", "Balcone": "balcone" };
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
 const SBLOCCHI = ["personaggio base", "vestiti", "cappelli e accessori", "segni particolari", "primo animale", "accessori per animali", "animali fantasy", "oggetti rari"];
@@ -37,7 +49,7 @@ let db = null, me = null, winStart = 0, archiviando = false, sb = null, utente =
 const S = {
   config: null, faccende: [], comp: [], giocatori: {}, premi: [], riscatti: [], prodotti: [], spesa: [], sfidaPremi: [], sfide: {},
   loaded: { config: false, faccende: false, giocatori: false, comp: false },
-  view: "casa", fCat: "tutte", fStanza: "tutte", sgab: "scorte", onboardingShown: false
+  view: "casa", stanzaSel: null, fCat: "tutte", fStanza: "tutte", sgab: "scorte", onboardingShown: false
 };
 const BONUS_GIORNO = 0.2;
 try { const v = localStorage.getItem("olw-view"); if (v) S.view = v; me = localStorage.getItem("olw-hero"); } catch (e) {}
@@ -272,7 +284,8 @@ function tempoRestante(i, f, now) {
 /* ---------- Viste ---------- */
 function render() {
   const now = Date.now();
-  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.view === S.view ? "page" : "false"));
+  const tabVista = S.view === "stanza" ? "casa" : S.view;
+  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.view === tabVista ? "page" : "false"));
   $("#fab").hidden = !(db && me && S.view === "missioni");
   const hc = $("#heroChip"), cc = $("#coinChip");
   if (me && S.giocatori[me]) {
@@ -291,12 +304,66 @@ function render() {
   if (!db || !S.loaded.config || !S.loaded.faccende) return;
   controllaLivello();
   assicuraMissioneGiorno(now);
-  const v = { casa: vCasa, missioni: vMissioni, eroe: vEroe, premi: vPremi, sgabuzzino: vSgab }[S.view] || vCasa;
+  const v = { casa: vCasa, stanza: vStanza, missioni: vMissioni, eroe: vEroe, premi: vPremi, sgabuzzino: vSgab }[S.view] || vCasa;
   $("#view").innerHTML = v(now);
   if (S.loaded.giocatori && !(me && S.giocatori[me]) && !S.onboardingShown) {
     S.onboardingShown = true;
     if (Object.keys(S.giocatori).length) apriChi(); else apriProfilo(null, true);
   }
+}
+
+/* Polvere e ragnatele sono disegnate da codice sopra l'immagine, in base allo stato della stanza (0 = splendente … 3 = abbandonata). */
+function velo(livello, maschera) {
+  const web = [0, 0, 0.35, 0.85][livello], polvere = [0, 0.15, 0.55, 1][livello];
+  const tw = livello === 0 ? [[22, 30], [64, 20], [78, 58], [36, 70]].map(([x, y], k) => `<i class="tw" style="left:${x}%;top:${y}%;animation-delay:${k * 0.7}s"></i>`).join("") : "";
+  const m = maschera ? ` style="-webkit-mask:url(${maschera}) center/100% 100% no-repeat;mask:url(${maschera}) center/100% 100% no-repeat"` : "";
+  return `<span class="veil v${livello}"${m} aria-hidden="true"><img class="cobweb l" src="${WEB}" alt="" style="opacity:${web}"><img class="cobweb r" src="${WEB}" alt="" style="opacity:${web}"><span class="dust" style="opacity:${polvere}"></span>${tw}</span>`;
+}
+/* "Tutta la casa" non è una stanza vera: nel castello è il corridoio e prende lo stato medio della casa. */
+function statoUna(r, now, st) {
+  if (st[r]) return st[r];
+  if (r !== "Tutta la casa") return null;
+  const k = Object.keys(st), media = k.length ? k.reduce((a, x) => a + st[x].pct, 0) / k.length : 0, ult = ultimeComp();
+  const urg = S.faccende.filter(f => f.attiva !== false && f.tipo === "ricorrente" && f.stanza === "Tutta la casa" && infoFaccenda(f, ult, now).urgente).length;
+  return { pct: media, livello: media <= 0.10 ? 0 : media <= 0.25 ? 1 : media <= 0.50 ? 2 : 3, urg };
+}
+function castelloMappa(st, now) {
+  const { w, h } = CASTELLO, pc = (v, t) => (v / t * 100).toFixed(3) + "%";
+  const tasti = CASTELLO.stanze.map(s => {
+    const x = statoUna(s.r, now, st); if (!x) return "";
+    const [x0, y0, x1, y1] = s.rect, nome = s.nome || s.r;
+    return `<button class="rm lv${x.livello}${s.stretta ? " stretta" : ""}" data-act="stanza" data-r="${esc(s.r)}" style="left:${pc(x0, w)};top:${pc(y0, h)};width:${pc(x1 - x0, w)};height:${pc(y1 - y0, h)}" aria-label="${esc(nome)}: ${STATI[x.livello]}, ${x.urg ? x.urg + (x.urg === 1 ? " missione urgente" : " missioni urgenti") : "tutto in pari"}">${velo(x.livello)}<span class="rm-tag"><i class="dot"></i>${esc(nome)}${x.urg ? `<b class="num">${x.urg}</b>` : ""}</span></button>`;
+  }).join("");
+  return `<div class="castle"><img src="img/castello.webp" width="${w}" height="${h}" alt="Il castello in sezione: tocca una stanza" decoding="async">${tasti}</div>`;
+}
+function gruppoMissioni(t, a, vuoto, now) {
+  return `<section class="sec"><div class="sec-head"><h3>${t}</h3><span class="muted small num">${a.length}</span></div>${a.length ? `<div class="list">${a.map(x => cartaMissione(x, now)).join("")}</div>` : `<div class="empty fr-dash small">${vuoto}</div>`}</section>`;
+}
+function vStanza(now) {
+  const r = S.stanzaSel, st = statoStanze(now), x = r && statoUna(r, now, st);
+  if (!x) { S.view = "casa"; return vCasa(now); }
+  const nome = r === "Tutta la casa" ? "Corridoio" : r, img = IMG_STANZA[r], ult = ultimeComp();
+  const tutte = S.faccende.filter(f => f.attiva !== false && f.stanza === r).map(f => ({ f, i: infoFaccenda(f, ult, now) }));
+  const urg = tutte.filter(y => y.i.urgente && !y.i.riposo).sort((a, b) => b.i.ritardo - a.i.ritardo);
+  const disp = tutte.filter(y => !y.i.urgente && !y.i.riposo).sort((a, b) => (a.i.scadenza ?? 1e15) - (b.i.scadenza ?? 1e15));
+  const rip = tutte.filter(y => y.i.riposo).sort((a, b) => a.i.riposo - b.i.riposo);
+  const pulita = Math.round((1 - x.pct) * 100), col = ["var(--candle)", "var(--moss)", "var(--arcane)", "var(--ember)"][x.livello];
+  return `
+  <button class="btn ghost sm back" data-act="indietro">← Il castello</button>
+  <section class="hero fr-stone st${x.livello} room-hero">
+    <div class="room-scene">${img ? `<img src="img/stanze/${img}.webp" alt="${esc(nome)}" decoding="async">` : ""}${velo(x.livello, img ? "img/stanze/" + img + ".webp" : "")}</div>
+    <div class="hero-cap">
+      <div class="sec-head"><span class="state">${esc(nome)}</span><span class="pill p${x.livello}">${STATI[x.livello]}</span></div>
+      <span class="bar big" aria-hidden="true"><i style="width:${Math.max(4, pulita)}%;background:${col}"></i></span>
+      <span class="muted small"><span class="num">${pulita}%</span> pulita${r === "Tutta la casa" ? " (stato medio della casa)" : ""} · ${x.urg ? `<span class="num">${x.urg}</span> ${x.urg === 1 ? "missione urgente" : "missioni urgenti"}` : "nessuna missione urgente"}</span>
+    </div>
+  </section>
+  ${r === "Tutta la casa" ? `<p class="muted small" style="margin:0">Le faccende di tutta la casa, come l'aspirapolvere, stanno nel corridoio.</p>` : ""}
+  ${tutte.length ? "" : `<div class="empty fr-dash">Nessuna faccenda in questa stanza.</div>`}
+  ${gruppoMissioni("Urgenti", urg, "Niente di scaduto qui.", now)}
+  ${gruppoMissioni("Disponibili", disp, "Nessuna missione disponibile.", now)}
+  ${rip.length ? gruppoMissioni("In riposo · fatte da poco", rip, "", now) : ""}
+  <button class="btn ghost" data-act="vaiMissioni" data-r="${esc(r)}">Vedi tutte le missioni</button>`;
 }
 
 function vCasa(now) {
@@ -311,13 +378,14 @@ function vCasa(now) {
   const urgTot = rs.reduce((a, r) => a + st[r].urg, 0);
   return `
   <section class="hero fr-stone st${liv}">
-    <div class="scene-wrap">${scena(dim)}<div class="glow"></div>
+    ${dim === "castello" ? "" : `<div class="scene-wrap">${scena(dim)}<div class="glow"></div>
     <img class="cobweb l" src="${WEB}" alt="" style="opacity:${webOp}"><img class="cobweb r" src="${WEB}" alt="" style="opacity:${webOp}">
-    <div class="dust" style="opacity:${dustOp}"></div>${sparks}</div>
+    <div class="dust" style="opacity:${dustOp}"></div>${sparks}</div>`}
     <div class="hero-cap">
       <div class="sec-head"><span class="state">${esc(cfg.nome || "Our little world")}</span><span class="pill p${liv}">${STATI[liv]}</span></div>
       <span class="muted small">${esc(DIMORE[dim] || "La dimora")} · <span class="num">${Math.round(media * 100)}%</span> delle faccende ricorrenti in ritardo · ${urgTot ? `<span class="num">${urgTot}</span> missioni urgenti` : "nessuna missione urgente"}</span>
     </div>
+    ${dim === "castello" ? castelloMappa(st, now) : ""}
   </section>
   ${cartaGiorno(now)}
   <section class="sec">
@@ -734,7 +802,7 @@ function conferma(titolo, testo, etichetta, azione) {
 
 /* ---------- Azioni ---------- */
 const trova = (arr, id) => arr.find(x => x.id === id);
-const libere = new Set(["filtro", "fcat", "fstanza", "sgab", "stanza", "chi"]);
+const libere = new Set(["filtro", "fcat", "fstanza", "sgab", "stanza", "indietro", "vaiMissioni", "chi"]);
 document.addEventListener("click", e => {
   const nav = e.target.closest("nav.tabs button");
   if (nav) { S.view = nav.dataset.view; try { localStorage.setItem("olw-view", S.view); } catch (x) {} window.scrollTo(0, 0); render(); return; }
@@ -745,7 +813,9 @@ document.addEventListener("click", e => {
   if (!(me && S.giocatori[me]) && !libere.has(act)) { apriChi(); return; }
   switch (act) {
     case "chi": apriChi(); break;
-    case "stanza": S.view = "missioni"; S.fStanza = b.dataset.r; S.fCat = "tutte"; render(); window.scrollTo(0, 0); break;
+    case "stanza": S.view = "stanza"; S.stanzaSel = b.dataset.r; render(); window.scrollTo(0, 0); break;
+    case "indietro": S.view = "casa"; render(); window.scrollTo(0, 0); break;
+    case "vaiMissioni": S.view = "missioni"; S.fStanza = b.dataset.r; S.fCat = "tutte"; render(); window.scrollTo(0, 0); break;
     case "fcat": S.fCat = b.dataset.k; render(); break;
     case "fstanza": S.fStanza = b.dataset.r; render(); break;
     case "cambiaGiorno": cambiaGiorno(); break;
