@@ -165,7 +165,7 @@
     const pc = (v, t) => (v / t * 100).toFixed(3) + "%";
     const PIEDI = 60, PIEDI_PET = 29, VEL = 38, FPS = 9;
     const lista = abitanti.filter(a => a && a.pg).map(a => {
-      const st = STATO[a.id] || (STATO[a.id] = {});
+      const ch = a.id + "@" + (a.vista || ""), st = STATO[ch] || (STATO[ch] = {});
       const nuovaStanza = st.stanza !== a.stanza;
       if (nuovaStanza || st.x == null || st.x < a.x0 || st.x > a.x1) { st.x = a.x0 + Math.random() * (a.x1 - a.x0); st.stanza = a.stanza; st.meta = null; st.fermoFino = performance.now() + 800; st.px = null; }
       const cv = document.createElement("canvas"); cv.width = F; cv.height = F; cv.className = "abit-eroe" + (nuovaStanza ? " nuovo" : ""); cv.setAttribute("aria-hidden", "true");

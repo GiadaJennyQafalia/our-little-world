@@ -42,6 +42,12 @@ const PIANI = {
   corridoio: { x0: 372, x1: 398, y: 880 }, cucina: { x0: 490, x1: 625, y: 885 }, ingresso: { x0: 165, x1: 285, y: 1185 },
   soggiorno: { x0: 385, x1: 600, y: 1165 }, balcone: { x0: 717, x1: 717, y: 1080 }
 };
+/* Lo stesso nelle viste delle singole stanze (immagini 720×676, 720×706 il corridoio): il pavimento è un rombo, i piedi stanno nella parte centrale. */
+const PIANI_STANZA = {
+  bagno: { x0: 250, x1: 470, y: 500 }, camera: { x0: 260, x1: 480, y: 505 }, ripostiglio: { x0: 410, x1: 560, y: 505 },
+  corridoio: { x0: 250, x1: 470, y: 520 }, cucina: { x0: 430, x1: 570, y: 530 }, ingresso: { x0: 220, x1: 440, y: 510 },
+  soggiorno: { x0: 250, x1: 470, y: 505 }, balcone: { x0: 250, x1: 470, y: 505 }, altro: { x0: 250, x1: 470, y: 505 }
+};
 const GRIGLIA = { w: 11, h: 11 };
 const CORRIDOIO = { tipo: "corridoio", x: 4, y: 3, w: 2, h: 4 };
 const PIANTA_BASE = {
@@ -373,7 +379,7 @@ function render() {
   assicuraMissioneGiorno(now);
   const v = { casa: vCasa, stanza: vStanza, missioni: vMissioni, eroe: vEroe, premi: vPremi, sgabuzzino: vSgab }[S.view] || vCasa;
   $("#view").innerHTML = v(now);
-  { const cs = document.querySelector(".castle"); if (cs && window.OLW_SPRITE) abitantiCastello(cs); }
+  if (window.OLW_SPRITE) { const cs = document.querySelector(".castle"), rc = document.querySelector(".room-chars"); if (cs) abitantiCastello(cs); else if (rc) abitantiStanza(rc); }
   document.querySelectorAll("canvas.pet-cv").forEach(c => window.OLW_SPRITE.animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 0, scala: 2, fps: 4 }));
   if (S.loaded.giocatori && !(me && S.giocatori[me]) && !S.onboardingShown) {
     S.onboardingShown = true;
@@ -432,7 +438,7 @@ function vStanza(now) {
   return `
   <button class="btn ghost sm back" data-act="indietro">← ${esc(DIMORE[dimS] || "La dimora")}</button>
   <section class="hero fr-stone st${x.livello} room-hero">
-    <div class="room-scene">${img ? `<img src="${sk.stanze}${img}.webp" alt="${esc(nome)}" decoding="async">` : ""}${velo(x.livello, img ? sk.stanze + img + ".webp" : "")}</div>
+    <div class="room-scene">${img ? `<img src="${sk.stanze}${img}.webp" alt="${esc(nome)}" decoding="async">` : ""}${velo(x.livello, img ? sk.stanze + img + ".webp" : "")}<div class="room-chars"></div></div>
     <div class="hero-cap">
       <div class="sec-head"><span class="state">${esc(nome)}</span><span class="pill p${x.livello}">${STATI[x.livello]}</span></div>
       <span class="bar big" aria-hidden="true"><i style="width:${Math.max(4, pulita)}%;background:${col}"></i></span>
@@ -1007,20 +1013,29 @@ function apriImpostazioni() {
   });
 }
 
-/* Ogni eroe con un personaggio sta nella stanza della sua ultima faccenda (di default in soggiorno); se sono in due nella stessa stanza si dividono il pavimento. */
+/* Ogni eroe con un personaggio sta nella stanza della sua ultima faccenda (di default in soggiorno). */
+function tipoPosto(r) { if (r === "Tutta la casa") return "corridoio"; const pi = pianta(), po = POSTI.find(p => stanzaDelPosto(p.tipo, pi) === r); return po ? po.tipo : "soggiorno"; }
+function eroiPerPosto() {
+  const ultima = {}, per = {};
+  for (const c of S.comp) if (!c.annullato) for (const g of c.giocatori || []) if (!ultima[g] || c.ts > ultima[g].ts) ultima[g] = c;
+  for (const id of Object.keys(S.giocatori).sort()) { const g = S.giocatori[id]; if (!g.pg) continue; const t = tipoPosto(ultima[id] ? ultima[id].stanza : ""); (per[t] = per[t] || []).push(id); }
+  return per;
+}
+/* Se sono in due nella stessa stanza si dividono il pavimento. */
+function abitantiDi(ids, t, P, vista, scala) {
+  const n = ids.length, larg = (P.x1 - P.x0) / n;
+  return ids.map((id, i) => { const g = S.giocatori[id]; return { id, vista, pg: g.pg, pet: g.pet, stanza: t, x0: P.x0 + larg * i + (n > 1 ? 8 : 0), x1: P.x0 + larg * (i + 1) - (n > 1 ? 8 : 0), y: P.y, scala }; });
+}
 function abitantiCastello(host) {
   const dim = (S.config && S.config.dimora) || "castello", sk = SKIN[dim]; if (!sk || dim !== "castello") return;
-  const pi = pianta(), ultima = {};
-  for (const c of S.comp) if (!c.annullato) for (const g of c.giocatori || []) if (!ultima[g] || c.ts > ultima[g].ts) ultima[g] = c;
-  const tipoDi = r => { if (r === "Tutta la casa") return "corridoio"; const po = POSTI.find(p => stanzaDelPosto(p.tipo, pi) === r); return po ? po.tipo : "soggiorno"; };
-  const per = {};
-  for (const id of Object.keys(S.giocatori).sort()) { const g = S.giocatori[id]; if (!g.pg) continue; const t = tipoDi(ultima[id] ? ultima[id].stanza : ""); (per[t] = per[t] || []).push(id); }
   const out = [];
-  for (const [t, ids] of Object.entries(per)) {
-    const P = PIANI[t]; if (!P) continue; const n = ids.length, larg = (P.x1 - P.x0) / n;
-    ids.forEach((id, i) => { const g = S.giocatori[id]; out.push({ id, pg: g.pg, pet: g.pet, stanza: t, x0: P.x0 + larg * i + (n > 1 ? 8 : 0), x1: P.x0 + larg * (i + 1) - (n > 1 ? 8 : 0), y: P.y, scala: 2 }); });
-  }
+  for (const [t, ids] of Object.entries(eroiPerPosto())) if (PIANI[t]) out.push(...abitantiDi(ids, t, PIANI[t], "castello", 2));
   window.OLW_SPRITE.abita(host, sk.w, sk.h, out);
+}
+function abitantiStanza(host) {
+  const r = S.stanzaSel, t = tipoStanza(r) === "corridoio" || r === "Tutta la casa" ? "corridoio" : tipoStanza(r), P = PIANI_STANZA[t] || PIANI_STANZA.altro;
+  const ids = eroiPerPosto()[tipoPosto(r)] || [];
+  window.OLW_SPRITE.abita(host, 720, t === "corridoio" ? 706 : 676, abitantiDi(ids, t, P, "stanza", 2.6));
 }
 
 /* ---------- Esporta e azzera ---------- */

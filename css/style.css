@@ -468,3 +468,5 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .abit-eroe.nuovo, .abit-pet.nuovo { animation: compari .6s ease-out both; }
 @keyframes compari { from { opacity: 0; transform: translateY(-6px) scale(1.15); filter: brightness(2) drop-shadow(0 2px 0 #0006); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .abit-eroe.nuovo, .abit-pet.nuovo { animation: none; } }
+
+.room-hero .room-scene .room-chars { position: absolute; inset: 12px 6px 0; isolation: isolate; pointer-events: none; }
