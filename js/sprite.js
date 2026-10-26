@@ -123,5 +123,30 @@
   const palette = mat => Object.keys(CAT.palette[mat].rampe);
   const hexDi = (mat, nome) => rgb2hex(rampa(mat, nome)[Math.floor(rampa(mat, nome).length * 0.66)]);
 
-  window.OLW_SPRITE = { carica, disegna, anima, ritratto, fotogramma, elenco, palette, hexDi, catalogo: () => CAT, compatibile };
+  /* ---------- Animali ----------
+     Fogli 512×160 di celle 32×32: 4 colori da 4 colonne; righe 0 = destra, 1 = su, 2 = giù, 3 = sinistra. Colonne 0–2 = passi, 3 = sdraiato. */
+  const ANIMALI = {
+    gatto: { nome: "Gatto", file: "assets/pets/gatto.png", colori: ["bianco", "dorato", "rosso", "nero"] },
+    cane: { nome: "Cane", file: "assets/pets/cane.png", colori: ["bianco", "marrone", "dorato", "nero"] }
+  };
+  const fogli = new Map();
+  const foglio = f => { if (!fogli.has(f)) fogli.set(f, new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error("manca " + f)); i.src = f; })); return fogli.get(f); };
+  function animaPet(canvas, pet, { riga = 0, scala = 3, fps = 5, fermo = false } = {}) {
+    let attivo = true; const A = ANIMALI[pet && pet.specie]; if (!A) return () => {};
+    const rid = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches, c0 = Math.max(0, Math.min(3, pet.col | 0)) * 4;
+    foglio(A.file).then(img => {
+      canvas.width = 32 * scala; canvas.height = 32 * scala; const x = canvas.getContext("2d"); x.imageSmoothingEnabled = false; let k = 0; const seq = [0, 1, 2, 1];
+      const giro = () => {
+        if (!attivo || !canvas.isConnected) return;
+        x.clearRect(0, 0, canvas.width, canvas.height);
+        const col = fermo || rid ? 1 : seq[k++ % 4];
+        x.drawImage(img, (c0 + col) * 32, riga * 32, 32, 32, 0, 0, canvas.width, canvas.height);
+        if (!(fermo || rid)) setTimeout(giro, 1000 / fps);
+      };
+      giro();
+    }).catch(e => console.warn("animale", e));
+    return () => { attivo = false; };
+  }
+
+  window.OLW_SPRITE = { ANIMALI, animaPet, carica, disegna, anima, ritratto, fotogramma, elenco, palette, hexDi, catalogo: () => CAT, compatibile };
 })();

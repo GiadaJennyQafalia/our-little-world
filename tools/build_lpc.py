@@ -202,6 +202,8 @@ for v in tutte_le_voci():
     v.pop("_vs", None); v.pop("_var", None)
 catalogo["palette"] = mat
 catalogo["crediti"] = [c for c in catalogo["crediti"] if any(u.startswith(c["file"]) or c["file"] in u for u in usati)]
+# animali: file scaricati a mano da OpenGameArt (assets/pets), non dal generatore
+catalogo["crediti"].append({"file": "pets/gatto, pets/cane", "autori": ["bluecarrot16"], "licenze": ["CC-BY 3.0", "CC-BY-SA 3.0", "GPL 3.0", "GPL 2.0", "OGA-BY 3.0"], "url": ["https://opengameart.org/content/lpc-cats-and-dogs"], "note": "[LPC] Cats and Dogs"})
 json.dump(catalogo, open(os.path.join(OUT, "catalogo.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
 tot = sum(os.path.getsize(os.path.join(r, f)) for r, _, fs in os.walk(OUT) for f in fs)
 print("pezzi:", sum(len(v) for v in catalogo["slot"].values()) + len(catalogo["fissi"]), "file:", len(usati), "peso MB:", round(tot / 1e6, 1))

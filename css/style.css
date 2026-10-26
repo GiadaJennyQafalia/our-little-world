@@ -453,3 +453,6 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .sw.on { box-shadow: 0 0 0 2px var(--candle); }
 .sw.custom { background: conic-gradient(#e0359b, #e0a944, #6f9a5b, #5f9fb0, #8a6bb5, #e0359b); overflow: hidden; }
 .sw.custom input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; padding: 0; border: 0; }
+.cr-prev canvas#cPetPrev { width: 96px; height: 96px; background: none; }
+.cr-prev canvas[hidden] { display: none; }
+.pet-cv { flex: none; width: 64px; height: 64px; image-rendering: pixelated; }
