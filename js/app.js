@@ -82,7 +82,7 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.12.0";
+const VERSIONE_APP = "3.13.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -110,7 +110,7 @@ const ICON = {
 
 let db = null, me = null, winStart = 0, archiviando = false, sb = null, utente = null;
 const S = {
-  config: null, faccende: [], comp: [], giocatori: {}, premi: [], riscatti: [], prodotti: [], spesa: [], sfidaPremi: [], sfide: {},
+  config: null, faccende: [], comp: [], giocatori: {}, premi: [], riscatti: [], prodotti: [], spesa: [], sfide: {},
   loaded: { config: false, faccende: false, giocatori: false, comp: false },
   view: "casa", stanzaSel: null, fCat: "tutte", fStanza: "tutte", sgab: "scorte", onboardingShown: false
 };
@@ -269,12 +269,6 @@ function livelloDa(xp) {
   }
   return { lv, soglia, prossima, sblocco: SBLOCCHI[Math.min(lv - 1, SBLOCCHI.length - 1)] };
 }
-function periodoSfida(now) {
-  const cfg = S.config || {}, len = (cfg.sfidaGiorni || 14) * DAY, start0 = cfg.sfidaInizio || now;
-  const k = Math.max(0, Math.floor((now - start0) / len));
-  const inizio = start0 + k * len;
-  return { len, inizio, fine: inizio + len, prec: k >= 1 ? inizio - len : null };
-}
 function punteggi(da, a) {
   const p = {}; for (const id of Object.keys(S.giocatori)) p[id] = 0;
   for (const c of S.comp) if (!c.annullato && c.ts >= da && c.ts < a) for (const g of c.giocatori || []) p[g] = (p[g] || 0) + (c.punti || 0);
@@ -379,10 +373,12 @@ function render() {
   if (!db || !S.loaded.config || !S.loaded.faccende) return;
   controllaLivello();
   assicuraMissioneGiorno(now);
+  chiudiSfide(now);
   const v = { casa: vCasa, stanza: vStanza, missioni: vMissioni, eroe: vEroe, premi: vPremi, sgabuzzino: vSgab }[S.view] || vCasa;
   $("#view").innerHTML = v(now);
   disegnaAmpolle($("#view")); aggiornaProdotto();
   if (window.OLW_SPRITE && S.view === "eroe") avviaVetrina();
+  if (S.view === "eroe" || S.view === "premi") disegnaOggetti($("#view"));
   if (window.OLW_SPRITE) { const cs = document.querySelector(".castle"), rc = document.querySelector(".room-chars"); if (cs) abitantiCastello(cs); else if (rc) abitantiStanza(rc); }
   document.querySelectorAll("canvas.pet-cv").forEach(c => window.OLW_SPRITE.animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 0, scala: 2, fps: 4 }));
   if (S.loaded.giocatori && S.loaded.faccende && S.loaded.config && S.config && me && S.giocatori[me] && !S.faccende.length && !S.config.setupFatto && !S.setupMostrato) { S.setupMostrato = true; apriSetup(false); }
@@ -466,7 +462,7 @@ function vCasa(now) {
   const dim = cfg.dimora || "castello";
   const sparks = [[14, 30], [30, 18], [52, 26], [72, 14], [86, 36], [44, 8]].map(([x, y]) => `<i class="spark" style="left:${x}%;top:${y}%"></i>`).join("");
   const webOp = [0, 0, 0.35, 0.8][liv], dustOp = [0, 0.2, 0.6, 1][liv];
-  const p = periodoSfida(now), sc = punteggi(p.inizio, now), ids = Object.keys(S.giocatori);
+  const ids = Object.keys(S.giocatori);
   const urgTot = rs.reduce((a, r) => a + st[r].urg, 0);
   return `
   ${strisciaGiorno(now)}
@@ -491,13 +487,13 @@ function vCasa(now) {
       </button>`).join("")}</div>` : `<div class="empty fr-dash">Nessuna stanza ancora. Aggiungile dalle impostazioni della casa.</div>`}
   </section>
   ${ids.length ? `<section class="sec">
-    <div class="sec-head"><h3>Sfida in corso</h3><span class="muted small">finisce il ${dataBreve(p.fine - 1)}</span></div>
-    ${duello(sc, ids)}
+    <div class="sec-head"><h3>Sfida</h3></div>
+    ${cardSfidaCasa(now)}
   </section>` : ""}`;
 }
 function duello(sc, ids) {
   if (ids.length < 2) return `<div class="notice fr-stone small muted">La sfida parte quando c'è un secondo eroe. Dal telefono dell'altra persona, tocca "Chi gioca?" in alto e crea un nuovo eroe.</div>`;
-  const [a, b] = ids;
+  const [a, b] = ids; sc = sc || {};
   return `<div class="duel fr-stone"><div><div class="score num">${fmt(sc[a] || 0)}</div><div class="who">${esc(nome(a))}</div></div><div class="vs">contro</div><div><div class="score num">${fmt(sc[b] || 0)}</div><div class="who">${esc(nome(b))}</div></div></div>`;
 }
 
@@ -607,56 +603,67 @@ function avviaVetrina() {
   if (pc) SP().animaPet(pc, { specie: pc.dataset.specie, col: +pc.dataset.col }, { riga: riga === 1 ? 3 : riga === 3 ? 0 : riga === 0 ? 1 : 2, scala: 3, fps: 5 });
 }
 
-/* L'armadio: i pezzi comprati che non si indossano in questo momento, e gli animali. Toccando si indossa. */
-function apriArmadio() {
-  const g = S.giocatori[me]; if (!g || !g.pg) { toast("Crea prima il personaggio"); return; }
-  const scorri = (document.querySelector("#scrim .sheet") || {}).scrollTop || 0;
-  SP().carica().then(() => {
-    const A = SP().ANIMALI, pg = g.pg, sbl = g.sbloccati || [], memoria = g.memoria || {};
-    const indossati = ORDINE_SLOT.filter(sl => PREZZO[sl] && pg[sl] && pg[sl].id).map(sl => [sl, pg[sl]]);
-    const dentro = [];
-    for (const k of sbl) { const [sl, pid] = k.split("/"); if (sl === "pet" || !PREZZO[sl] || !pezzoDi(sl, pid)) continue; if (pg[sl] && pg[sl].id === pid) continue; dentro.push([sl, pid]); }
-    dentro.sort((a, b) => ORDINE_SLOT.indexOf(a[0]) - ORDINE_SLOT.indexOf(b[0]));
-    const petDentro = sbl.filter(k => k.startsWith("pet/") && A[k.slice(4)] && !(g.pet && g.pet.specie === k.slice(4))).map(k => k.slice(4));
-    const corpo = pg.corpo === "male" ? "male" : "female";
-    const tess = (sl, pid, col, azione, etich) => { const v = pezzoDi(sl, pid), ok = SP().compatibile(v, corpo); return `<div class="tess"><canvas class="tess-cv" data-sl="${sl}" data-id="${esc(pid)}" data-col="${esc(col || "")}" aria-hidden="true"></canvas><b>${esc(v.nome)}</b><span class="muted small">${SLOT_NOME[sl]}</span>${ok ? `<button class="btn sm${azione === "togli" ? " ghost" : ""}" data-ar="${azione}" data-sl="${sl}" data-id="${esc(pid)}">${etich}</button>` : `<span class="muted small">Non adatto a questo corpo</span>`}</div>`; };
-    const tessPet = (k, azione, etich) => `<div class="tess"><canvas class="tess-pet" data-specie="${k}" data-col="${azione === "togli" && g.pet ? g.pet.col | 0 : 0}" aria-hidden="true"></canvas><b>${esc(A[k].nome)}</b><span class="muted small">Animale</span><button class="btn sm${azione === "togli" ? " ghost" : ""}" data-ar="${azione === "togli" ? "petTogli" : "petMetti"}" data-id="${k}">${etich}</button></div>`;
-    const sezione = (tit, html, vuoto) => `<div class="field"><span class="lab">${tit}</span>${html ? `<div class="tess-griglia">${html}</div>` : `<span class="muted small">${vuoto}</span>`}</div>`;
-    apriSheet(`<h2>Armadio di ${esc(g.nome)}</h2>
-      <p class="muted small" style="margin:0">Qui trovi tutto quello che hai comprato e non indossi adesso. Tocca un pezzo per indossarlo: quello che toglie va nell'armadio.</p>
-      ${sezione("Nell'armadio", dentro.map(([sl, pid]) => tess(sl, pid, memoria[sl + "/" + pid], "indossa", "Indossa")).join("") + petDentro.map(k => tessPet(k, "indossa", "Con me")).join(""), "L'armadio è vuoto: i pezzi che compri nel creatore e non indossi finiscono qui.")}
-      ${sezione("Indossato adesso", indossati.map(([sl, x]) => tess(sl, x.id, x.col, "togli", "Togli")).join("") + (g.pet && A[g.pet.specie] ? tessPet(g.pet.specie, "togli", "Togli") : ""), "Nessun pezzo speciale indossato.")}
-      <div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button><button class="btn prime" data-ar="creatore">Modifica l'eroe</button></div>`, sh => {
-      sh.scrollTop = scorri;
-      sh.querySelectorAll("canvas.tess-cv").forEach(c => SP().pezzoSolo(c, corpo, c.dataset.sl, { id: c.dataset.id, col: c.dataset.col || null }, 96).catch(() => {}));
-      sh.querySelectorAll("canvas.tess-pet").forEach(c => SP().animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 0, scala: 2, fps: 4 }));
-      sh.addEventListener("click", async e => {
-        const b = e.target.closest("[data-ar]"); if (!b) return;
-        if (b.dataset.ar === "creatore") { apriProfilo(me, false); return; }
-        const sl = b.dataset.sl, pid = b.dataset.id, nuovo = { ...(g.pg) }, sbloccati = [...sbl], mem = { ...memoria };
-        const segna = chiave => { if (!sbloccati.includes(chiave)) sbloccati.push(chiave); };
-        try {
-          if (b.dataset.ar === "indossa") {
-            const prima = nuovo[sl]; if (prima && prima.id) { segna(sl + "/" + prima.id); mem[sl + "/" + prima.id] = prima.col || null; }
-            const v = pezzoDi(sl, pid), vecchio = mem[sl + "/" + pid];
-            nuovo[sl] = { id: pid, col: vecchio && (v.varianti ? v.varianti.includes(vecchio) : true) ? vecchio : (v.varianti ? v.varianti[0] : (KIT[pg.classe] && KIT[pg.classe][sl] && KIT[pg.classe][sl].id === pid ? KIT[pg.classe][sl].col : null)) };
-            await db.doc("giocatori/" + me).update({ pg: nuovo, sbloccati, memoria: mem }); toast("Indossato: " + v.nome);
-          } else if (b.dataset.ar === "togli") {
-            const x = nuovo[sl]; if (x) { segna(sl + "/" + x.id); mem[sl + "/" + x.id] = x.col || null; }
-            nuovo[sl] = null; await db.doc("giocatori/" + me).update({ pg: nuovo, sbloccati, memoria: mem }); toast("Nell'armadio");
-          } else if (b.dataset.ar === "petMetti") {
-            const nm = g.pet && g.pet.specie === pid ? g.pet.nome : ""; const prec = g.pet;
-            if (prec) segna("pet/" + prec.specie);
-            await db.doc("giocatori/" + me).update({ pet: { specie: pid, col: 0, nome: nm || "" }, sbloccati }); toast(A[pid].nome + " è con te");
-          } else if (b.dataset.ar === "petTogli") {
-            if (g.pet) segna("pet/" + g.pet.specie);
-            await db.doc("giocatori/" + me).update({ pet: null, sbloccati }); toast("L'animale resta a casa");
-          }
-          apriArmadio();
-        } catch (er) { errore(er); }
-      });
-    });
-  });
+/* ---------- L'armadio fisico ----------
+   Un mobile con le ante, nella scheda Eroe. Dentro, su ripiani, ci sono tutti i pezzi speciali e gli animali che possiedi:
+   quelli indossati sono segnati. Toccando un oggetto lo si indossa o lo si toglie. */
+function oggettiArmadio(g) {
+  const A = SP().ANIMALI, pg = g.pg, sbl = g.sbloccati || [], mem = g.memoria || {}, visti = new Set(), out = [];
+  for (const sl of ORDINE_SLOT) { const x = pg[sl]; if (PREZZO[sl] && x && x.id && pezzoDi(sl, x.id)) { visti.add(sl + "/" + x.id); out.push({ t: "p", sl, id: x.id, col: x.col, ind: true }); } }
+  for (const k of sbl) { const [sl, pid] = k.split("/"); if (sl === "pet" || !PREZZO[sl] || visti.has(k) || !LPC().slot[sl] || !pezzoDi(sl, pid)) continue; visti.add(k); out.push({ t: "p", sl, id: pid, col: mem[k] || null, ind: false }); }
+  out.sort((a, b) => ORDINE_SLOT.indexOf(a.sl) - ORDINE_SLOT.indexOf(b.sl));
+  const specie = new Set();
+  if (g.pet && A[g.pet.specie]) { specie.add(g.pet.specie); out.push({ t: "pet", id: g.pet.specie, col: g.pet.col | 0, ind: true }); }
+  for (const k of sbl) if (k.startsWith("pet/") && A[k.slice(4)] && !specie.has(k.slice(4))) { specie.add(k.slice(4)); out.push({ t: "pet", id: k.slice(4), col: 0, ind: false }); }
+  return out;
+}
+function cellaOggetto(o, corpo) {
+  if (o.t === "pet") {
+    const a = SP().ANIMALI[o.id];
+    return `<button class="wd-item${o.ind ? " on" : ""}" data-act="armItem" data-t="pet" data-id="${esc(o.id)}"><canvas class="tess-pet" data-specie="${esc(o.id)}" data-col="${o.col | 0}" aria-hidden="true"></canvas><b>${esc(a.nome)}</b>${o.ind ? '<span class="wd-tag">Con te</span>' : '<span class="muted small">Animale</span>'}</button>`;
+  }
+  const v = pezzoDi(o.sl, o.id), ok = SP().compatibile(v, corpo);
+  return `<button class="wd-item${o.ind ? " on" : ""}${ok ? "" : " no"}" data-act="armItem" data-t="p" data-sl="${o.sl}" data-id="${esc(o.id)}" ${ok ? "" : "disabled"}><canvas class="tess-cv" data-sl="${o.sl}" data-id="${esc(o.id)}" data-col="${esc(o.col || "")}" aria-hidden="true"></canvas><b>${esc(v.nome)}</b>${o.ind ? '<span class="wd-tag">Indossato</span>' : `<span class="muted small">${ok ? SLOT_NOME[o.sl] : "Non adatto a questo corpo"}</span>`}</button>`;
+}
+function armadioFisico(eroe) {
+  if (!eroe.pg || !window.OLW_SPRITE || !SP().catalogo()) return "";
+  const og = oggettiArmadio(eroe), aperto = !!S.armadioAperto, corpo = eroe.pg.corpo === "male" ? "male" : "female";
+  const ripiani = []; for (let i = 0; i < og.length; i += 3) ripiani.push(og.slice(i, i + 3));
+  const dentro = og.length ? ripiani.map(r => `<div class="wd-shelf">${r.map(o => cellaOggetto(o, corpo)).join("")}</div>`).join("")
+    : `<div class="wd-vuoto"><p class="muted small" style="margin:0">L'armadio è vuoto. Gli oggetti che compri nella Bottega finiscono qui.</p><button class="btn sm" data-act="vaiBottega">Vai alla Bottega</button></div>`;
+  const porta = lato => `<button class="wd-door ${lato}" data-act="armadioPorte" aria-expanded="${aperto}" aria-label="${aperto ? "Chiudi" : "Apri"} l'armadio"></button>`;
+  return `<section class="sec" id="armadio"><div class="sec-head"><h3>Armadio</h3><span class="muted small">${og.length} ${og.length === 1 ? "oggetto" : "oggetti"}</span></div>
+    <div class="wardrobe${aperto ? " open" : ""}"><div class="wd-crown"></div>
+      <div class="wd-body"><div class="wd-inside"${aperto ? "" : " inert"}>${dentro}</div>${porta("l")}${porta("r")}</div>
+      <div class="wd-feet"><i></i><i></i></div></div>
+    <p class="muted small" style="margin:6px 0 0">${aperto ? "Tocca un oggetto per indossarlo o toglierlo. Tocca le ante per chiudere." : "Tocca le ante per aprire l'armadio."}</p></section>`;
+}
+/* Disegna le anteprime dei pezzi e gli animali (armadio e bottega). */
+function disegnaOggetti(radice) {
+  const g = me && S.giocatori[me]; if (!g || !g.pg || !window.OLW_SPRITE || !SP().catalogo()) return;
+  const corpo = g.pg.corpo === "male" ? "male" : "female";
+  radice.querySelectorAll("canvas.tess-cv").forEach(c => SP().pezzoSolo(c, corpo, c.dataset.sl, { id: c.dataset.id, col: c.dataset.col || null }, 96).catch(() => {}));
+  radice.querySelectorAll("canvas.tess-pet").forEach(c => SP().animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 0, scala: 2, fps: 4 }));
+}
+/* Indossa o toglie un oggetto: quello che si toglie torna nell'armadio col suo colore. */
+async function azArmadio(t, sl, pid) {
+  const g = S.giocatori[me]; if (!g || !g.pg) return;
+  const A = SP().ANIMALI, pg = g.pg, sbl = g.sbloccati || [], memoria = g.memoria || {};
+  const nuovo = { ...pg }, sbloccati = [...sbl], mem = { ...memoria };
+  const segna = chiave => { if (!sbloccati.includes(chiave)) sbloccati.push(chiave); };
+  try {
+    if (t === "pet") {
+      if (g.pet && g.pet.specie === pid) { segna("pet/" + pid); await db.doc("giocatori/" + me).update({ pet: null, sbloccati }); toast("L'animale resta a casa"); }
+      else { if (g.pet) segna("pet/" + g.pet.specie); segna("pet/" + pid); await db.doc("giocatori/" + me).update({ pet: { specie: pid, col: 0, nome: "" }, sbloccati }); toast(A[pid].nome + " è con te"); }
+    } else if (pg[sl] && pg[sl].id === pid) {
+      const x = nuovo[sl]; segna(sl + "/" + x.id); mem[sl + "/" + x.id] = x.col || null; nuovo[sl] = null;
+      await db.doc("giocatori/" + me).update({ pg: nuovo, sbloccati, memoria: mem }); toast("Nell'armadio");
+    } else {
+      const prima = nuovo[sl]; if (prima && prima.id) { segna(sl + "/" + prima.id); mem[sl + "/" + prima.id] = prima.col || null; }
+      const v = pezzoDi(sl, pid), vecchio = mem[sl + "/" + pid];
+      nuovo[sl] = { id: pid, col: vecchio && (v.varianti ? v.varianti.includes(vecchio) : true) ? vecchio : (v.varianti ? v.varianti[0] : (KIT[pg.classe] && KIT[pg.classe][sl] && KIT[pg.classe][sl].id === pid ? KIT[pg.classe][sl].col : null)) };
+      await db.doc("giocatori/" + me).update({ pg: nuovo, sbloccati, memoria: mem }); toast("Indossato: " + v.nome);
+    }
+  } catch (er) { errore(er); }
 }
 
 function vEroe(now) {
@@ -686,11 +693,12 @@ function vEroe(now) {
     </div>
   </section>
   ${vetrina(eroe)}
+  ${armadioFisico(eroe)}
   <div class="kv"><span class="muted">Sbloccato al livello ${L.lv}</span><span>${esc(L.sblocco)}</span></div>
   <div class="kv"><span class="muted">Minuti di pulizia negli ultimi 7 giorni</span><span class="num">${fmt(minSett)}</span></div>
   <div class="row-actions"><button class="btn sm" data-act="profilo">Modifica eroe</button><button class="btn sm ghost" data-act="chi">Cambia eroe</button></div>
   ${eroe.pg ? "" : `<div class="notice fr-stone small"><b>Crea il tuo personaggio.</b> Scegli classe, aspetto e colori: lo vedranno anche nella barra in alto.<br><button class="btn prime sm" data-act="profilo">Crea il personaggio</button></div>`}
-  <p class="muted small" style="margin:0">Nel creatore trovi i pezzi speciali e gli animali da comprare con le monete.</p>
+  <p class="muted small" style="margin:0">I pezzi speciali e gli animali si comprano con le monete nella Bottega, nella scheda Premi. <button class="btn sm ghost" data-act="vaiBottega">Vai alla Bottega</button></p>
   <section class="sec"><h3>Punti negli ultimi 30 giorni</h3>
     <div class="bars fr-stone">${ids.map(id => `<div class="brow"><span>${esc(nome(id))}</span><span class="bar"><i style="width:${(perG[id] || 0) / maxG * 100}%"></i></span><span class="num">${fmt(perG[id] || 0)}</span></div>`).join("")}</div>
   </section>
@@ -722,20 +730,149 @@ function cronologia(now) {
   return `<div class="panel fr-stone cron">${gruppi}${chiavi.length > N ? `<button class="btn sm ghost" data-act="piugiorni">Mostra altri giorni (${chiavi.length - N})</button>` : ""}<p class="muted small" style="margin:8px 0 0">Un completamento si può annullare entro 24 ore.</p></div>`;
 }
 
+/* ---------- Bottega ---------- */
+const REPARTI = [["abiti", "Abiti", ["mantello", "cappello"]], ["accessori", "Accessori", ["accessorio", "collo", "vita", "braccia", "schiena", "barba"]], ["fantasia", "Fantasia", ["orecchie", "corna", "coda", "ali"]], ["armi", "Armi e scudi", ["arma", "scudo"]], ["animali", "Animali", []]];
+const possiedePezzo = (g, sl, pid) => (((KIT[g.pg && g.pg.classe] || {})[sl] || {}).id === pid) || (g.sbloccati || []).includes(sl + "/" + pid) || !!(g.pg && g.pg[sl] && g.pg[sl].id === pid);
+const regaloPet = g => livelloDa(xpDi(me)).lv >= LV_ANIMALE && !(g.sbloccati || []).some(k => k.startsWith("pet/"));
+function vBottega() {
+  const g = S.giocatori[me], monete = moneteDi(me);
+  if (!g.pg || !window.OLW_SPRITE) return `<div class="notice fr-stone small">Crea prima il tuo personaggio: la bottega vende cose per lui. <button class="btn prime sm" data-act="profilo">Crea il personaggio</button></div>`;
+  if (!SP().catalogo()) { if (!S.caricaLPC) { S.caricaLPC = true; SP().carica().then(() => render()).catch(() => {}); } return `<div class="notice fr-stone small muted">Apro la bottega…</div>`; }
+  const rep = REPARTI.find(r => r[0] === S.reparto) || REPARTI[0], corpo = g.pg.corpo === "male" ? "male" : "female", A = SP().ANIMALI;
+  const stato = (ind, ha, prezzo, t, sl, pid, gratis) => ind ? '<span class="wd-tag">Indossato</span>' : ha ? '<span class="muted small">Nel tuo armadio</span>'
+    : gratis ? `<button class="btn sm prime" data-act="regaloPet" data-id="${esc(pid)}">In regalo</button>`
+    : `<button class="btn sm${monete >= prezzo ? " prime" : ""}" data-act="compra" data-t="${t}" data-sl="${sl || ""}" data-id="${esc(pid)}" ${monete >= prezzo ? "" : "disabled"}>${ICON.coin()}<b class="num">${fmt(prezzo)}</b></button>${monete >= prezzo ? "" : `<span class="muted small">ne mancano ${fmt(prezzo - monete)}</span>`}`;
+  let carte;
+  if (rep[0] === "animali") {
+    carte = Object.entries(A).map(([k, a]) => { const ha = (g.sbloccati || []).includes("pet/" + k), ind = !!(g.pet && g.pet.specie === k);
+      return { ha, html: `<div class="bt-card fr-stone"><canvas class="tess-pet" data-specie="${k}" data-col="0" aria-hidden="true"></canvas><b>${esc(a.nome)}</b><span class="muted small">Animale</span>${stato(ind, ha, PREZZO.animale, "pet", "", k, regaloPet(g))}</div>` }; });
+  } else {
+    carte = rep[2].flatMap(sl => LPC().slot[sl].filter(v => SP().compatibile(v, corpo)).map(v => {
+      const ha = possiedePezzo(g, sl, v.id), ind = !!(g.pg[sl] && g.pg[sl].id === v.id);
+      return { ha, html: `<div class="bt-card fr-stone"><canvas class="tess-cv" data-sl="${sl}" data-id="${esc(v.id)}" data-col="" aria-hidden="true"></canvas><b>${esc(v.nome)}</b><span class="muted small">${SLOT_NOME[sl]}</span>${stato(ind, ha, PREZZO[sl], "p", sl, v.id, false)}</div>` };
+    }));
+  }
+  carte.sort((a, b) => a.ha - b.ha);
+  return `<div class="banco" aria-label="Bottega"><div class="tenda"></div><div class="banco-in"><span class="insegna">Bottega</span><span class="chip gold num">${fmt(monete)} monete</span></div></div>
+    <div class="reparti" role="group" aria-label="Reparti">${REPARTI.map(([k, n]) => `<button data-act="reparto" data-k="${k}" aria-pressed="${k === rep[0]}">${n}</button>`).join("")}</div>
+    ${regaloPet(g) && rep[0] !== "animali" ? `<div class="notice fr-stone small">Hai raggiunto il livello ${LV_ANIMALE}: nel reparto Animali il primo compagno è in regalo.</div>` : ""}
+    <div class="bt-griglia">${carte.map(c => c.html).join("")}</div>
+    <p class="muted small" style="margin:0">Quello che compri va nell'armadio, nella scheda Eroe. Le monete si guadagnano con le faccende.</p>`;
+}
+function compraOggetto(t, sl, pid) {
+  const g = S.giocatori[me]; if (!g) return;
+  const prezzo = t === "pet" ? PREZZO.animale : PREZZO[sl], nm = t === "pet" ? SP().ANIMALI[pid].nome : pezzoDi(sl, pid).nome, chiave = t === "pet" ? "pet/" + pid : sl + "/" + pid;
+  if (moneteDi(me) < prezzo) { toast(`Ti servono ${fmt(prezzo)} monete: ne hai ${fmt(moneteDi(me))}`); return; }
+  conferma("Comprare questo oggetto?", `${esc(nm)} costa ${fmt(prezzo)} monete. Te ne restano ${fmt(moneteDi(me) - prezzo)}.`, "Compra", async () => {
+    try {
+      await db.collection("riscatti").add({ nome: "Negozio: " + nm, costo: prezzo, giocatore: me, ts: Date.now(), consegnato: true, negozio: true });
+      const sb = [...(S.giocatori[me].sbloccati || [])]; if (!sb.includes(chiave)) sb.push(chiave);
+      await db.doc("giocatori/" + me).update({ sbloccati: sb }); toast("Comprato: " + nm + ". Lo trovi nell'armadio");
+    } catch (er) { errore(er); }
+  });
+}
+
+/* ---------- Sfida ----------
+   Una sfida alla volta. Uno la propone (durata, premio segreto per l'altro, premio in caso di pareggio), l'altro accetta e sceglie il suo premio segreto.
+   Vince chi fa più punti nel periodo; il premio lo ha scelto chi perde, e viene svelato solo a fine sfida. */
+const sfideLista = () => Object.entries(S.sfide).filter(([, d]) => d && d.stato).map(([id, d]) => ({ ...d, id })).sort((a, b) => (b.creata || 0) - (a.creata || 0));
+const sfidaViva = () => sfideLista().find(x => x.stato === "proposta" || x.stato === "attiva");
+const altroEroe = () => Object.keys(S.giocatori).find(i => i !== me);
+function esitoSfida(x) {
+  const [a, b] = x.eroi, pt = x.risultato ? x.risultato.punti : punteggi(x.inizio, x.fine);
+  const vinc = x.risultato ? x.risultato.vincitore : (pt[a] === pt[b] ? null : (pt[a] > pt[b] ? a : b));
+  return { a, b, pt, vinc, perd: vinc ? (vinc === a ? b : a) : null };
+}
+const chiuse = new Set();
+function chiudiSfide(now) {
+  if (!db || !S.loaded.comp) return;
+  for (const x of sfideLista()) {
+    if (x.stato !== "attiva" || now < x.fine || x.risultato || chiuse.has(x.id)) continue;
+    chiuse.add(x.id);
+    const e = esitoSfida(x);
+    db.doc("sfide/" + x.id).update({ stato: "conclusa", risultato: { punti: e.pt, vincitore: e.vinc || null } }).catch(er => { chiuse.delete(x.id); console.error("sfida", er); });
+  }
+}
+function schedaEsito(x) {
+  const e = esitoSfida(x), premio = e.vinc ? (x.premi || {})[e.perd] : x.pareggio, nv = n => esc(nome(n));
+  return `<div class="notice fr-stone esito"><b>${e.vinc ? `Vince ${nv(e.vinc)}, ${fmt(e.pt[e.vinc])} a ${fmt(e.pt[e.perd])}` : `Pareggio, ${fmt(e.pt[e.a])} a ${fmt(e.pt[e.b])}`}</b>
+    <span class="muted small">${dataBreve(x.inizio)} – ${dataBreve(x.fine - 1)} · ${x.durata} giorni</span>
+    <span>${e.vinc ? `Premio per ${nv(e.vinc)}, scelto da ${nv(e.perd)}:` : "Premio del pareggio:"} <b>${esc(premio || "nessun premio scritto")}</b></span>
+    ${x.consegnato ? '<span class="muted small">Premio consegnato</span>' : `<button class="btn sm" data-act="sfidaConsegnato" data-id="${x.id}">Segna consegnato</button>`}</div>`;
+}
+function vSfida(now) {
+  const ids = Object.keys(S.giocatori);
+  if (ids.length < 2) return `<div class="notice fr-stone small muted">La sfida parte quando c'è un secondo eroe. Dal telefono dell'altra persona, tocca "Chi gioca?" in alto e crea un nuovo eroe.</div>`;
+  const altro = altroEroe(), x = sfidaViva(), nA = esc(nome(altro));
+  const storico = sfideLista().filter(y => y.stato === "conclusa" || (y.stato === "attiva" && now >= y.fine)).slice(0, 5);
+  let corpo;
+  if (!x) corpo = `<div class="notice fr-stone"><h2 style="margin:0 0 4px">Nessuna sfida in corso</h2><p class="muted small" style="margin:0 0 10px">Scegliete una durata: vince chi fa più punti. Ognuno sceglie in segreto il premio da dare all'altro; se finite in pareggio, il premio lo decidete insieme.</p><button class="btn prime" data-act="nuovasfida">Lancia una sfida</button></div>`;
+  else if (x.stato === "proposta" && x.da === me) corpo = `<div class="notice fr-stone sf"><h2 style="margin:0">Sfida proposta a ${nA}</h2>
+      <span>Durata: <b>${x.durata} giorni</b></span><span>Il tuo premio segreto per ${nA}, se vince: <b>${esc((x.premi || {})[me] || "")}</b></span><span>Premio in caso di pareggio: <b>${esc(x.pareggio || "da decidere")}</b></span>
+      <span class="muted small">La sfida parte quando ${nA} accetta e sceglie il suo premio segreto.</span><button class="btn sm ghost" data-act="annullasfida" data-id="${x.id}">Ritira la sfida</button></div>`;
+  else if (x.stato === "proposta") corpo = `<div class="notice fr-stone sf"><h2 style="margin:0">${esc(nome(x.da))} ti sfida!</h2>
+      <span>Durata: <b>${x.durata} giorni</b>. Vince chi fa più punti.</span><span>Premio in caso di pareggio, proposto: <b>${esc(x.pareggio || "da decidere")}</b></span>
+      <span class="muted small">Se accetti, scegli in segreto il premio che darai a ${esc(nome(x.da))} se vince.</span>
+      <div class="row-actions"><button class="btn prime" data-act="accettasfida" data-id="${x.id}">Accetta</button><button class="btn ghost" data-act="annullasfida" data-id="${x.id}">Rifiuta</button></div></div>`;
+  else if (now < x.fine) corpo = `<div class="sec-head"><h3>Sfida in corso</h3><span class="muted small">finisce il ${dataBreve(x.fine - 1)} · mancano ${Math.max(1, Math.ceil((x.fine - now) / DAY))} g</span></div>
+      ${duello(punteggi(x.inizio, now), x.eroi)}
+      <div class="notice fr-stone sf"><span>Il tuo premio per ${nA}, se vince: <b>${esc((x.premi || {})[me] || "")}</b></span><span>Il premio di ${nA} per te: <b class="segreto">segreto fino alla fine</b></span><span>Se finite in pareggio: <b>${esc(x.pareggio || "da decidere")}</b></span>
+      <button class="btn sm ghost" data-act="annullasfida" data-id="${x.id}">Annulla la sfida</button></div>`;
+  else corpo = `<div class="sec-head"><h3>Sfida finita</h3></div>${schedaEsito(x)}`;
+  const vecchie = storico.filter(y => !x || y.id !== x.id);
+  return `<section class="sec">${corpo}</section>${vecchie.length ? `<section class="sec"><h3>Sfide concluse</h3>${vecchie.map(schedaEsito).join("")}</section>` : ""}`;
+}
+function formSfida(x) {
+  const altro = altroEroe(), nA = nome(altro), nuova = !x;
+  apriSheet(`<h2>${nuova ? "Nuova sfida" : "Accetta la sfida"}</h2>
+    <p class="muted small" style="margin:0">${nuova ? `Vince chi fa più punti nel periodo. Il premio che scrivi resta segreto: ${esc(nA)} lo scopre solo se vince, a fine sfida.` : `Scrivi in segreto il premio che darai a ${esc(nome(x.da))} se vince. Lo scoprirà solo alla fine.`}</p>
+    ${nuova ? `<div class="field"><span class="lab">Durata</span>${radio("dur", [[3, "3 giorni"], [7, "1 settimana"], [14, "2 settimane"], [30, "1 mese"]], 14)}<label for="sdAltro" class="lab" style="margin-top:6px">Oppure scegli tu i giorni</label><input type="number" id="sdAltro" min="1" max="90" inputmode="numeric" placeholder="es. 10"></div>` : `<div class="kv"><span class="muted">Durata</span><span>${x.durata} giorni</span></div>`}
+    <div class="field"><label for="sdPremio">${nuova ? `Il tuo premio segreto per ${esc(nA)}, se vince` : `Il tuo premio segreto per ${esc(nome(x.da))}, se vince`}</label><input type="text" id="sdPremio" maxlength="80" placeholder="es. una cena fuori, un massaggio"></div>
+    <div class="field"><label for="sdPar">Premio se finite in pareggio${nuova ? " (proposta, si decide insieme)" : " (puoi cambiarlo)"}</label><input type="text" id="sdPar" maxlength="80" value="${esc(x ? x.pareggio || "" : "")}" placeholder="es. pizza insieme"></div>
+    <p class="err" id="sdErr" hidden></p>
+    <div class="sheet-actions"><button class="btn ghost" data-close>Annulla</button><button class="btn prime" id="sdOk">${nuova ? "Lancia la sfida" : "Accetta"}</button></div>`, sh => {
+    sh.querySelector("#sdOk").onclick = async () => {
+      const prem = sh.querySelector("#sdPremio").value.trim(), par = sh.querySelector("#sdPar").value.trim(), err = sh.querySelector("#sdErr");
+      if (!prem) { err.textContent = "Scrivi il premio segreto."; err.hidden = false; return; }
+      try {
+        if (nuova) {
+          const dur = Math.round(+sh.querySelector("#sdAltro").value || +val(sh, "dur") || 14);
+          if (dur < 1 || dur > 90) { err.textContent = "La durata va da 1 a 90 giorni."; err.hidden = false; return; }
+          await db.collection("sfide").add({ stato: "proposta", da: me, eroi: [me, altro], durata: dur, creata: Date.now(), premi: { [me]: prem }, pareggio: par });
+          toast("Sfida proposta a " + nA);
+        } else {
+          const ora = Date.now();
+          await db.doc("sfide/" + x.id).update({ stato: "attiva", inizio: ora, fine: ora + x.durata * DAY, premi: { ...(x.premi || {}), [me]: prem }, pareggio: par });
+          toast("Sfida iniziata!");
+        }
+        chiudiSheet();
+      } catch (e) { errore(e); }
+    };
+  });
+}
+/* La sfida sulla schermata della dimora. */
+function cardSfidaCasa(now) {
+  const ids = Object.keys(S.giocatori);
+  if (ids.length < 2) return duello(null, ids);
+  const x = sfidaViva(), vai = t => `<button class="btn sm ghost" data-act="vaiSfida">${t}</button>`;
+  if (x && x.stato === "attiva" && now < x.fine) return `${duello(punteggi(x.inizio, now), x.eroi)}<div class="row-actions"><span class="muted small">Finisce il ${dataBreve(x.fine - 1)} · mancano ${Math.max(1, Math.ceil((x.fine - now) / DAY))} g</span>${vai("Dettagli")}</div>`;
+  if (x && x.stato === "attiva") return `<div class="notice fr-stone small">La sfida è finita: scopri chi ha vinto. ${vai("Apri")}</div>`;
+  if (x && x.stato === "proposta") return `<div class="notice fr-stone small">${x.da === me ? `Hai proposto una sfida a ${esc(nome(altroEroe()))}: aspetta che accetti.` : `${esc(nome(x.da))} ti ha sfidato!`} ${vai("Apri")}</div>`;
+  const ult = sfideLista().find(y => y.stato === "conclusa" && !y.consegnato);
+  if (ult) return `<div class="notice fr-stone small">C'è un premio da consegnare dall'ultima sfida. ${vai("Vedi")}</div>`;
+  return `<div class="notice fr-stone small">Nessuna sfida in corso. ${vai("Lanciane una")}</div>`;
+}
+
 function vPremi(now) {
   if (!me || !S.giocatori[me]) return `<div class="notice fr-stone">Scegli il tuo eroe per usare i premi. <button class="btn prime sm" data-act="chi">Scegli l'eroe</button></div>`;
+  const t = S.premiTab || "premi", ps = S.sfide && sfidaViva();
+  const seg = `<div class="seg fr-stone" role="group" aria-label="Sezione">${[["premi", "Premi"], ["bottega", "Bottega"], ["sfida", "Sfida"]].map(([k, l]) => `<button data-act="premiTab" data-t="${k}" aria-pressed="${t === k}">${l}${k === "sfida" && ps && ps.stato === "proposta" && ps.da !== me ? ' <i class="ping" aria-label="proposta in attesa"></i>' : ""}</button>`).join("")}</div>`;
+  return seg + (t === "bottega" ? vBottega() : t === "sfida" ? vSfida(now) : vPremiLista(now));
+}
+function vPremiLista(now) {
   const monete = moneteDi(me);
   const miei = S.premi.filter(p => p.giocatore === me).sort((a, b) => a.costo - b.costo);
   const daConsegnare = S.riscatti.filter(r => !r.consegnato).sort((a, b) => b.ts - a.ts);
-  const p = periodoSfida(now), ids = Object.keys(S.giocatori), sc = punteggi(p.inizio, now);
-  let prec = "";
-  if (p.prec != null && ids.length >= 2) {
-    const ps = punteggi(p.prec, p.inizio), [a, b] = ids;
-    const vinc = ps[a] === ps[b] ? null : (ps[a] > ps[b] ? a : b);
-    const scelta = S.sfide[String(p.prec)];
-    prec = `<div class="notice fr-stone small"><b>Periodo concluso il ${dataBreve(p.inizio - 1)}:</b> ${vinc ? `vince ${esc(nome(vinc))} (${fmt(ps[vinc])} a ${fmt(ps[vinc === a ? b : a])}).` : `pareggio ${fmt(ps[a])} a ${fmt(ps[b])}: organizzate qualcosa di carino insieme.`}
-      ${vinc ? (scelta ? `<br>Premio scelto: <b>${esc(scelta.nome)}</b>${scelta.consegnato ? " · consegnato" : ` · <button class="btn sm" data-act="sfidaConsegnato" data-id="${p.prec}">Segna consegnato</button>`}` : `<br>${esc(nome(vinc))} sceglie il premio: <button class="btn sm prime" data-act="sceglipremio" data-id="${p.prec}">Scegli il premio</button>`) : ""}</div>`;
-  }
   return `
   <section class="sec">
     <div class="sec-head"><h3>I premi di ${esc(nome(me))}</h3><span class="chip gold num">${fmt(monete)} monete</span></div>
@@ -745,14 +882,7 @@ function vPremi(now) {
     <button class="btn" data-act="nuovopremio">Nuovo premio</button>
   </section>
   ${daConsegnare.length ? `<section class="sec"><h3>Da consegnare</h3><div class="list">${daConsegnare.map(r => `<div class="reward fr-stone"><span style="min-width:0"><span class="rn">${esc(r.nome)}</span><br><span class="muted small">per ${esc(nome(r.giocatore))} · ${dataBreve(r.ts)}</span></span><button class="btn sm" data-act="consegnato" data-id="${r.id}">Consegnato</button></div>`).join("")}</div></section>` : ""}
-  <section class="sec">
-    <div class="sec-head"><h3>Sfida</h3><span class="muted small">${dataBreve(p.inizio)} – ${dataBreve(p.fine - 1)} · mancano ${Math.max(1, Math.ceil((p.fine - now) / DAY))} g</span></div>
-    ${duello(sc, ids)}
-    ${prec}
-    <div class="sec-head"><h3>Premi della sfida</h3><button class="btn sm" data-act="nuovosfidapremio">Aggiungi</button></div>
-    ${S.sfidaPremi.length ? `<div class="list">${S.sfidaPremi.map(x => `<div class="reward fr-stone"><span class="rn">${esc(x.nome)}</span><button class="dots" data-act="delsfidapremio" data-id="${x.id}" aria-label="Elimina ${esc(x.nome)}">⋯</button></div>`).join("")}</div>`
-      : `<div class="empty fr-dash small">Concordate insieme i regali possibili: a fine periodo chi perde ne regala uno a chi vince.</div>`}
-  </section>`;
+  `;
 }
 
 /* La scheda di un prodotto: l'ampolla grande e tutti i comandi. Si aggiorna da sola quando i dati cambiano. */
@@ -1184,7 +1314,6 @@ function apriImpostazioni() {
     <div class="field"><label for="sNome">Nome della casa</label><input type="text" id="sNome" maxlength="40" value="${esc(cfg.nome || "Our little world")}"></div>
     <div class="field"><span class="lab">Dimora</span>${radio("dimora", Object.entries(DIMORE).filter(([k]) => SKIN[k]).map(([k, v]) => [k, v.replace(/^(Il|La|L') ?/, "")]), SKIN[cfg.dimora] ? cfg.dimora : "castello")}<span class="muted small">Le altre dimore arrivano presto: la pianta resta la stessa.</span></div>
     <div class="field"><span class="lab">Pianta della casa</span><button class="btn" id="sPianta">Apri la pianta</button><span class="muted small">Le tue stanze vere, disegnate in piccolo. Valgono per ogni dimora.</span></div>
-    <div class="field"><span class="lab">Durata della sfida</span>${radio("sfida", [[14, "2 settimane"], [30, "1 mese"]], cfg.sfidaGiorni || 14)}<span class="muted small">La nuova durata vale dal periodo in corso: i punti già fatti restano.</span></div>
     <div class="field"><label for="sStanza">Aggiungi una stanza</label><div class="row-actions"><input type="text" id="sStanza" maxlength="30" style="flex:1;min-width:0;background:var(--ink);border:1px solid var(--seam);border-radius:10px;padding:10px 12px"><button class="btn" id="sAdd">Aggiungi</button></div><span class="muted small">${esc(stanze().join(", "))}</span></div>
     <div class="field"><span class="lab">Faccende classiche</span><button class="btn" id="sCat">Aggiungi dall'elenco</button><span class="muted small">Le faccende più comuni, già pronte: scegli quali tenere e regola tempo, difficoltà, sbatti e frequenza.</span></div>
     <div class="field"><span class="lab">Crediti</span><button class="btn ghost" id="sCrediti">Chi ha disegnato i personaggi</button></div>
@@ -1203,9 +1332,7 @@ function apriImpostazioni() {
       try { await db.doc("config/casa").update({ stanze: [...new Set([...(cfg.stanze || []), r])] }); toast("Stanza aggiunta: " + r); sh.querySelector("#sStanza").value = ""; } catch (e) { errore(e); }
     };
     sh.querySelector("#sSalva").onclick = async () => {
-      const g = +val(sh, "sfida");
-      const dati = { nome: sh.querySelector("#sNome").value.trim() || "Our little world", dimora: val(sh, "dimora"), sfidaGiorni: g };
-      if (g !== (cfg.sfidaGiorni || 14)) dati.sfidaInizio = periodoSfida(Date.now()).inizio;
+      const dati = { nome: sh.querySelector("#sNome").value.trim() || "Our little world", dimora: val(sh, "dimora") };
       try { await db.doc("config/casa").update(dati); chiudiSheet(); toast("Casa aggiornata"); } catch (e) { errore(e); }
     };
   });
@@ -1411,7 +1538,7 @@ function apriReset() {
     <p class="muted small" style="margin:0">Cosa vuoi cancellare? Con le prime tre scelte le faccende e le stanze restano.</p>
     <div class="field"><label class="rst"><input type="checkbox" id="rP" checked> <span><b>Progressi</b>: missioni fatte, punti, monete, premi riscattati, sfide. Le faccende ripartono "appena pulite". I personaggi restano come sono.</span></label></div>
     <div class="field"><label class="rst"><input type="checkbox" id="rE"> <span><b>Personaggi</b>: cancella anche gli eroi (aspetto, pezzi e animali comprati). Ognuno dovrà crearsi di nuovo.</span></label></div>
-    <div class="field"><label class="rst"><input type="checkbox" id="rL"> <span><b>Liste</b>: premi, premi della sfida, prodotti e lista della spesa.</span></label></div>
+    <div class="field"><label class="rst"><input type="checkbox" id="rL"> <span><b>Liste</b>: premi, prodotti e lista della spesa.</span></label></div>
     <div class="field"><label class="rst"><input type="checkbox" id="rT"> <span><b>Tutto da capo</b>: cancella anche la casa (nome, dimora, pianta, stanze) e tutte le faccende, come la prima volta. Serve se cambi casa. Al riavvio ti guida la configurazione e puoi scegliere le faccende classiche.</span></label></div>
     <div class="field"><button class="btn" id="rCsv">Scarica prima una copia (CSV)</button></div>
     <div class="field"><label for="rConf">Per confermare scrivi <b>RESET</b></label><input type="text" id="rConf" autocomplete="off" autocapitalize="characters" style="background:var(--night);border:1px solid var(--seam);border-radius:10px;padding:10px 12px"></div>
@@ -1444,7 +1571,7 @@ async function azzera(o) {
     });
     for (const c of ["completamenti", "riscatti", "sfide"]) await db.svuota(c);
     if (!o.eroi) await lotti(Object.keys(S.giocatori), id => db.doc("giocatori/" + id).update({ archivio: {} }));
-    if (!o.tutto) await db.doc("config/casa").update({ missioneGiorno: null, sfidaInizio: now });
+    if (!o.tutto) await db.doc("config/casa").update({ missioneGiorno: null });
   }
   if (o.eroi) { await db.svuota("giocatori"); await db.svuota("utenti"); try { localStorage.removeItem("olw-hero"); } catch (x) {} }
   if (o.liste) for (const c of ["premi", "sfidaPremi", "prodotti", "spesa"]) await db.svuota(c);
@@ -1590,18 +1717,23 @@ document.addEventListener("click", e => {
     case "catalogo": apriSetup(true); break;
     case "profilo": apriProfilo(me, false); break;
     case "gira": S.vetRiga = [2, 1, 0, 3][([2, 1, 0, 3].indexOf(S.vetRiga == null ? 2 : S.vetRiga) + 1) % 4]; render(); break;
-    case "armadio": apriArmadio(); break;
+    case "armadio": S.armadioAperto = true; render(); { const el = document.getElementById("armadio"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); } break;
     case "annulla": { const c = trova(S.comp, id); if (c) conferma("Annullare il completamento?", `${esc(c.nome)}: i ${c.punti} punti vengono tolti a ${esc((c.giocatori || []).map(nome).join(" e "))}.`, "Annulla completamento", () => annulla(id)); break; }
     case "nuovopremio": apriSemplice("Nuovo premio", [{ name: "nome", label: "Premio" }, { name: "costo", label: "Costo in monete", radio: [[150, "Piccolo · 150"], [450, "Medio · 450"], [900, "Grande · 900"]], value: 450 }], v => v.nome ? db.collection("premi").add({ nome: v.nome, costo: +v.costo, giocatore: me, ts: Date.now() }).then(() => toast("Premio aggiunto")) : "Scrivi il nome del premio.", "Un massaggio, una serata relax, un oggetto che desideri da tempo. Resta in lista anche dopo il riscatto."); break;
     case "delpremio": { const p = trova(S.premi, id); if (p) conferma("Eliminare il premio?", esc(p.nome), "Elimina", () => db.doc("premi/" + id).delete()); break; }
     case "riscatta": { const p = trova(S.premi, id); if (p) conferma("Riscattare il premio?", `${esc(p.nome)} costa ${fmt(p.costo)} monete. A ${esc(nome(me))} restano ${fmt(moneteDi(me) - p.costo)} monete.`, "Riscatta", () => db.collection("riscatti").add({ premioId: p.id, nome: p.nome, costo: p.costo, giocatore: me, ts: Date.now(), consegnato: false }).then(() => toast("Premio riscattato"))); break; }
     case "consegnato": db.doc("riscatti/" + id).update({ consegnato: true }).catch(errore); break;
-    case "nuovosfidapremio": apriSemplice("Premio della sfida", [{ name: "nome", label: "Regalo" }], v => v.nome ? db.collection("sfidaPremi").add({ nome: v.nome, ts: Date.now() }) : "Scrivi il regalo."); break;
-    case "delsfidapremio": { const p = trova(S.sfidaPremi, id); if (p) conferma("Togliere dalla lista?", esc(p.nome), "Togli", () => db.doc("sfidaPremi/" + id).delete()); break; }
-    case "sceglipremio":
-      if (!S.sfidaPremi.length) { toast("Aggiungi prima almeno un premio della sfida"); break; }
-      apriSemplice("Scegli il premio", [{ name: "p", label: "Premio", radio: S.sfidaPremi.map(x => [x.id, x.nome]), value: S.sfidaPremi[0].id }], v => { const p = trova(S.sfidaPremi, v.p); return db.doc("sfide/" + id).set({ premioId: p.id, nome: p.nome, consegnato: false }); });
-      break;
+    case "premiTab": S.premiTab = b.dataset.t; render(); break;
+    case "reparto": S.reparto = b.dataset.k; render(); break;
+    case "compra": compraOggetto(b.dataset.t, b.dataset.sl, id); break;
+    case "regaloPet": { const g = S.giocatori[me]; if (g && regaloPet(g)) { const sb = [...(g.sbloccati || []), "pet/" + id]; db.doc("giocatori/" + me).update({ sbloccati: sb }).then(() => toast("Il tuo primo animale! Lo trovi nell'armadio"), errore); } break; }
+    case "armadioPorte": S.armadioAperto = !S.armadioAperto; render(); break;
+    case "armItem": azArmadio(b.dataset.t, b.dataset.sl, id); break;
+    case "vaiBottega": S.view = "premi"; S.premiTab = "bottega"; render(); window.scrollTo(0, 0); break;
+    case "vaiSfida": S.view = "premi"; S.premiTab = "sfida"; render(); window.scrollTo(0, 0); break;
+    case "nuovasfida": if (Object.keys(S.giocatori).length < 2) toast("Serve un secondo eroe"); else formSfida(null); break;
+    case "accettasfida": { const x = S.sfide[id]; if (x) formSfida({ ...x, id }); break; }
+    case "annullasfida": { const x = S.sfide[id]; if (x) conferma(x.stato === "proposta" ? (x.da === me ? "Ritirare la sfida?" : "Rifiutare la sfida?") : "Annullare la sfida?", x.stato === "proposta" ? "La proposta sparisce." : "La sfida in corso viene cancellata, senza vincitore.", "Sì", () => db.doc("sfide/" + id).delete()); break; }
     case "sfidaConsegnato": db.doc("sfide/" + id).update({ consegnato: true }).catch(errore); break;
     case "sgab": S.sgab = b.dataset.t; render(); break;
     case "livello": case "scorta": case "finendo": case "delprodotto": azProdotto(act, id, b.dataset); break;
@@ -1751,7 +1883,7 @@ async function avvio() {
   const coll = (name, key, q) => (q || db.collection(name)).onSnapshot(s => { S[key] = s.docs.map(d => ({ id: d.id, ...d.data() })); if (key in S.loaded) S.loaded[key] = true; render(); }, err => { console.error(name, err); errore(err); });
   db.doc("config/casa").onSnapshot(s => {
     S.config = s.exists ? s.data() : null; S.loaded.config = true;
-    if (!s.exists) db.doc("config/casa").set({ nome: "Our little world", dimora: "castello", sfidaGiorni: 14, sfidaInizio: Date.now(), stanze: ["Bagno", "Camera", "Cucina", "Salotto", "Ingresso"] }).catch(errore);
+    if (!s.exists) db.doc("config/casa").set({ nome: "Our little world", dimora: "castello", stanze: ["Bagno", "Camera", "Cucina", "Salotto", "Ingresso"] }).catch(errore);
     render();
   }, err => { console.error(err); errore(err); });
   coll("faccende", "faccende");
@@ -1761,7 +1893,7 @@ async function avvio() {
     S.giocatori = {}; s.docs.forEach(d => S.giocatori[d.id] = d.data()); S.loaded.giocatori = true; render();
     if (!archDone) { archDone = true; archivia(); }
   }, err => console.error(err));
-  coll("premi", "premi"); coll("riscatti", "riscatti"); coll("prodotti", "prodotti"); coll("spesa", "spesa"); coll("sfidaPremi", "sfidaPremi");
+  coll("premi", "premi"); coll("riscatti", "riscatti"); coll("prodotti", "prodotti"); coll("spesa", "spesa");
   db.collection("sfide").onSnapshot(s => { S.sfide = {}; s.docs.forEach(d => S.sfide[d.id] = d.data()); render(); });
 
   let nascostaDa = 0;
