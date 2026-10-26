@@ -82,7 +82,7 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.15.0";
+const VERSIONE_APP = "3.16.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -481,13 +481,11 @@ function vCasa(now) {
     <div class="sec-head"><h3>Stanze</h3><button class="btn ghost sm" data-act="pianta">Pianta</button></div>
     ${rs.length ? `<div class="rooms">${rs.map(r => `
       <button class="room porta st${st[r].livello}" data-act="stanza" data-r="${esc(r)}">
-        <span class="rn">${esc(r)}</span>
-        <i class="knob" aria-hidden="true"></i>
-        <span class="pstack">
-          <span class="pill p${st[r].livello}">${STATI[st[r].livello]}</span>
-          <span class="bar"><i style="width:${Math.max(4, 100 - st[r].pct * 100)}%;background:${["var(--candle)", "var(--moss)", "var(--arcane)", "var(--ember)"][st[r].livello]}"></i></span>
-          <span class="muted small">${st[r].urg ? st[r].urg + " urgenti" : "tutto in pari"}</span>
+        <span class="pd">
+          <span class="rn">${esc(r)}</span>
+          <span class="pstack"><span class="pill p${st[r].livello}">${STATI[st[r].livello]}</span><span class="bar"><i style="width:${Math.max(4, 100 - st[r].pct * 100)}%;background:${["var(--candle)", "var(--moss)", "var(--arcane)", "var(--ember)"][st[r].livello]}"></i></span></span>
         </span>
+        <span class="cap muted small">${st[r].urg ? st[r].urg + (st[r].urg === 1 ? " urgente" : " urgenti") : "tutto in pari"}</span>
       </button>`).join("")}</div>` : `<div class="empty fr-dash">Nessuna stanza ancora. Aggiungile dalle impostazioni della casa.</div>`}
   </section>
   ${ids.length ? `<section class="sec">
