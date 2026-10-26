@@ -36,6 +36,12 @@ const POSTI = [ /* riquadri tappabili, in pixel dell'immagine 768×1376 */
   { tipo: "balcone", rect: [678, 400, 756, 1062], stretta: true }
 ];
 const SKIN = { castello: { img: "img/castello.webp", w: 768, h: 1376, stanze: "img/stanze/", file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone" } } };
+/* Dove camminano gli eroi: tratto di pavimento (centro dei piedi, in pixel dell'immagine) per ogni tipo di stanza. */
+const PIANI = {
+  bagno: { x0: 165, x1: 335, y: 520 }, camera: { x0: 440, x1: 615, y: 515 }, ripostiglio: { x0: 160, x1: 285, y: 790 },
+  corridoio: { x0: 372, x1: 398, y: 880 }, cucina: { x0: 490, x1: 625, y: 885 }, ingresso: { x0: 165, x1: 285, y: 1185 },
+  soggiorno: { x0: 385, x1: 600, y: 1165 }, balcone: { x0: 717, x1: 717, y: 1080 }
+};
 const GRIGLIA = { w: 11, h: 11 };
 const CORRIDOIO = { tipo: "corridoio", x: 4, y: 3, w: 2, h: 4 };
 const PIANTA_BASE = {
@@ -367,6 +373,7 @@ function render() {
   assicuraMissioneGiorno(now);
   const v = { casa: vCasa, stanza: vStanza, missioni: vMissioni, eroe: vEroe, premi: vPremi, sgabuzzino: vSgab }[S.view] || vCasa;
   $("#view").innerHTML = v(now);
+  { const cs = document.querySelector(".castle"); if (cs && window.OLW_SPRITE) abitantiCastello(cs); }
   document.querySelectorAll("canvas.pet-cv").forEach(c => window.OLW_SPRITE.animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 0, scala: 2, fps: 4 }));
   if (S.loaded.giocatori && !(me && S.giocatori[me]) && !S.onboardingShown) {
     S.onboardingShown = true;
@@ -998,6 +1005,22 @@ function apriImpostazioni() {
       try { await db.doc("config/casa").update(dati); chiudiSheet(); toast("Casa aggiornata"); } catch (e) { errore(e); }
     };
   });
+}
+
+/* Ogni eroe con un personaggio sta nella stanza della sua ultima faccenda (di default in soggiorno); se sono in due nella stessa stanza si dividono il pavimento. */
+function abitantiCastello(host) {
+  const dim = (S.config && S.config.dimora) || "castello", sk = SKIN[dim]; if (!sk || dim !== "castello") return;
+  const pi = pianta(), ultima = {};
+  for (const c of S.comp) if (!c.annullato) for (const g of c.giocatori || []) if (!ultima[g] || c.ts > ultima[g].ts) ultima[g] = c;
+  const tipoDi = r => { if (r === "Tutta la casa") return "corridoio"; const po = POSTI.find(p => stanzaDelPosto(p.tipo, pi) === r); return po ? po.tipo : "soggiorno"; };
+  const per = {};
+  for (const id of Object.keys(S.giocatori).sort()) { const g = S.giocatori[id]; if (!g.pg) continue; const t = tipoDi(ultima[id] ? ultima[id].stanza : ""); (per[t] = per[t] || []).push(id); }
+  const out = [];
+  for (const [t, ids] of Object.entries(per)) {
+    const P = PIANI[t]; if (!P) continue; const n = ids.length, larg = (P.x1 - P.x0) / n;
+    ids.forEach((id, i) => { const g = S.giocatori[id]; out.push({ id, pg: g.pg, pet: g.pet, stanza: t, x0: P.x0 + larg * i + (n > 1 ? 8 : 0), x1: P.x0 + larg * (i + 1) - (n > 1 ? 8 : 0), y: P.y, scala: 2 }); });
+  }
+  window.OLW_SPRITE.abita(host, sk.w, sk.h, out);
 }
 
 /* ---------- Esporta e azzera ---------- */

@@ -461,3 +461,10 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .rst { font-weight: 400; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.4; }
 .rst input { margin-top: 3px; flex-shrink: 0; width: 18px; height: 18px; accent-color: var(--ember); }
 .btn.ghost.danger { background: transparent; color: var(--ember); box-shadow: inset 0 0 0 2px var(--ember); }
+
+/* Abitanti del castello */
+.castle { isolation: isolate; }
+.abit-eroe, .abit-pet { position: absolute; height: auto; image-rendering: pixelated; pointer-events: none; filter: drop-shadow(0 2px 0 #0006); }
+.abit-eroe.nuovo, .abit-pet.nuovo { animation: compari .6s ease-out both; }
+@keyframes compari { from { opacity: 0; transform: translateY(-6px) scale(1.15); filter: brightness(2) drop-shadow(0 2px 0 #0006); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .abit-eroe.nuovo, .abit-pet.nuovo { animation: none; } }

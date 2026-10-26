@@ -148,5 +148,80 @@
     return () => { attivo = false; };
   }
 
-  window.OLW_SPRITE = { ANIMALI, animaPet, carica, disegna, anima, ritratto, fotogramma, elenco, palette, hexDi, catalogo: () => CAT, compatibile };
+
+  /* ---------- Abitanti: gli eroi (e i loro animali) che passeggiano nel pavimento delle stanze ----------
+     host = contenitore posizionato sopra l'immagine; w/h = dimensioni dell'immagine in pixel; abitanti = [{ id, pg, pet, x0, x1, y, scala, stanza }]
+     Le coordinate sono in pixel dell'immagine (x = centro dei piedi, y = linea dei piedi) e vengono trasformate in percentuali. */
+  const FC = new Map(), FSYNC = new Map(), STATO = {};
+  let giroAbitanti = 0;
+  async function fotoC(pg, riga, col) {
+    const k = JSON.stringify(pg) + "|" + riga + "|" + col;
+    if (!FC.has(k)) FC.set(k, fotogramma(pg, riga, col).then(f => { FSYNC.set(k, f); return f; }));
+    return FC.get(k);
+  }
+  function abita(host, w, h, abitanti) {
+    cancelAnimationFrame(giroAbitanti);
+    const rid = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const pc = (v, t) => (v / t * 100).toFixed(3) + "%";
+    const PIEDI = 60, PIEDI_PET = 29, VEL = 38, FPS = 9;
+    const lista = abitanti.filter(a => a && a.pg).map(a => {
+      const st = STATO[a.id] || (STATO[a.id] = {});
+      const nuovaStanza = st.stanza !== a.stanza;
+      if (nuovaStanza || st.x == null || st.x < a.x0 || st.x > a.x1) { st.x = a.x0 + Math.random() * (a.x1 - a.x0); st.stanza = a.stanza; st.meta = null; st.fermoFino = performance.now() + 800; st.px = null; }
+      const cv = document.createElement("canvas"); cv.width = F; cv.height = F; cv.className = "abit-eroe" + (nuovaStanza ? " nuovo" : ""); cv.setAttribute("aria-hidden", "true");
+      cv.style.width = pc(F * a.scala, w); host.appendChild(cv);
+      let pcv = null, A = null, imgPet = null;
+      if (a.pet && ANIMALI[a.pet.specie]) {
+        A = ANIMALI[a.pet.specie]; pcv = document.createElement("canvas"); pcv.width = 32; pcv.height = 32; pcv.className = "abit-pet" + (nuovaStanza ? " nuovo" : ""); pcv.setAttribute("aria-hidden", "true");
+        pcv.style.width = pc(32 * a.scala, w); host.appendChild(pcv);
+        foglio(A.file).then(i => { imgPet = i; }).catch(() => {});
+      }
+      if (st.px == null) st.px = st.x;
+      const fr = {}, kb = JSON.stringify(a.pg) + "|";
+      for (const r of [1, 2, 3]) for (let c = 0; c <= 8; c++) { const f = FSYNC.get(kb + r + "|" + c); if (f) fr[r + "_" + c] = f; }
+      return { a, st, cv, pcv, A, get imgPet() { return imgPet; }, riga: 2, col: 0, ultimo: "", fr };
+    });
+    /* Carica i fotogrammi: prima la posa ferma, poi i passi. */
+    for (const o of lista) {
+      const dai = (r, c) => fotoC(o.a.pg, r, c).then(f => { o.fr[r + "_" + c] = f; });
+      dai(2, 0); if (!rid) for (const r of [1, 3, 2]) for (let c = 1; c <= 8; c++) dai(r, c);
+    }
+    let t0 = performance.now(), tFps = 0;
+    const passo = t => {
+      if (!host.isConnected) return;
+      const dt = Math.min(0.1, (t - t0) / 1000); t0 = t;
+      for (const o of lista) {
+        const { a, st } = o;
+        if (!rid) {
+          if (st.meta != null) {
+            const d = st.meta - st.x, mv = Math.min(Math.abs(d), VEL * dt);
+            st.x += Math.sign(d) * mv; st.dir = d > 0 ? 3 : 1;
+            if (Math.abs(st.meta - st.x) < 0.5) { st.meta = null; st.fermoFino = t + 1500 + Math.random() * 3500; st.dir = 2; }
+          } else if (t >= (st.fermoFino || 0) && a.x1 - a.x0 > 30) {
+            let m = a.x0 + Math.random() * (a.x1 - a.x0); if (Math.abs(m - st.x) < 25) m = st.x < (a.x0 + a.x1) / 2 ? a.x1 : a.x0; st.meta = m;
+          }
+        }
+        const moto = st.meta != null, riga = moto ? st.dir : 2, col = moto ? 1 + Math.floor(t / (1000 / FPS)) % 8 : 0;
+        const k = riga + "_" + col, fr = o.fr[k] || o.fr["2_0"];
+        if (fr && o.ultimo !== k) { const x = o.cv.getContext("2d"); x.clearRect(0, 0, F, F); x.drawImage(fr, 0, 0); o.ultimo = k; }
+        const yE = a.y;
+        o.cv.style.left = pc(st.x - F * a.scala / 2, w); o.cv.style.top = pc(yE - PIEDI * a.scala, h); o.cv.style.zIndex = Math.round(yE);
+        if (o.pcv) {
+          const verso = moto ? (st.dir === 3 ? 1 : -1) : (st.pverso || 1), meta = st.x - verso * 34 * a.scala / 2;
+          st.px += (meta - st.px) * Math.min(1, dt * 2.4);
+          const inMoto = Math.abs(meta - st.px) > 2 && !rid, r = st.px < meta - 2 ? 0 : st.px > meta + 2 ? 3 : (verso > 0 ? 0 : 3);
+          if (moto) st.pverso = verso;
+          if (o.imgPet) {
+            const c0 = Math.max(0, Math.min(3, (a.pet.col | 0))) * 4, cc = inMoto ? [0, 1, 2, 1][Math.floor(t / 160) % 4] : 3, kp = r + "_" + cc;
+            if (o.ultimoP !== kp) { const x = o.pcv.getContext("2d"); x.imageSmoothingEnabled = false; x.clearRect(0, 0, 32, 32); x.drawImage(o.imgPet, (c0 + cc) * 32, r * 32, 32, 32, 0, 0, 32, 32); o.ultimoP = kp; }
+          }
+          o.pcv.style.left = pc(st.px - 16 * a.scala, w); o.pcv.style.top = pc(yE + 4 - PIEDI_PET * a.scala, h); o.pcv.style.zIndex = Math.round(yE) + 1;
+        }
+      }
+      giroAbitanti = requestAnimationFrame(passo);
+    };
+    giroAbitanti = requestAnimationFrame(passo);
+  }
+
+  window.OLW_SPRITE = { abita, ANIMALI, animaPet, carica, disegna, anima, ritratto, fotogramma, elenco, palette, hexDi, catalogo: () => CAT, compatibile };
 })();
