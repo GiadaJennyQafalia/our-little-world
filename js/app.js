@@ -17,7 +17,7 @@ const KIT = {
   druido: { capelli: { id: "braid", col: "ginger" }, corna: { id: "curled" }, busto: { id: "longsleeve", col: "forest" }, gambe: { id: "pants", col: "brown" }, scarpe: { id: "boots", col: "leather" }, cappello: { id: "hood", col: "forest" }, arma: { id: "gnarled", col: "medium" } }
 };
 const SOSTITUTI = { busto: ["longsleeve2", "longsleeve", "scoop", "vneck", "sleeveless"], gambe: ["pants", "pants2"], scarpe: ["boots", "shoes"] };
-const PREZZO = { orecchie: 50, corna: 80, mantello: 70, cappello: 60, accessorio: 40, arma: 60 };
+const PREZZO = { orecchie: 50, corna: 80, coda: 70, ali: 120, mantello: 70, cappello: 60, accessorio: 40, collo: 40, vita: 30, braccia: 40, schiena: 60, arma: 60, scudo: 60, barba: 30 };
 const PELLI = ["light", "amber", "olive", "taupe", "bronze", "brown", "black"];
 const STATI = ["Splendente", "In ordine", "Trascurata", "Abbandonata"];
 /* ---------- Pianta della casa e skin delle dimore ----------
@@ -724,7 +724,7 @@ function apriProfilo(id, obbligatorio) {
     try { await aperto; } catch (e) { sh.innerHTML = `<h2>Eroe</h2><p class="err">Non riesco a caricare i pezzi del personaggio. Controlla la connessione e riprova.</p><div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button></div>`; console.error(e); return; }
     const monete = () => (id ? moneteDi(id) : 0);
     const possiede = (slot, i) => !PREZZO[slot] || ((KIT[D.pg.classe] || {})[slot] || {}).id === i || D.sbloccati.includes(slot + "/" + i);
-    const TAB = [["corpo", "Corpo"], ["capelli", "Capelli"], ["vestiti", "Vestiti"], ["extra", "Extra"]];
+    const TAB = [["corpo", "Corpo"], ["capelli", "Capelli"], ["vestiti", "Vestiti"], ["extra", "Extra"], ["oggetti", "Oggetti"]];
     sh.innerHTML = `<h2>${id ? "Il tuo eroe" : "Nuovo eroe"}</h2>
       <div class="field"><label for="cNome">Nome</label><input type="text" id="cNome" maxlength="24" value="${esc(D.nome)}"></div>
       <div class="field"><span class="lab">Classe</span><div class="cr-classi" id="cClassi"></div></div>
@@ -759,10 +759,11 @@ function apriProfilo(id, obbligatorio) {
         <div class="field"><span class="lab">Carnagione</span>${sw("pelle", "body", PELLI, pg.pelle)}<div class="sws"><label class="sw custom" title="Colore libero"><input type="color" data-for="pelle" value="${/^#/.test(pg.pelle || "") ? pg.pelle : hexColore("body", pg.pelle || "light")}"></label></div></div>
         <div class="field"><span class="lab">Occhi</span>${sw("occhi", "eye", Object.keys(LPC().palette.eye.rampe), pg.occhi)}<div class="sws"><label class="sw custom" title="Colore libero"><input type="color" data-for="occhi" value="${/^#/.test(pg.occhi || "") ? pg.occhi : hexColore("eye", pg.occhi || "blue")}"></label></div></div>
         <div class="field"><span class="lab">Sopracciglia</span>${radio("sopr", [["thin", "Sottili"], ["thick", "Folte"]], pg.sopr || "thin")}</div>
-        ${blocco("orecchie", "Orecchie", { nessuno: true })}${blocco("corna", "Corna", { nessuno: true })}`;
-      else if (D.tab === "capelli") h = blocco("capelli", "Stile dei capelli");
+        ${blocco("orecchie", "Orecchie", { nessuno: true })}${blocco("corna", "Corna", { nessuno: true })}${blocco("coda", "Coda", { nessuno: true })}${blocco("ali", "Ali", { nessuno: true })}`;
+      else if (D.tab === "capelli") h = blocco("capelli", "Stile dei capelli") + blocco("barba", "Barba e baffi", { nessuno: true });
       else if (D.tab === "vestiti") h = blocco("busto", "Busto") + blocco("gambe", "Gambe") + blocco("scarpe", "Scarpe") + blocco("mantello", "Mantello", { nessuno: true }) + blocco("cappello", "Cappello", { nessuno: true });
-      else h = blocco("accessorio", "Accessori", { nessuno: true }) + blocco("arma", "Bastone o arma", { nessuno: true }) + `<p class="muted small" style="margin:0">Gli oggetti con le monete si comprano toccandoli. Ne hai ${fmt(monete())}.</p>`;
+      else if (D.tab === "extra") h = blocco("accessorio", "Occhiali e orecchini", { nessuno: true }) + blocco("collo", "Collo", { nessuno: true }) + blocco("vita", "Cintura e fusciacca", { nessuno: true }) + blocco("braccia", "Guanti, bracciali e spalline", { nessuno: true }) + blocco("schiena", "Sulla schiena", { nessuno: true });
+      else h = blocco("arma", "Bastone, arma o attrezzo", { nessuno: true }) + blocco("scudo", "Scudo", { nessuno: true }) + `<p class="muted small" style="margin:0">Gli oggetti con le monete si comprano toccandoli. Ne hai ${fmt(monete())}.</p>`;
       el.innerHTML = h;
     };
     const tutto = () => { classi(); pannello(); anteprima(); };

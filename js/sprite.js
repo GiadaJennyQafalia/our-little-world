@@ -79,7 +79,7 @@
     const capCol = colDi(pg.capelli) || "blonde";
     aggiungi(CAT.fissi["sopracciglia_" + (pg.sopr === "thick" ? "thick" : "thin")], [["hair", capCol]]);
     const mat = (voce, col) => !voce || !voce.materiale ? [] : [[voce.materiale, col || (voce.materiale === "body" ? pelle : voce.materiale === "hair" ? capCol : null)]].filter(m => m[1]);
-    for (const slot of ["capelli", "orecchie", "corna", "busto", "gambe", "scarpe", "mantello", "cappello", "accessorio", "arma"]) {
+    for (const slot of Object.keys(CAT.slot)) {
       const v = fa(slot, pg); if (!v) continue;
       aggiungi(v, mat(v, colDi(pg[slot])), colDi(pg[slot]));
     }
