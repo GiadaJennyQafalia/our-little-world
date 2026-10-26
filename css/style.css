@@ -617,3 +617,35 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .room.porta .cap { display: block; text-align: center; color: #e0c9a6; }
 .room.porta.st3::after { right: 12%; top: 6%; z-index: 2; }
 .ctrl-avviso { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0 0 12px; }
+
+/* ---------- Insegna di legno della dimora ---------- */
+.hero-cap.insegna { position: relative; display: block; padding: 18px 28px 14px; --cera: var(--candle); --cera-hi: var(--candle-hi); }
+.insegna.st1 { --cera: #5f9a4c; --cera-hi: #9ad07f; }
+.insegna.st2 { --cera: #8b6fd0; --cera-hi: #c2adf2; }
+.insegna.st3 { --cera: #c8452e; --cera-hi: #f08a6a; }
+.insegna .catena { position: absolute; top: 0; width: 6px; height: 24px; background: repeating-linear-gradient(180deg, #a59bae 0 4px, #3b3340 4px 6px); box-shadow: 0 0 0 1px #0c0911; }
+.insegna .catena.l { left: 22%; } .insegna .catena.r { right: 22%; }
+.ins-board { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 10px 12px 10px;
+  background: radial-gradient(circle at 8px 8px, #a59bae 0 2px, transparent 2.6px), radial-gradient(circle at calc(100% - 8px) 8px, #a59bae 0 2px, transparent 2.6px),
+    radial-gradient(circle at 8px calc(100% - 8px), #a59bae 0 2px, transparent 2.6px), radial-gradient(circle at calc(100% - 8px) calc(100% - 8px), #a59bae 0 2px, transparent 2.6px),
+    repeating-linear-gradient(90deg, #0000 0 29px, #0000002e 29px 31px), linear-gradient(180deg, #62291f, #43190f);
+  border: 3px solid #1a0807; box-shadow: inset 0 2px 0 #8a4332, inset 0 -3px 0 #2b0f09, 0 4px 0 #0009; }
+.ins-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding-left: 4px; }
+.ins-kick { font-size: .62rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #d9b873; text-shadow: 0 1px 0 #1a0807; }
+.insegna .state { font-family: var(--f-display); font-size: 1.12rem; overflow-wrap: anywhere; line-height: 1.1; color: #fff3dc; text-shadow: 0 2px 0 #1a0807; }
+.ins-stat { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 2px; font-size: .74rem; color: #e0c9a6; }
+.ins-s { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.ins-s svg.px { width: 11px; height: 11px; flex: none; }
+.ins-s b { color: #fff3dc; }
+.ins-sig { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; }
+.sigillo { position: relative; width: 46px; height: 44px; display: grid; place-items: center; border-radius: 48% 52% 46% 54% / 52% 46% 54% 48%;
+  background: radial-gradient(circle at 34% 28%, var(--cera-hi) 0 9%, var(--cera) 46%, color-mix(in srgb, var(--cera) 60%, #000) 100%); box-shadow: inset 0 -3px 0 #0004, 0 3px 0 #0009, 0 0 0 2px #1a0807; }
+.sigillo::before { content: ""; position: absolute; inset: 6px; border: 2px solid #0004; border-radius: 50%; }
+.sigillo svg.px { position: relative; width: 17px; height: 17px; }
+.ins-stato { font-size: .6rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #e0c9a6; text-shadow: 0 1px 0 #1a0807; white-space: nowrap; }
+/* Candele ai lati */
+.insegna .cand { position: absolute; top: 40px; width: 10px; height: 26px; background: linear-gradient(90deg, #f3e6c4 0 60%, #cdb98a 60%); box-shadow: 0 0 0 1px #1a0807, 0 3px 0 #1a0807; }
+.insegna .cand.l { left: 9px; } .insegna .cand.r { right: 9px; }
+.insegna .cand b { position: absolute; left: 50%; top: -11px; width: 7px; height: 10px; margin-left: -3.5px; clip-path: polygon(50% 0, 100% 62%, 80% 100%, 20% 100%, 0 62%); background: linear-gradient(180deg, #fff6c8 0 25%, #ffc24a 25% 65%, #e8643a 65%); filter: drop-shadow(0 0 4px #ffc24a99); }
+@media (prefers-reduced-motion: no-preference) { .insegna .cand b { animation: fiammella 1.6s steps(3) infinite; } .insegna .cand.r b { animation-delay: .5s; } }
+@keyframes fiammella { 0%, 100% { transform: scaleY(1) translateX(0); } 33% { transform: scaleY(.88) translateX(-1px); } 66% { transform: scaleY(1.08) translateX(1px); } }

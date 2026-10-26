@@ -84,7 +84,7 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.17.0";
+const VERSIONE_APP = "3.18.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -107,6 +107,9 @@ const ICON = {
   clock: c => pix([".aaaaa.", "a..b..a", "a..b..a", "a..bbba", "a.....a", "a.....a", ".aaaaa."], { a: c, b: c }),
   coin: () => pix([".aaaa.", "abbbba", "abaaba", "abaaba", "abbbba", ".aaaa."], { a: "#e0a944", b: "#f6d27a" }),
   star: () => pix(["....a....", "...aba...", "aaabbbaaa", ".abbbbba.", "..abbba..", ".abbabba.", ".aa...aa.", "a.......a", "........."], { a: "#b8862b", b: "#f6d27a" }),
+  sabbia: () => pix(["aaaaaaa", ".abbba.", "..aba..", "...a...", "..aba..", ".abbba.", "aaaaaaa"], { a: "#b8862b", b: "#f6d27a" }),
+  fiamma: () => pix(["...a...", "..aa...", "..aaa..", ".aabaa.", ".abbba.", ".abbba.", "..aba..", "...a..."], { a: "#e8643a", b: "#ffd88a" }),
+  torre: () => pix(["a.a.a.a", "aaaaaaa", ".aaaaa.", ".aabaa.", ".aabaa.", ".aaaaa.", "aaaaaaa"], { a: "#0000005a", b: "#ffffff40" }),
   pin: c => pix(["..aaa..", ".abbba.", ".abbba.", "..aaa..", "...a...", "...a...", "...a..."], { a: c, b: "#ece2cc" })
 };
 
@@ -472,9 +475,20 @@ function vCasa(now) {
     ${SKIN[dim] ? "" : `<div class="scene-wrap">${scena(dim)}<div class="glow"></div>
     <img class="cobweb l" src="${WEB}" alt="" style="opacity:${webOp}"><img class="cobweb r" src="${WEB}" alt="" style="opacity:${webOp}">
     <div class="dust" style="opacity:${dustOp}"></div>${sparks}</div>`}
-    <div class="hero-cap">
-      <div class="sec-head"><span class="state">${esc(cfg.nome || "Our little world")}</span><span class="pill p${liv}">${STATI[liv]}</span></div>
-      <span class="muted small">${esc(DIMORE[dim] || "La dimora")} · <span class="num">${Math.round(media * 100)}%</span> delle faccende ricorrenti in ritardo · ${urgTot ? `<span class="num">${urgTot}</span> missioni urgenti` : "nessuna missione urgente"}</span>
+    <div class="hero-cap insegna st${liv}">
+      <i class="catena l"></i><i class="catena r"></i>
+      <i class="cand l"><b></b></i><i class="cand r"><b></b></i>
+      <div class="ins-board">
+        <div class="ins-txt">
+          <span class="ins-kick">${esc(DIMORE[dim] || "La dimora")}</span>
+          <span class="state">${esc(cfg.nome || "Our little world")}</span>
+          <span class="ins-stat">
+            <span class="ins-s" title="Faccende ricorrenti in ritardo">${ICON.sabbia()}<b class="num">${Math.round(media * 100)}%</b> in ritardo</span>
+            <span class="ins-s" title="Missioni urgenti">${ICON.fiamma()}${urgTot ? `<b class="num">${urgTot}</b> urgent${urgTot === 1 ? "e" : "i"}` : "nessuna urgenza"}</span>
+          </span>
+        </div>
+        <div class="ins-sig"><span class="sigillo" role="img" aria-label="${STATI[liv]}">${ICON.torre()}</span><span class="ins-stato">${STATI[liv]}</span></div>
+      </div>
     </div>
     ${SKIN[dim] ? dimoraMappa(dim, st, now) : ""}
   </section>
