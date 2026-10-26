@@ -20,6 +20,8 @@ const SOSTITUTI = { busto: ["longsleeve2", "longsleeve", "scoop", "vneck", "slee
 const PREZZO = { animale: 100, orecchie: 50, corna: 80, coda: 70, ali: 120, mantello: 70, cappello: 60, accessorio: 40, collo: 40, vita: 30, braccia: 40, schiena: 60, arma: 60, scudo: 60, barba: 30 };
 const PELLI = ["light", "amber", "olive", "taupe", "bronze", "brown", "black"];
 const STATI = ["Splendente", "In ordine", "Trascurata", "Abbandonata"];
+// Gemme accese sulla porta (0–5): seguono il livello, affinate dalla percentuale di scaduto
+const gemmeAccese = x => { const n = Math.round((1 - x.pct) * 5); return [5, 4, Math.min(3, Math.max(2, n)), Math.min(1, n)][x.livello]; };
 /* ---------- Pianta della casa e skin delle dimore ----------
    La PIANTA dice quali sono le stanze vere di casa (nome, tipo, posizione nella mappa stilizzata) e vive in config/casa.pianta.
    La DIMORA (skin) è solo l'aspetto: un'immagine con dei "posti", uno per tipo di stanza. Ogni stanza della pianta va nel posto del suo tipo,
@@ -82,7 +84,7 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.16.1";
+const VERSIONE_APP = "3.17.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -482,8 +484,8 @@ function vCasa(now) {
     ${rs.length ? `<div class="rooms">${rs.map(r => `
       <button class="room porta st${st[r].livello}" data-act="stanza" data-r="${esc(r)}">
         <span class="pd">
-          <span class="rn">${esc(r)}</span>
-          <span class="pstack"><span class="pill p${st[r].livello}">${STATI[st[r].livello]}</span><span class="bar"><i style="width:${Math.max(4, 100 - st[r].pct * 100)}%;background:${["var(--candle)", "var(--moss)", "var(--arcane)", "var(--ember)"][st[r].livello]}"></i></span></span>
+          <span class="rn"><b>${esc(r)}</b><small>${STATI[st[r].livello]}</small></span>
+          <span class="gemme" role="img" aria-label="${STATI[st[r].livello]}: ${gemmeAccese(st[r])} gemme su 5">${[0, 1, 2, 3, 4].map(i => `<i class="${i < gemmeAccese(st[r]) ? "on" : ""}"></i>`).join("")}</span>
         </span>
         <span class="cap muted small">${st[r].urg ? st[r].urg + (st[r].urg === 1 ? " urgente" : " urgenti") : "tutto in pari"}</span>
       </button>`).join("")}</div>` : `<div class="empty fr-dash">Nessuna stanza ancora. Aggiungile dalle impostazioni della casa.</div>`}
