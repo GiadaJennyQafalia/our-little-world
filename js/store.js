@@ -117,7 +117,15 @@
       };
     }
 
+    /* Cancella in un colpo solo tutti i documenti di una collezione (serve al reset dei test). */
+    async function svuota(coll) {
+      const { error } = await sb.from("docs").delete().eq("coll", coll);
+      if (error) throw error;
+      if (cache[coll]) { cache[coll] = new Map(); avvisa(coll); }
+    }
+
     return {
+      svuota,
       collection: name => Query(name),
       doc: path => { const i = path.lastIndexOf("/"); return Doc(path.slice(0, i), path.slice(i + 1)); },
       ricarica

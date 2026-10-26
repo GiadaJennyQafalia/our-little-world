@@ -456,3 +456,8 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .cr-prev canvas#cPetPrev { width: 96px; height: 96px; background: none; }
 .cr-prev canvas[hidden] { display: none; }
 .pet-cv { flex: none; width: 64px; height: 64px; image-rendering: pixelated; }
+
+/* Esporta e azzera */
+.rst { font-weight: 400; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.4; }
+.rst input { margin-top: 3px; flex-shrink: 0; width: 18px; height: 18px; accent-color: var(--ember); }
+.btn.ghost.danger { background: transparent; color: var(--ember); box-shadow: inset 0 0 0 2px var(--ember); }

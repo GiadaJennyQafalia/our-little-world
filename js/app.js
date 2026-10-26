@@ -979,10 +979,13 @@ function apriImpostazioni() {
     <div class="field"><span class="lab">Durata della sfida</span>${radio("sfida", [[14, "2 settimane"], [30, "1 mese"]], cfg.sfidaGiorni || 14)}<span class="muted small">La nuova durata vale dal periodo in corso: i punti già fatti restano.</span></div>
     <div class="field"><label for="sStanza">Aggiungi una stanza</label><div class="row-actions"><input type="text" id="sStanza" maxlength="30" style="flex:1;min-width:0;background:var(--ink);border:1px solid var(--seam);border-radius:10px;padding:10px 12px"><button class="btn" id="sAdd">Aggiungi</button></div><span class="muted small">${esc(stanze().join(", "))}</span></div>
     <div class="field"><span class="lab">Crediti</span><button class="btn ghost" id="sCrediti">Chi ha disegnato i personaggi</button></div>
+    <div class="field"><span class="lab">Dati</span><div class="row-actions"><button class="btn" id="sCsv">Scarica i dati (CSV)</button><button class="btn ghost danger" id="sReset">Azzera i test</button></div><span class="muted small">Il CSV contiene faccende, missioni fatte, punti, premi e spesa. "Azzera i test" riporta l'app a come nuova.</span></div>
     <div class="field"><span class="lab">Account</span><div class="row-actions" style="align-items:center"><span class="muted small" style="flex:1;min-width:0;overflow-wrap:anywhere">${esc(utente ? utente.email : "")}</span><button class="btn sm ghost" id="sEsci">Esci</button></div></div>
     <div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button><button class="btn prime" id="sSalva">Salva</button></div>`, sh => {
     sh.querySelector("#sPianta").onclick = () => apriPianta();
     sh.querySelector("#sCrediti").onclick = () => apriCrediti();
+    sh.querySelector("#sCsv").onclick = () => esportaCsv();
+    sh.querySelector("#sReset").onclick = () => apriReset();
     sh.querySelector("#sEsci").onclick = async () => { try { localStorage.removeItem("olw-hero"); } catch (e) {} await sb.auth.signOut(); location.reload(); };
     sh.querySelector("#sAdd").onclick = async () => {
       const r = sh.querySelector("#sStanza").value.trim(); if (!r) return;
@@ -995,6 +998,96 @@ function apriImpostazioni() {
       try { await db.doc("config/casa").update(dati); chiudiSheet(); toast("Casa aggiornata"); } catch (e) { errore(e); }
     };
   });
+}
+
+/* ---------- Esporta e azzera ---------- */
+const isoLocale = ts => { if (!ts) return ""; const d = new Date(ts), z = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; };
+
+/* Un unico .zip con un CSV per argomento: faccende, completamenti, giocatori, riscatti, premi, prodotti, spesa. */
+async function esportaCsv() {
+  try {
+    const O = window.OLW_CSV, now = Date.now();
+    const leggi = async c => (await db.collection(c).get()).docs.map(d => ({ id: d.id, ...d.data() }));
+    const [fac, comp, gioc, risc, premi, prod, spesa] = await Promise.all(["faccende", "completamenti", "giocatori", "riscatti", "premi", "prodotti", "spesa"].map(leggi));
+    const nomeG = id => (gioc.find(g => g.id === id) || {}).nome || id;
+    const ult = {}; for (const c of comp) if (!c.annullato && (!ult[c.faccendaId] || c.ts > ult[c.faccendaId])) ult[c.faccendaId] = c.ts;
+    const ordina = (a, k) => a.sort((x, y) => (x[k] || 0) - (y[k] || 0));
+
+    const cF = ["id", "nome", "stanza", "tipo", "ogni_giorni", "minuti", "difficolta", "sbatti", "categoria", "punti_base", "attiva", "ultima_volta"];
+    const rF = fac.map(f => ({ id: f.id, nome: f.nome, stanza: f.stanza, tipo: f.tipo, ogni_giorni: f.freq, minuti: f.minuti, difficolta: f.diff, sbatti: f.sbatti, categoria: CAT[categoria(f)].nome, punti_base: puntiBase(f.minuti, f.diff, f.sbatti), attiva: f.attiva !== false, ultima_volta: isoLocale(Math.max(ult[f.id] || 0, f.ultima || 0)) }));
+
+    const cC = ["data", "faccenda", "stanza", "minuti", "eroi", "punti", "missione_del_giorno", "fuori_lista", "annullata"];
+    const rC = ordina([...comp], "ts").map(c => ({ data: isoLocale(c.ts), faccenda: c.nome, stanza: c.stanza, minuti: c.minuti, eroi: (c.giocatori || []).map(nomeG).join(" + "), punti: c.punti, missione_del_giorno: !!c.bonus, fuori_lista: !!c.extra, annullata: !!c.annullato }));
+
+    const rG = gioc.map(g => {
+      const mie = comp.filter(c => !c.annullato && (c.giocatori || []).includes(g.id));
+      const xp = mie.reduce((a, c) => a + (c.punti || 0), 0), spese = risc.filter(r => r.giocatore === g.id).reduce((a, r) => a + (r.costo || 0), 0);
+      return { nome: g.nome, classe: CLASSI[g.classe] || g.classe, livello: livelloDa(xp).lv, xp_totali: xp, monete_spese: spese, monete_disponibili: xp - spese, faccende_fatte: mie.length, minuti_totali: mie.reduce((a, c) => a + (c.minuti || 0), 0), animale: g.pet ? (g.pet.nome || g.pet.specie) : "" };
+    });
+    const cG = ["nome", "classe", "livello", "xp_totali", "monete_spese", "monete_disponibili", "faccende_fatte", "minuti_totali", "animale"];
+
+    const cR = ["data", "eroe", "cosa", "costo", "negozio", "consegnato"];
+    const rR = ordina([...risc], "ts").map(r => ({ data: isoLocale(r.ts), eroe: nomeG(r.giocatore), cosa: r.nome, costo: r.costo, negozio: !!r.negozio, consegnato: !!r.consegnato }));
+
+    const files = {
+      "faccende.csv": O.csv(cF, rF),
+      "completamenti.csv": O.csv(cC, rC),
+      "eroi.csv": O.csv(cG, rG),
+      "riscatti.csv": O.csv(cR, rR),
+      "premi.csv": O.csv(["nome", "costo"], premi),
+      "prodotti.csv": O.csv(["tipo", "marca", "scorta", "livello"], prod),
+      "lista_spesa.csv": O.csv(["testo"], spesa),
+      "LEGGIMI.txt": "Our little world · esportazione del " + isoLocale(now) + "\r\nSeparatore: punto e virgola (;). Codifica: UTF-8.\r\nIn pandas: pd.read_csv('completamenti.csv', sep=';', encoding='utf-8-sig')\r\n"
+    };
+    O.scarica("our-little-world-" + oggiKey(now) + ".zip", O.zip(files));
+    toast("Dati scaricati: " + fac.length + " faccende, " + comp.length + " completamenti");
+  } catch (e) { errore(e); }
+}
+
+/* Riporta l'app a "nuova" dopo i test. Chiede di scrivere la parola RESET: non si fa per sbaglio. */
+function apriReset() {
+  apriSheet(`<h2>Azzera i test</h2>
+    <p class="muted small" style="margin:0">Cosa vuoi cancellare? Le faccende e le stanze restano sempre.</p>
+    <div class="field"><label class="rst"><input type="checkbox" id="rP" checked> <span><b>Progressi</b>: missioni fatte, punti, monete, premi riscattati, sfide. Le faccende ripartono "appena pulite". I personaggi restano come sono.</span></label></div>
+    <div class="field"><label class="rst"><input type="checkbox" id="rE"> <span><b>Personaggi</b>: cancella anche gli eroi (aspetto, pezzi e animali comprati). Ognuno dovrà crearsi di nuovo.</span></label></div>
+    <div class="field"><label class="rst"><input type="checkbox" id="rL"> <span><b>Liste</b>: premi, premi della sfida, prodotti e lista della spesa.</span></label></div>
+    <div class="field"><button class="btn" id="rCsv">Scarica prima una copia (CSV)</button></div>
+    <div class="field"><label for="rConf">Per confermare scrivi <b>RESET</b></label><input type="text" id="rConf" autocomplete="off" autocapitalize="characters" style="background:var(--night);border:1px solid var(--seam);border-radius:10px;padding:10px 12px"></div>
+    <p class="err" id="rErr" hidden></p>
+    <div class="sheet-actions"><button class="btn ghost" data-close>Annulla</button><button class="btn prime danger" id="rOk">Azzera</button></div>`, sh => {
+    sh.querySelector("#rCsv").onclick = () => esportaCsv();
+    sh.querySelector("#rOk").onclick = async () => {
+      const err = sh.querySelector("#rErr"), p = sh.querySelector("#rP").checked, e = sh.querySelector("#rE").checked, l = sh.querySelector("#rL").checked;
+      if (!p && !e && !l) { err.textContent = "Scegli almeno una cosa da azzerare."; err.hidden = false; return; }
+      if (sh.querySelector("#rConf").value.trim().toUpperCase() !== "RESET") { err.textContent = "Scrivi RESET per confermare."; err.hidden = false; return; }
+      const b = sh.querySelector("#rOk"); b.disabled = true; b.textContent = "Azzero…";
+      try { await azzera({ progressi: p, eroi: e, liste: l }); } catch (x) { b.disabled = false; b.textContent = "Azzera"; errore(x); }
+    };
+  });
+}
+async function azzera(o) {
+  const now = Date.now(), lotti = async (arr, fn) => { for (let i = 0; i < arr.length; i += 10) await Promise.all(arr.slice(i, i + 10).map(fn)); };
+  if (o.progressi) {
+    const cs = (await db.collection("completamenti").get()).docs.map(d => d.data());
+    const extra = new Set(cs.filter(c => c.extra).map(c => c.faccendaId)), fatte = new Set(cs.filter(c => !c.extra).map(c => c.faccendaId));
+    await lotti(S.faccende, async f => {
+      if (extra.has(f.id)) return db.doc("faccende/" + f.id).delete();
+      const u = {};
+      if (f.prenDa) { u.prenDa = null; u.prenFino = 0; }
+      if (f.tipo === "ricorrente") { u.base = now; u.ultima = 0; }
+      else if (f.ultima) u.ultima = 0;
+      if (f.tipo === "occasionale" && fatte.has(f.id)) u.attiva = true;
+      if (Object.keys(u).length) return db.doc("faccende/" + f.id).update(u);
+    });
+    for (const c of ["completamenti", "riscatti", "sfide"]) await db.svuota(c);
+    if (!o.eroi) await lotti(Object.keys(S.giocatori), id => db.doc("giocatori/" + id).update({ archivio: {} }));
+    await db.doc("config/casa").update({ missioneGiorno: null, sfidaInizio: now });
+  }
+  if (o.eroi) { await db.svuota("giocatori"); try { localStorage.removeItem("olw-hero"); } catch (x) {} }
+  if (o.liste) for (const c of ["premi", "sfidaPremi", "prodotti", "spesa"]) await db.svuota(c);
+  chiudiSheet();
+  if (o.eroi) { location.reload(); return; }
+  toast("Fatto: l'app riparte da zero");
 }
 
 /* Editor della pianta: rettangoli su una griglia, un tipo per stanza. Il tipo decide in quale posto della dimora compare la stanza. */
