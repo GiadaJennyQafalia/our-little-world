@@ -82,7 +82,7 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.14.0";
+const VERSIONE_APP = "3.15.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
