@@ -4,21 +4,57 @@ const DAY = 864e5, HOUR = 36e5;
 const WEB = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="#a89cb3" stroke-width="1.1"><path d="M0 0L100 70M0 0L70 100M0 0L30 100M0 0L100 30"/><path d="M0 22Q18 18 22 0M0 44Q30 38 44 0M0 66Q45 56 66 0M0 88Q60 74 88 0"/></svg>');
 document.documentElement.style.setProperty("--web", `url("${WEB}")`);
 
-const DIMORE = { castello: "Il Castello", hobbit: "La Casa Hobbit", caverna: "La Caverna", reggia: "La Reggia", torre: "La Torre", appartamento: "L'Appartamento" };
+const DIMORE = { castello: "Il Castello", hobbit: "La Tana nella collina", caverna: "La Grotta di cristalli", reggia: "Il Palazzo", torre: "La Torre del mago", appartamento: "L'Appartamento in città" };
 const CLASSI = { cavaliere: "Cavaliere", strega: "Strega", ranger: "Ranger", alchimista: "Alchimista" };
 const STATI = ["Splendente", "In ordine", "Trascurata", "Abbandonata"];
-/* Mappa del castello: riquadri tappabili, in pixel dell'immagine 768×1376 (img/castello.webp) */
-const CASTELLO = { w: 768, h: 1376, stanze: [
-  { r: "Bagno", rect: [112, 283, 376, 530] },
-  { r: "Camera", rect: [392, 283, 656, 530] },
-  { r: "Sgabuzzino", rect: [112, 550, 312, 798] },
-  { r: "Tutta la casa", nome: "Corridoio", rect: [328, 550, 440, 898], stretta: true },
-  { r: "Cucina", rect: [456, 550, 656, 898] },
-  { r: "Ingresso", rect: [112, 918, 312, 1198] },
-  { r: "Salotto", rect: [328, 918, 656, 1198] },
-  { r: "Balcone", rect: [678, 400, 756, 1062], stretta: true }
-] };
-const IMG_STANZA = { "Bagno": "bagno", "Camera": "camera", "Sgabuzzino": "sgabuzzino", "Tutta la casa": "corridoio", "Cucina": "cucina", "Ingresso": "ingresso", "Salotto": "soggiorno", "Balcone": "balcone" };
+/* ---------- Pianta della casa e skin delle dimore ----------
+   La PIANTA dice quali sono le stanze vere di casa (nome, tipo, posizione nella mappa stilizzata) e vive in config/casa.pianta.
+   La DIMORA (skin) è solo l'aspetto: un'immagine con dei "posti", uno per tipo di stanza. Ogni stanza della pianta va nel posto del suo tipo,
+   quindi cambiando dimora la casa resta la stessa. Tutte le dimore condividono la disposizione dei posti del castello. */
+const TIPI = { bagno: "Bagno", camera: "Camera", cucina: "Cucina", soggiorno: "Soggiorno", ingresso: "Ingresso", corridoio: "Corridoio", ripostiglio: "Ripostiglio", balcone: "Balcone", altro: "Altro (senza posto)" };
+const POSTI = [ /* riquadri tappabili, in pixel dell'immagine 768×1376 */
+  { tipo: "bagno", rect: [112, 283, 376, 530] },
+  { tipo: "camera", rect: [392, 283, 656, 530] },
+  { tipo: "ripostiglio", rect: [112, 550, 312, 798] },
+  { tipo: "corridoio", rect: [328, 550, 440, 898], stretta: true },
+  { tipo: "cucina", rect: [456, 550, 656, 898] },
+  { tipo: "ingresso", rect: [112, 918, 312, 1198] },
+  { tipo: "soggiorno", rect: [328, 918, 656, 1198] },
+  { tipo: "balcone", rect: [678, 400, 756, 1062], stretta: true }
+];
+const SKIN = { castello: { img: "img/castello.webp", w: 768, h: 1376, stanze: "img/stanze/", file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone" } } };
+const GRIGLIA = { w: 11, h: 11 };
+const CORRIDOIO = { tipo: "corridoio", x: 4, y: 3, w: 2, h: 4 };
+const PIANTA_BASE = {
+  "Bagno": { tipo: "bagno", x: 0, y: 0, w: 5, h: 3 }, "Camera": { tipo: "camera", x: 5, y: 0, w: 5, h: 3 },
+  "Sgabuzzino": { tipo: "ripostiglio", x: 0, y: 3, w: 4, h: 4 }, "Cucina": { tipo: "cucina", x: 6, y: 3, w: 4, h: 4 },
+  "Ingresso": { tipo: "ingresso", x: 0, y: 7, w: 4, h: 4 }, "Salotto": { tipo: "soggiorno", x: 4, y: 7, w: 6, h: 4 },
+  "Balcone": { tipo: "balcone", x: 10, y: 2, w: 1, h: 6 }
+};
+const COL_TIPO = { bagno: "#5f9fb0", camera: "#8a6bb5", cucina: "#c98a4b", soggiorno: "#6f9a5b", ingresso: "#b0985f", corridoio: "#7d7a8c", ripostiglio: "#8a7260", balcone: "#5f8f7a", altro: "#b05f5f" };
+function tipoDa(n) {
+  const t = String(n || "").toLowerCase();
+  return /bagn|wc|toilet/.test(t) ? "bagno" : /camer|letto|stanza da letto/.test(t) ? "camera" : /cucin/.test(t) ? "cucina" : /sogg|salotto|living|sala/.test(t) ? "soggiorno"
+    : /ingress|entrata/.test(t) ? "ingresso" : /sgab|ripost|cantin|lavander/.test(t) ? "ripostiglio" : /balcon|terraz|veranda/.test(t) ? "balcone" : /corridoi/.test(t) ? "corridoio" : "altro";
+}
+/* La pianta effettiva: i valori salvati, altrimenti quelli di base ricavati dal nome. "Tutta la casa" è sempre il corridoio. */
+function pianta() {
+  const salvata = (S.config && S.config.pianta) || {}, out = {};
+  for (const r of stanze()) {
+    const b = PIANTA_BASE[r], s = salvata[r];
+    out[r] = { ...(b || { tipo: tipoDa(r), x: 0, y: 0, w: 3, h: 2 }), ...(s || {}) };
+    if (!TIPI[out[r].tipo]) out[r].tipo = "altro";
+  }
+  out["Tutta la casa"] = { ...CORRIDOIO, ...((salvata["Tutta la casa"]) || {}), tipo: "corridoio" };
+  return out;
+}
+const tipoStanza = r => (pianta()[r] || {}).tipo || "altro";
+const nomeStanza = r => r === "Tutta la casa" ? "Corridoio" : r;
+/* La stanza della pianta che occupa un posto: la prima, in ordine, che ha quel tipo. */
+function stanzaDelPosto(tipo, pi) {
+  if (tipo === "corridoio") return "Tutta la casa";
+  return Object.keys(pi).find(r => r !== "Tutta la casa" && pi[r].tipo === tipo) || null;
+}
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
 const SBLOCCHI = ["personaggio base", "vestiti", "cappelli e accessori", "segni particolari", "primo animale", "accessori per animali", "animali fantasy", "oggetti rari"];
@@ -339,14 +375,14 @@ function strisciaGiorno(now) {
     <button class="btn prime sm" data-act="fatta" data-id="${f.id}">Compiuta!</button>
   </section>`;
 }
-function castelloMappa(st, now) {
-  const { w, h } = CASTELLO, pc = (v, t) => (v / t * 100).toFixed(3) + "%";
-  const tasti = CASTELLO.stanze.map(s => {
-    const x = statoUna(s.r, now, st); if (!x) return "";
-    const [x0, y0, x1, y1] = s.rect, nome = s.nome || s.r;
-    return `<button class="rm lv${x.livello}${s.stretta ? " stretta" : ""}" data-act="stanza" data-r="${esc(s.r)}" style="left:${pc(x0, w)};top:${pc(y0, h)};width:${pc(x1 - x0, w)};height:${pc(y1 - y0, h)}" title="${esc(nome)}" aria-label="${esc(nome)}: ${STATI[x.livello]}, ${x.urg ? x.urg + (x.urg === 1 ? " missione urgente" : " missioni urgenti") : "tutto in pari"}">${velo(x.livello)}${x.urg ? `<span class="rm-badge num" aria-hidden="true">${x.urg}</span>` : ""}</button>`;
+function dimoraMappa(dim, st, now) {
+  const sk = SKIN[dim], pi = pianta(), pc = (v, t) => (v / t * 100).toFixed(3) + "%";
+  const tasti = POSTI.map(po => {
+    const r = stanzaDelPosto(po.tipo, pi), x = r && statoUna(r, now, st); if (!x) return "";
+    const [x0, y0, x1, y1] = po.rect, nome = nomeStanza(r);
+    return `<button class="rm lv${x.livello}${po.stretta ? " stretta" : ""}" data-act="stanza" data-r="${esc(r)}" style="left:${pc(x0, sk.w)};top:${pc(y0, sk.h)};width:${pc(x1 - x0, sk.w)};height:${pc(y1 - y0, sk.h)}" title="${esc(nome)}" aria-label="${esc(nome)}: ${STATI[x.livello]}, ${x.urg ? x.urg + (x.urg === 1 ? " missione urgente" : " missioni urgenti") : "tutto in pari"}">${velo(x.livello)}${x.urg ? `<span class="rm-badge num" aria-hidden="true">${x.urg}</span>` : ""}</button>`;
   }).join("");
-  return `<div class="castle"><img src="img/castello.webp" width="${w}" height="${h}" alt="Il castello in sezione: tocca una stanza" decoding="async">${tasti}</div>`;
+  return `<div class="castle"><img src="${sk.img}" width="${sk.w}" height="${sk.h}" alt="${esc(DIMORE[dim])} in sezione: tocca una stanza" decoding="async">${tasti}</div>`;
 }
 function gruppoMissioni(t, a, vuoto, now) {
   return `<section class="sec"><div class="sec-head"><h3>${t}</h3><span class="muted small num">${a.length}</span></div>${a.length ? `<div class="list">${a.map(x => cartaMissione(x, now)).join("")}</div>` : `<div class="empty fr-dash small">${vuoto}</div>`}</section>`;
@@ -354,16 +390,16 @@ function gruppoMissioni(t, a, vuoto, now) {
 function vStanza(now) {
   const r = S.stanzaSel, st = statoStanze(now), x = r && statoUna(r, now, st);
   if (!x) { S.view = "casa"; return vCasa(now); }
-  const nome = r === "Tutta la casa" ? "Corridoio" : r, img = IMG_STANZA[r], ult = ultimeComp();
+  const nome = nomeStanza(r), dimS = (S.config && S.config.dimora) || "castello", sk = SKIN[dimS], img = sk && sk.file[tipoStanza(r)], ult = ultimeComp();
   const tutte = S.faccende.filter(f => f.attiva !== false && f.stanza === r).map(f => ({ f, i: infoFaccenda(f, ult, now) }));
   const urg = tutte.filter(y => y.i.urgente && !y.i.riposo).sort((a, b) => b.i.ritardo - a.i.ritardo);
   const disp = tutte.filter(y => !y.i.urgente && !y.i.riposo).sort((a, b) => (a.i.scadenza ?? 1e15) - (b.i.scadenza ?? 1e15));
   const rip = tutte.filter(y => y.i.riposo).sort((a, b) => a.i.riposo - b.i.riposo);
   const pulita = Math.round((1 - x.pct) * 100), col = ["var(--candle)", "var(--moss)", "var(--arcane)", "var(--ember)"][x.livello];
   return `
-  <button class="btn ghost sm back" data-act="indietro">← Il castello</button>
+  <button class="btn ghost sm back" data-act="indietro">← ${esc(DIMORE[dimS] || "La dimora")}</button>
   <section class="hero fr-stone st${x.livello} room-hero">
-    <div class="room-scene">${img ? `<img src="img/stanze/${img}.webp" alt="${esc(nome)}" decoding="async">` : ""}${velo(x.livello, img ? "img/stanze/" + img + ".webp" : "")}</div>
+    <div class="room-scene">${img ? `<img src="${sk.stanze}${img}.webp" alt="${esc(nome)}" decoding="async">` : ""}${velo(x.livello, img ? sk.stanze + img + ".webp" : "")}</div>
     <div class="hero-cap">
       <div class="sec-head"><span class="state">${esc(nome)}</span><span class="pill p${x.livello}">${STATI[x.livello]}</span></div>
       <span class="bar big" aria-hidden="true"><i style="width:${Math.max(4, pulita)}%;background:${col}"></i></span>
@@ -391,17 +427,17 @@ function vCasa(now) {
   return `
   ${strisciaGiorno(now)}
   <section class="hero fr-stone st${liv}">
-    ${dim === "castello" ? "" : `<div class="scene-wrap">${scena(dim)}<div class="glow"></div>
+    ${SKIN[dim] ? "" : `<div class="scene-wrap">${scena(dim)}<div class="glow"></div>
     <img class="cobweb l" src="${WEB}" alt="" style="opacity:${webOp}"><img class="cobweb r" src="${WEB}" alt="" style="opacity:${webOp}">
     <div class="dust" style="opacity:${dustOp}"></div>${sparks}</div>`}
     <div class="hero-cap">
       <div class="sec-head"><span class="state">${esc(cfg.nome || "Our little world")}</span><span class="pill p${liv}">${STATI[liv]}</span></div>
       <span class="muted small">${esc(DIMORE[dim] || "La dimora")} · <span class="num">${Math.round(media * 100)}%</span> delle faccende ricorrenti in ritardo · ${urgTot ? `<span class="num">${urgTot}</span> missioni urgenti` : "nessuna missione urgente"}</span>
     </div>
-    ${dim === "castello" ? castelloMappa(st, now) : ""}
+    ${SKIN[dim] ? dimoraMappa(dim, st, now) : ""}
   </section>
   <section class="sec">
-    <div class="sec-head"><h3>Stanze</h3><span class="muted small">tocca per le missioni</span></div>
+    <div class="sec-head"><h3>Stanze</h3><button class="btn ghost sm" data-act="pianta">Pianta</button></div>
     ${rs.length ? `<div class="rooms">${rs.map(r => `
       <button class="room fr-stone st${st[r].livello}" data-act="stanza" data-r="${esc(r)}">
         <span class="rn">${esc(r)}</span>
@@ -774,11 +810,13 @@ function apriImpostazioni() {
   const cfg = S.config || {};
   apriSheet(`<h2>La casa</h2>
     <div class="field"><label for="sNome">Nome della casa</label><input type="text" id="sNome" maxlength="40" value="${esc(cfg.nome || "Our little world")}"></div>
-    <div class="field"><span class="lab">Dimora</span>${radio("dimora", Object.entries(DIMORE).map(([k, v]) => [k, v.replace(/^(Il|La|L') ?/, "")]), cfg.dimora || "castello")}</div>
+    <div class="field"><span class="lab">Dimora</span>${radio("dimora", Object.entries(DIMORE).filter(([k]) => SKIN[k]).map(([k, v]) => [k, v.replace(/^(Il|La|L') ?/, "")]), SKIN[cfg.dimora] ? cfg.dimora : "castello")}<span class="muted small">Le altre dimore arrivano presto: la pianta resta la stessa.</span></div>
+    <div class="field"><span class="lab">Pianta della casa</span><button class="btn" id="sPianta">Apri la pianta</button><span class="muted small">Le tue stanze vere, disegnate in piccolo. Valgono per ogni dimora.</span></div>
     <div class="field"><span class="lab">Durata della sfida</span>${radio("sfida", [[14, "2 settimane"], [30, "1 mese"]], cfg.sfidaGiorni || 14)}<span class="muted small">La nuova durata vale dal periodo in corso: i punti già fatti restano.</span></div>
     <div class="field"><label for="sStanza">Aggiungi una stanza</label><div class="row-actions"><input type="text" id="sStanza" maxlength="30" style="flex:1;min-width:0;background:var(--ink);border:1px solid var(--seam);border-radius:10px;padding:10px 12px"><button class="btn" id="sAdd">Aggiungi</button></div><span class="muted small">${esc(stanze().join(", "))}</span></div>
     <div class="field"><span class="lab">Account</span><div class="row-actions" style="align-items:center"><span class="muted small" style="flex:1;min-width:0;overflow-wrap:anywhere">${esc(utente ? utente.email : "")}</span><button class="btn sm ghost" id="sEsci">Esci</button></div></div>
     <div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button><button class="btn prime" id="sSalva">Salva</button></div>`, sh => {
+    sh.querySelector("#sPianta").onclick = () => apriPianta();
     sh.querySelector("#sEsci").onclick = async () => { try { localStorage.removeItem("olw-hero"); } catch (e) {} await sb.auth.signOut(); location.reload(); };
     sh.querySelector("#sAdd").onclick = async () => {
       const r = sh.querySelector("#sStanza").value.trim(); if (!r) return;
@@ -790,6 +828,78 @@ function apriImpostazioni() {
       if (g !== (cfg.sfidaGiorni || 14)) dati.sfidaInizio = periodoSfida(Date.now()).inizio;
       try { await db.doc("config/casa").update(dati); chiudiSheet(); toast("Casa aggiornata"); } catch (e) { errore(e); }
     };
+  });
+}
+
+/* Editor della pianta: rettangoli su una griglia, un tipo per stanza. Il tipo decide in quale posto della dimora compare la stanza. */
+function apriPianta() {
+  const cfg = S.config || {}, W = GRIGLIA.w, H = GRIGLIA.h, base = pianta(), D = {};
+  for (const r of Object.keys(base)) D[r] = { ...base[r] };
+  let sel = null, drag = null;
+  const nFacc = r => S.faccende.filter(f => f.attiva !== false && f.stanza === r).length;
+  apriSheet(`<h2>Pianta della casa</h2>
+    <p class="muted small" style="margin:0">Trascina una stanza per spostarla, il quadratino in basso a destra per cambiarne la misura. Non serve la scala giusta: basta che si capisca com'è fatta casa.</p>
+    <div class="pianta-wrap fr-dash"><svg id="pSvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pianta stilizzata della casa"></svg></div>
+    <div id="pInfo" class="pianta-info"></div>
+    <div class="field"><label for="pNuova">Aggiungi una stanza</label><div class="row-actions"><input type="text" id="pNuova" maxlength="30" style="flex:1;min-width:0;background:var(--night);border:1px solid var(--seam);border-radius:10px;padding:10px 12px"><button class="btn" id="pAdd">Aggiungi</button></div></div>
+    <div id="pAvvisi" class="pianta-avvisi small"></div>
+    <div class="sheet-actions"><button class="btn ghost" data-close>Annulla</button><button class="btn prime" id="pSalva">Salva la pianta</button></div>`, sh => {
+    const svg = sh.querySelector("#pSvg"), info = sh.querySelector("#pInfo"), av = sh.querySelector("#pAvvisi");
+    const ridisegna = () => {
+      svg.innerHTML = `<defs><pattern id="pg" width="1" height="1" patternUnits="userSpaceOnUse"><path d="M1 0H0V1" fill="none" stroke="#ffffff" stroke-opacity=".07" stroke-width=".04"/></pattern></defs><rect width="${W}" height="${H}" fill="url(#pg)"/>` +
+        Object.entries(D).map(([r, q]) => {
+          const on = r === sel, nm = nomeStanza(r), max = Math.max(3, Math.floor(q.w * 2.4));
+          return `<g data-r="${esc(r)}"><rect class="pr${on ? " on" : ""}${r === "Tutta la casa" ? " fix" : ""}" x="${q.x + .06}" y="${q.y + .06}" width="${q.w - .12}" height="${q.h - .12}" rx=".18" fill="${COL_TIPO[q.tipo] || COL_TIPO.altro}"/>` +
+            `<text x="${q.x + q.w / 2}" y="${q.y + q.h / 2 + .18}" text-anchor="middle" class="pt">${esc(nm.length > max ? nm.slice(0, max - 1) + "…" : nm)}</text>` +
+            (on ? `<rect class="ph" data-h="1" x="${q.x + q.w - .62}" y="${q.y + q.h - .62}" width=".5" height=".5" rx=".1"/>` : "") + `</g>`;
+        }).join("");
+      const q = sel && D[sel];
+      info.innerHTML = q ? (sel === "Tutta la casa"
+        ? `<b>Corridoio</b><span class="muted small">Qui stanno le faccende di "tutta la casa", come l'aspirapolvere. Puoi spostarlo e ridimensionarlo.</span>`
+        : `<div class="field"><label for="pTipo"><b>${esc(sel)}</b> · che tipo di stanza è?</label><select id="pTipo">${Object.entries(TIPI).filter(([k]) => k !== "corridoio").map(([k, v]) => `<option value="${k}" ${k === q.tipo ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></div>
+           <button class="btn ghost sm" id="pDel" ${nFacc(sel) ? "disabled" : ""}>${nFacc(sel) ? `Ha ${nFacc(sel)} faccende: non si può togliere` : "Togli questa stanza"}</button>`)
+        : `<span class="muted small">Tocca una stanza per scegliere il suo tipo.</span>`;
+      const t = info.querySelector("#pTipo"); if (t) t.onchange = () => { D[sel].tipo = t.value; ridisegna(); };
+      const d = info.querySelector("#pDel"); if (d) d.onclick = () => { delete D[sel]; sel = null; ridisegna(); };
+      const per = {}; for (const [r, x] of Object.entries(D)) if (r !== "Tutta la casa") (per[x.tipo] = per[x.tipo] || []).push(r);
+      const msg = [];
+      for (const [k, v] of Object.entries(per)) if (k !== "altro" && v.length > 1) msg.push(`Hai più stanze di tipo ${TIPI[k].toLowerCase()} (${v.map(esc).join(", ")}): nella dimora compare solo ${esc(v[0])}.`);
+      if (per.altro) msg.push(`${per.altro.map(esc).join(", ")}: senza tipo non hanno un posto nella dimora, ma restano tra le stanze e le missioni.`);
+      const vuoti = POSTI.filter(po => po.tipo !== "corridoio" && !per[po.tipo]).map(po => TIPI[po.tipo].toLowerCase());
+      if (vuoti.length) msg.push(`Nella dimora restano vuoti i posti: ${vuoti.join(", ")}.`);
+      av.innerHTML = msg.map(m => `<p class="muted">${m}</p>`).join("");
+    };
+    const cella = e => { const b = svg.getBoundingClientRect(); return [(e.clientX - b.left) / b.width * W, (e.clientY - b.top) / b.height * H]; };
+    svg.addEventListener("pointerdown", e => {
+      const g = e.target.closest("g[data-r]"); if (!g) { sel = null; ridisegna(); return; }
+      const r = g.dataset.r, q = D[r], [cx, cy] = cella(e), resize = !!e.target.closest("[data-h]");
+      sel = r; drag = { r, resize, dx: cx - q.x, dy: cy - q.y, w0: q.w, h0: q.h, x0: cx, y0: cy };
+      try { svg.setPointerCapture(e.pointerId); } catch (x) {}
+      e.preventDefault(); ridisegna();
+    });
+    svg.addEventListener("pointermove", e => {
+      if (!drag) return; const q = D[drag.r], [cx, cy] = cella(e);
+      if (drag.resize) { q.w = Math.max(1, Math.min(W - q.x, Math.round(drag.w0 + cx - drag.x0))); q.h = Math.max(1, Math.min(H - q.y, Math.round(drag.h0 + cy - drag.y0))); }
+      else { q.x = Math.max(0, Math.min(W - q.w, Math.round(cx - drag.dx))); q.y = Math.max(0, Math.min(H - q.h, Math.round(cy - drag.dy))); }
+      ridisegna();
+    });
+    const fine = () => { drag = null; };
+    svg.addEventListener("pointerup", fine); svg.addEventListener("pointercancel", fine);
+    sh.querySelector("#pAdd").onclick = () => {
+      const inp = sh.querySelector("#pNuova"), n = inp.value.trim(); if (!n) return;
+      if (D[n] || n === "Tutta la casa") { toast("Esiste già una stanza con questo nome"); return; }
+      const occ = (x, y) => Object.values(D).some(q => x < q.x + q.w && x + 3 > q.x && y < q.y + q.h && y + 2 > q.y);
+      let px = 0, py = 0; outer: for (let y = 0; y <= H - 2; y++) for (let x = 0; x <= W - 3; x++) if (!occ(x, y)) { px = x; py = y; break outer; }
+      D[n] = { tipo: tipoDa(n), x: px, y: py, w: 3, h: 2 }; sel = n; inp.value = ""; ridisegna();
+    };
+    sh.querySelector("#pSalva").onclick = async () => {
+      try {
+        const nomi = Object.keys(D).filter(r => r !== "Tutta la casa");
+        await db.doc("config/casa").update({ pianta: D, stanze: nomi });
+        chiudiSheet(); toast("Pianta salvata");
+      } catch (e) { errore(e); }
+    };
+    ridisegna();
   });
 }
 
@@ -814,7 +924,7 @@ function conferma(titolo, testo, etichetta, azione) {
 
 /* ---------- Azioni ---------- */
 const trova = (arr, id) => arr.find(x => x.id === id);
-const libere = new Set(["filtro", "fcat", "fstanza", "sgab", "stanza", "indietro", "vaiMissioni", "chi"]);
+const libere = new Set(["pianta", "filtro", "fcat", "fstanza", "sgab", "stanza", "indietro", "vaiMissioni", "chi"]);
 document.addEventListener("click", e => {
   const nav = e.target.closest("nav.tabs button");
   if (nav) { S.view = nav.dataset.view; try { localStorage.setItem("olw-view", S.view); } catch (x) {} window.scrollTo(0, 0); render(); return; }
@@ -825,6 +935,7 @@ document.addEventListener("click", e => {
   if (!(me && S.giocatori[me]) && !libere.has(act)) { apriChi(); return; }
   switch (act) {
     case "chi": apriChi(); break;
+    case "pianta": apriPianta(); break;
     case "stanza": S.view = "stanza"; S.stanzaSel = b.dataset.r; render(); window.scrollTo(0, 0); break;
     case "indietro": S.view = "casa"; render(); window.scrollTo(0, 0); break;
     case "vaiMissioni": S.view = "missioni"; S.fStanza = b.dataset.r; S.fCat = "tutte"; render(); window.scrollTo(0, 0); break;

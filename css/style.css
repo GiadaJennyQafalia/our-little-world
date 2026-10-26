@@ -325,6 +325,7 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
   padding: 16px max(14px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
   display: flex; flex-direction: column; gap: 14px;
 }
+.sheet > * { flex-shrink: 0; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field > label, .field > .lab { font-size: .92rem; font-weight: 800; color: var(--ash); }
 .field input[type=text], .field input[type=number], .field input[type=date], .field input[type=email], .field input[type=password], .field select, .sheet input[type=text] {
@@ -413,3 +414,16 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .ds-meta { font-size: .84rem; display: inline-flex; align-items: center; gap: 4px; }
 .ds-meta svg { width: 14px; height: 14px; }
 .daily-strip .btn { flex: none; }
+
+/* ---------- Pianta della casa ---------- */
+.pianta-wrap { padding: 8px; background: var(--night); }
+#pSvg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+#pSvg .pr { stroke: #0c0911; stroke-width: .08; cursor: grab; }
+#pSvg .pr.on { stroke: var(--candle); stroke-width: .16; }
+#pSvg .pr.fix { stroke-dasharray: .3 .2; fill-opacity: .55; }
+#pSvg .pt { font-family: var(--f-display); font-size: .52px; fill: #fff; paint-order: stroke; stroke: #0c0911; stroke-width: .12px; pointer-events: none; }
+#pSvg .ph { fill: var(--candle); stroke: #0c0911; stroke-width: .06; cursor: nwse-resize; }
+.pianta-info { display: flex; flex-direction: column; gap: 8px; align-items: stretch; min-height: 2.4em; }
+.pianta-info .btn { align-self: flex-start; }
+.pianta-info select { background: var(--night); border: 1px solid var(--seam); border-radius: 10px; padding: 10px 12px; width: 100%; }
+.pianta-avvisi p { margin: 0 0 6px; }
