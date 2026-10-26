@@ -1,6 +1,6 @@
 /* Our little world · service worker
    Tiene in cache la "scocca" dell'app così si apre subito; i dati arrivano sempre freschi da Supabase. */
-const VERSIONE = "olw-v3.0.0";
+const VERSIONE = "olw-v3.0.1";
 const SCOCCA = ["./", "index.html", "css/style.css", "js/store.js", "js/app.js", "config.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", e => {

@@ -4,5 +4,5 @@
    Se li lasci vuoti, l'app li chiede al primo avvio su ogni telefono. */
 window.OLW_CONFIG = {
   supabaseUrl: "https://rquvzcetknujcrebghyk.supabase.co",
-  supabaseKey: ""
+  supabaseKey: "sb_publishable_57FAEFWnGI6r5dpBa07d1g_rnzVWc0Y"
 };
