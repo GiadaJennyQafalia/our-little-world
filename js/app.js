@@ -327,12 +327,24 @@ function statoUna(r, now, st) {
   const urg = S.faccende.filter(f => f.attiva !== false && f.tipo === "ricorrente" && f.stanza === "Tutta la casa" && infoFaccenda(f, ult, now).urgente).length;
   return { pct: media, livello: media <= 0.10 ? 0 : media <= 0.25 ? 1 : media <= 0.50 ? 2 : 3, urg };
 }
+function strisciaGiorno(now) {
+  const mg = missioneGiorno(now);
+  if (!mg) return "";
+  const f = mg.f, i = infoFaccenda(f, ultimeComp(), now), c = CAT[i.cat];
+  if (mg.fatta) return `<section class="daily-strip fr-parch done" aria-label="Missione del giorno">
+    <button class="ds-main" data-act="vaiMissioni" data-r="tutte"><span class="ds-seal">${ICON.star()}</span><span class="ds-txt"><span class="ds-kicker">Missione del giorno</span><span class="ds-title">${esc(f.nome)}</span><span class="ds-meta">Compiuta${mg.fattaDa ? " da " + esc(mg.fattaDa.map(nome).join(" e ")) : ""}. Domani ne arriva una nuova.</span></span></button></section>`;
+  const premio = Math.round(i.punti * (1 + BONUS_GIORNO));
+  return `<section class="daily-strip fr-parch ${i.cat}" aria-label="Missione del giorno">
+    <button class="ds-main" data-act="vaiMissioni" data-r="tutte"><span class="ds-seal">${ICON[i.cat](c.col)}</span><span class="ds-txt"><span class="ds-kicker">Missione del giorno</span><span class="ds-title">${esc(f.nome)}</span><span class="ds-meta">${esc(f.stanza)} · ${ICON.coin()}<b class="num">${premio}</b></span></span></button>
+    <button class="btn prime sm" data-act="fatta" data-id="${f.id}">Compiuta!</button>
+  </section>`;
+}
 function castelloMappa(st, now) {
   const { w, h } = CASTELLO, pc = (v, t) => (v / t * 100).toFixed(3) + "%";
   const tasti = CASTELLO.stanze.map(s => {
     const x = statoUna(s.r, now, st); if (!x) return "";
     const [x0, y0, x1, y1] = s.rect, nome = s.nome || s.r;
-    return `<button class="rm lv${x.livello}${s.stretta ? " stretta" : ""}" data-act="stanza" data-r="${esc(s.r)}" style="left:${pc(x0, w)};top:${pc(y0, h)};width:${pc(x1 - x0, w)};height:${pc(y1 - y0, h)}" aria-label="${esc(nome)}: ${STATI[x.livello]}, ${x.urg ? x.urg + (x.urg === 1 ? " missione urgente" : " missioni urgenti") : "tutto in pari"}">${velo(x.livello)}<span class="rm-tag"><i class="dot"></i>${esc(nome)}${x.urg ? `<b class="num">${x.urg}</b>` : ""}</span></button>`;
+    return `<button class="rm lv${x.livello}${s.stretta ? " stretta" : ""}" data-act="stanza" data-r="${esc(s.r)}" style="left:${pc(x0, w)};top:${pc(y0, h)};width:${pc(x1 - x0, w)};height:${pc(y1 - y0, h)}" title="${esc(nome)}" aria-label="${esc(nome)}: ${STATI[x.livello]}, ${x.urg ? x.urg + (x.urg === 1 ? " missione urgente" : " missioni urgenti") : "tutto in pari"}">${velo(x.livello)}${x.urg ? `<span class="rm-badge num" aria-hidden="true">${x.urg}</span>` : ""}</button>`;
   }).join("");
   return `<div class="castle"><img src="img/castello.webp" width="${w}" height="${h}" alt="Il castello in sezione: tocca una stanza" decoding="async">${tasti}</div>`;
 }
@@ -377,6 +389,7 @@ function vCasa(now) {
   const p = periodoSfida(now), sc = punteggi(p.inizio, now), ids = Object.keys(S.giocatori);
   const urgTot = rs.reduce((a, r) => a + st[r].urg, 0);
   return `
+  ${strisciaGiorno(now)}
   <section class="hero fr-stone st${liv}">
     ${dim === "castello" ? "" : `<div class="scene-wrap">${scena(dim)}<div class="glow"></div>
     <img class="cobweb l" src="${WEB}" alt="" style="opacity:${webOp}"><img class="cobweb r" src="${WEB}" alt="" style="opacity:${webOp}">
@@ -387,7 +400,6 @@ function vCasa(now) {
     </div>
     ${dim === "castello" ? castelloMappa(st, now) : ""}
   </section>
-  ${cartaGiorno(now)}
   <section class="sec">
     <div class="sec-head"><h3>Stanze</h3><span class="muted small">tocca per le missioni</span></div>
     ${rs.length ? `<div class="rooms">${rs.map(r => `

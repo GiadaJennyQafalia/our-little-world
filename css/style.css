@@ -380,12 +380,8 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .rm:active { box-shadow: inset 0 0 0 3px var(--candle-hi); }
 .rm:focus-visible { outline: 3px solid var(--candle); outline-offset: -3px; z-index: 2; }
 @media (hover: hover) { .rm:hover { box-shadow: inset 0 0 0 2px var(--candle); } }
-.rm-tag { position: absolute; left: 3px; bottom: 3px; max-width: calc(100% - 6px); display: inline-flex; align-items: center; gap: 3px; padding: 1px 4px 1px 3px; background: #150f1dd9; border: 1px solid var(--lv); border-radius: 2px; font: 800 10px/1.25 var(--f-body); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; z-index: 1; }
-.rm-tag .dot { width: 6px; height: 6px; background: var(--lv); flex: none; }
-.rm-tag b { margin-left: 2px; padding: 0 3px; background: var(--ember); color: #2a0e06; border-radius: 2px; }
-.rm.stretta .rm-tag { left: 50%; bottom: 4px; top: auto; transform: translateX(-50%); flex-direction: column; writing-mode: vertical-rl; padding: 4px 1px; max-width: none; max-height: calc(100% - 8px); background: #150f1dbf; font-size: 9.5px; }
-.rm.stretta .rm-tag b { margin: 2px 0 0; padding: 1px 0; }
-@media (min-width: 480px) { .rm-tag { font-size: 11px; } }
+.rm-badge { position: absolute; right: 4px; top: 4px; min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center; background: var(--ember); color: #2a0e06; border: 2px solid #150f1d; box-shadow: 0 2px 0 #0008; font: 800 12px/1 var(--f-body); z-index: 1; }
+.rm.stretta .rm-badge { right: 50%; transform: translateX(50%); }
 
 /* polvere, ragnatele e scintille disegnate da codice */
 .veil { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
@@ -404,3 +400,16 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .room-hero .room-scene .veil .cobweb { width: 20%; top: 14%; }
 .room-hero .room-scene .veil .cobweb.l { left: 7%; } .room-hero .room-scene .veil .cobweb.r { right: 7%; }
 .bar.big { height: 14px; }
+
+/* striscia della missione del giorno (Dimora) */
+.daily-strip { --cat: var(--rapida); display: flex; align-items: center; gap: 10px; padding: 10px 12px; color: var(--ink-brown); }
+.daily-strip.sbatti { --cat: #b3449a; } .daily-strip.lunga { --cat: #3f6fbf; } .daily-strip.rapida { --cat: #1f8f7f; }
+.ds-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0; background: none; border: 0; color: inherit; text-align: left; }
+.ds-seal { flex: none; width: 42px; height: 42px; display: grid; place-items: center; background: #2a1d2e; border: 3px solid #3b2414; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--cat); }
+.ds-seal svg { width: 24px; height: 24px; }
+.ds-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.ds-kicker { font-weight: 800; font-size: .76rem; color: #8a2f2f; }
+.ds-title { font-family: var(--f-display); font-size: 1.08rem; font-weight: 600; color: #2a1608; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-meta { font-size: .84rem; display: inline-flex; align-items: center; gap: 4px; }
+.ds-meta svg { width: 14px; height: 14px; }
+.daily-strip .btn { flex: none; }
