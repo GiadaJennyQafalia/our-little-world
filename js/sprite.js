@@ -66,7 +66,7 @@
   const fa = (slot, pg) => pezzo(slot, idDi(pg[slot]));
   const compatibile = (voce, corpo) => !!(voce && voce.corpi[corpo] && voce.corpi[corpo].walk);
   /* Elenco dei livelli da disegnare, ordinati dal fondo alla cima: { f, z, mats } */
-  function livelli(pg) {
+  function livelli(pg, solo) {
     const corpo = pg.corpo === "male" ? "male" : "female", L = [];
     const aggiungi = (voce, mats, col) => {
       if (!compatibile(voce, corpo)) return;
@@ -74,10 +74,12 @@
       for (const l of voce.corpi[corpo].walk) L.push({ f: va ? l.f.replace("{v}", va) : l.f, z: l.z, mats: va ? [] : mats });
     };
     const pelle = pg.pelle || "light", occhi = pg.occhi || "blue";
-    aggiungi(CAT.fissi.corpo, [["body", pelle]]);
-    aggiungi(corpo === "male" ? CAT.fissi.testa_m : CAT.fissi.testa_f, [["body", pelle], ["eye", occhi]]);
     const capCol = colDi(pg.capelli) || "blonde";
-    aggiungi(CAT.fissi["sopracciglia_" + (pg.sopr === "thick" ? "thick" : "thin")], [["hair", capCol]]);
+    if (!solo) {
+      aggiungi(CAT.fissi.corpo, [["body", pelle]]);
+      aggiungi(corpo === "male" ? CAT.fissi.testa_m : CAT.fissi.testa_f, [["body", pelle], ["eye", occhi]]);
+      aggiungi(CAT.fissi["sopracciglia_" + (pg.sopr === "thick" ? "thick" : "thin")], [["hair", capCol]]);
+    }
     const mat = (voce, col) => !voce || !voce.materiale ? [] : [[voce.materiale, col || (voce.materiale === "body" ? pelle : voce.materiale === "hair" ? capCol : null)]].filter(m => m[1]);
     for (const slot of Object.keys(CAT.slot)) {
       const v = fa(slot, pg); if (!v) continue;
@@ -87,9 +89,9 @@
   }
 
   /* Disegna un fotogramma 64×64: riga 0 = su, 1 = sinistra, 2 = giù, 3 = destra; colonna 0 = posa ferma, 1–8 = passi. */
-  async function fotogramma(pg, riga, col) {
+  async function fotogramma(pg, riga, col, solo) {
     await carica();
-    const L = livelli(pg), fogli = await Promise.all(L.map(l => colorata(l.f, l.mats).catch(() => null)));
+    const L = livelli(pg, solo), fogli = await Promise.all(L.map(l => colorata(l.f, l.mats).catch(() => null)));
     const c = document.createElement("canvas"); c.width = F; c.height = F; const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
     fogli.forEach(s => { if (s) x.drawImage(s, col * F, riga * F, F, F, 0, 0, F, F); });
     return c;
@@ -114,6 +116,16 @@
       giro();
     })();
     return () => { attivo = false; };
+  }
+  /* Un solo pezzo (per l'armadio): disegnato da solo, senza il corpo. */
+  async function pezzoSolo(canvas, corpo, slot, sel, lato = 96) {
+    const fr = await fotogramma({ corpo, pelle: "light", [slot]: sel }, 2, 0, true);
+    const d = fr.getContext("2d").getImageData(0, 0, F, F).data; let x0 = F, y0 = F, x1 = -1, y1 = -1;
+    for (let y = 0; y < F; y++) for (let x = 0; x < F; x++) if (d[(y * F + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    canvas.width = lato; canvas.height = lato; const c = canvas.getContext("2d"); c.imageSmoothingEnabled = false; c.clearRect(0, 0, lato, lato);
+    if (x1 < 0) return;
+    const w = x1 - x0 + 1, h = y1 - y0 + 1, k = Math.max(1, Math.min(6, Math.floor((lato - 8) / Math.max(w, h))));
+    c.drawImage(fr, x0, y0, w, h, Math.round((lato - w * k) / 2), Math.round((lato - h * k) / 2), w * k, h * k);
   }
   /* Immagine per HUD e profilo: restituisce un data URL del busto. */
   async function ritratto(pg, scala = 3) { const c = document.createElement("canvas"); await disegna(c, pg, { ritratto: true, scala }); return c.toDataURL("image/png"); }
@@ -223,5 +235,5 @@
     giroAbitanti = requestAnimationFrame(passo);
   }
 
-  window.OLW_SPRITE = { abita, ANIMALI, animaPet, carica, disegna, anima, ritratto, fotogramma, elenco, palette, hexDi, catalogo: () => CAT, compatibile };
+  window.OLW_SPRITE = { abita, pezzoSolo, ANIMALI, animaPet, carica, disegna, anima, ritratto, fotogramma, elenco, palette, hexDi, catalogo: () => CAT, compatibile };
 })();

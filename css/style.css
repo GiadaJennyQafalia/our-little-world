@@ -470,3 +470,20 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 @media (prefers-reduced-motion: reduce) { .abit-eroe.nuovo, .abit-pet.nuovo { animation: none; } }
 
 .room-hero .room-scene .room-chars { position: absolute; inset: 12px 6px 0; isolation: isolate; pointer-events: none; }
+
+/* Vetrina dell'eroe e armadio */
+.vetrina { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.vet-scena { position: relative; display: flex; justify-content: center; align-items: flex-end; min-height: 200px; background: radial-gradient(ellipse at 50% 85%, #3a2c55 0%, #1d1628 70%); border-radius: 6px; padding: 8px 0 4px; }
+.vet-eroe { width: 220px; height: 220px; image-rendering: pixelated; }
+.vet-pet { position: absolute; right: 12%; bottom: 10px; width: 80px; height: 80px; image-rendering: pixelated; }
+.vet-lista { display: flex; flex-direction: column; gap: 2px; }
+.vrow { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px dashed var(--seam); font-size: .92rem; }
+.vrow > span:last-child { text-align: right; }
+.vrow.spec > span:last-child { color: var(--candle); font-weight: 700; }
+.dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; border: 1px solid #0008; vertical-align: -1px; }
+.tess-griglia { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.tess { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; padding: 8px 6px; border: 2px solid var(--seam); border-radius: 4px; background: #1d1628; }
+.tess b { font-size: .85rem; line-height: 1.15; }
+.tess-cv { width: 96px; height: 96px; image-rendering: pixelated; }
+.tess-pet { width: 64px; height: 64px; image-rendering: pixelated; margin: 16px 0; }
+.tess .btn { margin-top: 4px; }
