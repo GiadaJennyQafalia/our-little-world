@@ -82,7 +82,7 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.13.0";
+const VERSIONE_APP = "3.14.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -476,14 +476,18 @@ function vCasa(now) {
     </div>
     ${SKIN[dim] ? dimoraMappa(dim, st, now) : ""}
   </section>
+  ${avvisoControllo(now)}
   <section class="sec">
     <div class="sec-head"><h3>Stanze</h3><button class="btn ghost sm" data-act="pianta">Pianta</button></div>
     ${rs.length ? `<div class="rooms">${rs.map(r => `
-      <button class="room fr-stone st${st[r].livello}" data-act="stanza" data-r="${esc(r)}">
+      <button class="room porta st${st[r].livello}" data-act="stanza" data-r="${esc(r)}">
         <span class="rn">${esc(r)}</span>
-        <span><span class="pill p${st[r].livello}">${STATI[st[r].livello]}</span></span>
-        <span class="bar"><i style="width:${Math.max(4, 100 - st[r].pct * 100)}%;background:${["var(--candle)", "var(--moss)", "var(--arcane)", "var(--ember)"][st[r].livello]}"></i></span>
-        <span class="muted small">${st[r].urg ? st[r].urg + " urgenti" : "tutto in pari"}</span>
+        <i class="knob" aria-hidden="true"></i>
+        <span class="pstack">
+          <span class="pill p${st[r].livello}">${STATI[st[r].livello]}</span>
+          <span class="bar"><i style="width:${Math.max(4, 100 - st[r].pct * 100)}%;background:${["var(--candle)", "var(--moss)", "var(--arcane)", "var(--ember)"][st[r].livello]}"></i></span>
+          <span class="muted small">${st[r].urg ? st[r].urg + " urgenti" : "tutto in pari"}</span>
+        </span>
       </button>`).join("")}</div>` : `<div class="empty fr-dash">Nessuna stanza ancora. Aggiungile dalle impostazioni della casa.</div>`}
   </section>
   ${ids.length ? `<section class="sec">
@@ -888,23 +892,33 @@ function vPremiLista(now) {
 /* La scheda di un prodotto: l'ampolla grande e tutti i comandi. Si aggiorna da sola quando i dati cambiano. */
 function corpoProdotto(p) {
   const sc = p.scorta || 0;
-  return `<div class="prod-top">${ampolla(p, 7)}<div class="stack"><h2 style="margin:0">${esc(p.tipo)}</h2><span class="muted small">${esc(p.marca || "Nessuna marca")}</span></div></div>
+  return `<div class="prod-top">${ampolla(p, 7)}<div class="stack"><h2 style="margin:0">${esc(p.tipo)}</h2><span class="muted small">${sc ? nomiScorta(sc) + " in scorta" : "Nessuna confezione di scorta"}</span></div></div>
     <div class="field"><span class="lab">Confezione in uso</span><div class="levels" role="group" aria-label="Livello della confezione in uso">${LIVELLI_PRODOTTO.map(l => `<button data-act="livello" data-id="${p.id}" data-l="${l}" aria-pressed="${p.livello === l}">${l}</button>`).join("")}</div></div>
     <div class="sec-head"><span class="lab">Confezioni nuove, chiuse</span><span class="stepper"><button data-act="scorta" data-id="${p.id}" data-d="-1" aria-label="Una in meno">−</button><span class="num">${sc}</span><button data-act="scorta" data-id="${p.id}" data-d="1" aria-label="Una in più">+</button></span></div>
     <div class="row-actions"><button class="btn sm" data-act="finendo" data-id="${p.id}">Sta finendo</button><button class="btn sm ghost" data-act="modprodotto" data-id="${p.id}">Cambia aspetto</button><button class="btn sm ghost" data-act="delprodotto" data-id="${p.id}">Elimina</button></div>
     <div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button></div>`;
+}
+/* Cambia il livello della confezione in uso. Se diventa "finito": con una scorta se ne apre una nuova (piena), senza scorte il prodotto va nella lista della spesa. */
+async function impostaLivello(p, l, silenzioso) {
+  const ref = db.doc("prodotti/" + p.id), sc = p.scorta || 0;
+  if (l !== "finito") { await ref.update({ livello: l }); return "ok"; }
+  if (sc > 0) { await ref.update({ scorta: sc - 1, livello: "pieno" }); if (!silenzioso) toast(`${p.tipo}: aperta una confezione nuova, ne restano ${sc - 1}`); return "aperta"; }
+  await ref.update({ livello: "finito" });
+  if (!S.spesa.some(x => x.prodottoId === p.id)) await db.collection("spesa").add({ testo: p.tipo, prodottoId: p.id, ts: Date.now() });
+  if (!silenzioso) toast(`${p.tipo} è finito: aggiunto alla lista della spesa`);
+  return "spesa";
 }
 /* Azioni sui prodotti dello sgabuzzino: usate sia dalla scheda del prodotto (dentro lo sheet) sia dal resto dell'app. */
 function azProdotto(act, id, ds) {
   const p = trova(S.prodotti, id); if (!p) return;
   const ref = () => db.doc("prodotti/" + id);
   switch (act) {
-    case "livello": ref().update({ livello: ds.l }).catch(errore); break;
+    case "livello": impostaLivello(p, ds.l).catch(errore); break;
     case "scorta": ref().update({ scorta: Math.max(0, (p.scorta || 0) + +ds.d) }).catch(errore); break;
     case "finendo":
       if ((p.scorta || 0) > 0) conferma(esc(p.tipo), `Hai ${p.scorta} ${p.scorta === 1 ? "confezione nuova" : "confezioni nuove"} nello sgabuzzino. Quando finisci quella in uso, aprine una con "Apri confezione".`, "Apri confezione ora", () => ref().update({ scorta: p.scorta - 1, livello: "pieno" }).then(() => toast("Confezione nuova aperta")));
       else if (S.spesa.some(x => x.prodottoId === id)) toast("È già nella lista della spesa");
-      else db.collection("spesa").add({ testo: p.tipo + (p.marca ? " · " + p.marca : ""), prodottoId: id, ts: Date.now() }).then(() => { ref().update({ livello: "quasi finito" }); toast("Nessuna confezione nuova: aggiunto alla lista della spesa"); }, errore);
+      else db.collection("spesa").add({ testo: p.tipo, prodottoId: id, ts: Date.now() }).then(() => { ref().update({ livello: "quasi finito" }); toast("Nessuna confezione nuova: aggiunto alla lista della spesa"); }, errore);
       break;
     case "delprodotto": conferma("Eliminare il prodotto?", esc(p.tipo), "Elimina", () => ref().delete()); break;
     case "modprodotto": formProdotto(p); break;
@@ -924,7 +938,7 @@ function aggiornaProdotto() {
   pb.innerHTML = corpoProdotto(p); disegnaAmpolle(pb);
   pb.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", chiudiSheet));
 }
-/* Nuovo prodotto o cambio di aspetto: nome, marca, forma e colore dell'ampolla. */
+/* Nuovo prodotto o cambio di aspetto: nome, forma e colore dell'ampolla. */
 function formProdotto(p) {
   const A = window.OLW_AMPOLLE, d = A.predefinito(p || {}), nuovo = !p;
   const forme = Object.entries(A.FORME).map(([k, f]) => `<label class="fm" title="${esc(f.nome)}"><input type="radio" name="forma" value="${k}" ${k === d.forma ? "checked" : ""}><span><canvas class="amp-cv" data-forma="${k}" data-col="${esc(d.colore)}" data-liv="pieno" data-s="3"></canvas></span></label>`).join("");
@@ -932,7 +946,6 @@ function formProdotto(p) {
   const libero = !A.PALETTE.some(([, h]) => h.toLowerCase() === d.colore.toLowerCase());
   apriSheet(`<h2>${nuovo ? "Nuovo prodotto" : "Aspetto di " + esc(p.tipo)}</h2>
     <div class="field"><label for="pTipo">Tipo (es. sgrassatore)</label><input type="text" id="pTipo" maxlength="40" value="${esc(p ? p.tipo : "")}"></div>
-    <div class="field"><label for="pMarca">Marca</label><input type="text" id="pMarca" maxlength="40" value="${esc(p ? p.marca || "" : "")}"></div>
     <div class="field"><span class="lab">Forma</span><div class="forme">${forme}</div></div>
     <div class="field"><span class="lab">Colore del liquido</span><div class="cols">${colori}<label class="cl custom${libero ? " on" : ""}" title="Colore libero"><input type="color" id="pLibero" value="${esc(d.colore)}"></label></div></div>
     ${nuovo ? `<div class="field"><span class="lab">Confezione in uso</span>${radio("livello", LIVELLI_PRODOTTO.map(l => [l, l]), "pieno")}</div>
@@ -952,7 +965,7 @@ function formProdotto(p) {
     sh.querySelector("#pSalva").onclick = async () => {
       const tipo = sh.querySelector("#pTipo").value.trim(), err = sh.querySelector("#pErr");
       if (!tipo) { err.textContent = "Scrivi il tipo di prodotto."; err.hidden = false; return; }
-      const dati = { tipo, marca: sh.querySelector("#pMarca").value.trim(), forma: val(sh, "forma"), colore: colore() };
+      const dati = { tipo, forma: val(sh, "forma"), colore: colore() };
       try {
         if (nuovo) { await db.collection("prodotti").add({ ...dati, scorta: Math.max(0, Math.round(+sh.querySelector("#pScorta").value || 0)), livello: val(sh, "livello") || "pieno", ts: Date.now() }); toast("Prodotto aggiunto"); }
         else { await db.doc("prodotti/" + p.id).update(dati); toast("Aspetto aggiornato"); }
@@ -971,6 +984,55 @@ function disegnaAmpolle(radice) {
   (radice || document).querySelectorAll("canvas.amp-cv").forEach(c => A.disegna(c, c.dataset.forma, c.dataset.col, c.dataset.liv, +c.dataset.s || 4));
 }
 const nomiScorta = n => `${n} ${n === 1 ? "confezione nuova" : "confezioni nuove"}`;
+/* ---------- Mini test settimanale dello sgabuzzino ----------
+   Una volta alla settimana l'app chiede, prodotto per prodotto, quanto ne è rimasto e quante confezioni nuove ci sono. */
+const controlloDovuto = now => !!S.prodotti.length && !!S.config && now - (S.config.controlloScorte || 0) >= 7 * DAY;
+function avvisoControllo(now) {
+  if (!controlloDovuto(now)) return "";
+  return `<div class="notice fr-stone ctrl-avviso"><b>Mini test settimanale</b><span class="muted small">Controlla quanto è rimasto nello sgabuzzino: ci vuole un minuto.</span><button class="btn sm prime" data-act="controllo">Fai il test</button></div>`;
+}
+function apriControllo() {
+  const coda = [...S.prodotti].sort((a, b) => String(a.tipo).localeCompare(b.tipo)).map(p => ({ id: p.id, tipo: p.tipo, forma: p.forma, colore: p.colore, liv: p.livello || "pieno", sc: p.scorta || 0 }));
+  if (!coda.length) { toast("Aggiungi prima qualche prodotto"); return; }
+  let i = 0;
+  apriSheet(`<div id="ctrlBody"></div>`, sh => {
+    const corpo = sh.querySelector("#ctrlBody");
+    const passo = () => {
+      const c = coda[i], ultimo = i === coda.length - 1;
+      corpo.innerHTML = `<div class="sec-head"><h2 style="margin:0">Mini test</h2><span class="muted small num">${i + 1} di ${coda.length}</span></div>
+        <div class="prod-top">${ampolla(c, 7, c.liv)}<div class="stack"><h2 style="margin:0">${esc(c.tipo)}</h2><span class="muted small">Guarda la confezione in uso</span></div></div>
+        <div class="field"><span class="lab">Quanto ne è rimasto?</span><div class="levels" role="group" aria-label="Quanto ne è rimasto">${LIVELLI_PRODOTTO.map(l => `<button data-lv="${l}" aria-pressed="${c.liv === l}">${l}</button>`).join("")}</div></div>
+        <div class="sec-head"><span class="lab">Confezioni nuove, chiuse</span><span class="stepper"><button data-d="-1" aria-label="Una in meno">−</button><span class="num" id="ctrlSc">${c.sc}</span><button data-d="1" aria-label="Una in più">+</button></span></div>
+        <div class="sheet-actions"><button class="btn ghost" data-close>Esci</button>${i ? '<button class="btn ghost" id="ctrlInd">Indietro</button>' : ""}<button class="btn prime" id="ctrlAv">${ultimo ? "Finito" : "Avanti"}</button></div>`;
+      disegnaAmpolle(corpo);
+      corpo.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", chiudiSheet));
+    };
+    passo();
+    sh.addEventListener("click", async e => {
+      const c = coda[i], b = e.target.closest("button"); if (!b) return;
+      if (b.dataset.lv) { c.liv = b.dataset.lv; passo(); }
+      else if (b.dataset.d) { c.sc = Math.max(0, c.sc + +b.dataset.d); corpo.querySelector("#ctrlSc").textContent = c.sc; }
+      else if (b.id === "ctrlInd") { i--; passo(); }
+      else if (b.id === "ctrlAv") {
+        if (i < coda.length - 1) { i++; passo(); return; }
+        b.disabled = true;
+        try {
+          let agg = 0, spesa = 0, aperte = 0;
+          for (const r of coda) {
+            const p = trova(S.prodotti, r.id); if (!p) continue;
+            const x = { ...p, scorta: r.sc, livello: r.liv };
+            if (r.liv === "finito") { const es = await impostaLivello(x, "finito", true); if (es === "spesa") spesa++; else aperte++; agg++; continue; }
+            if ((p.scorta || 0) !== r.sc || p.livello !== r.liv) { await db.doc("prodotti/" + r.id).update({ scorta: r.sc, livello: r.liv }); agg++; }
+          }
+          await db.doc("config/casa").update({ controlloScorte: Date.now() });
+          chiudiSheet();
+          toast(`Test fatto: ${agg} aggiornati${aperte ? `, ${aperte} nuove aperte` : ""}${spesa ? `, ${spesa} in lista della spesa` : ""}`);
+        } catch (er) { b.disabled = false; errore(er); }
+      }
+    });
+  });
+}
+
 function vSgab() {
   const tab = S.sgab;
   let body;
@@ -979,10 +1041,11 @@ function vSgab() {
     const cella = p => { const sc = p.scorta || 0, minis = Math.min(sc, 3);
       return `<button class="slot" data-act="prodotto" data-id="${p.id}" aria-label="${esc(p.tipo)}: ${esc(p.livello)}, ${nomiScorta(sc)}">
         <span class="slot-amp">${ampolla(p, 5)}${sc ? `<span class="slot-minis">${Array.from({ length: minis }, () => ampolla(p, 2, "pieno", "mini")).join("")}${sc > 3 ? `<b class="num">+${sc - 3}</b>` : ""}</span>` : ""}</span>
-        <span class="slot-n">${esc(p.tipo)}</span><span class="slot-m muted small">${esc(p.marca || "")}</span><span class="slot-l l-${LIVELLI_PRODOTTO.indexOf(p.livello)}">${esc(p.livello)}</span></button>`; };
+        <span class="slot-n">${esc(p.tipo)}</span><span class="slot-l l-${LIVELLI_PRODOTTO.indexOf(p.livello)}">${esc(p.livello)}</span></button>`; };
     const mensole = []; for (let i = 0; i < ps.length; i += 3) mensole.push(ps.slice(i, i + 3));
-    body = `${ps.length ? `<div class="scaffale">${mensole.map(m => `<div class="mensola">${m.map(cella).join("")}</div>`).join("")}</div><p class="muted small" style="margin:0">Tocca un'ampolla per cambiare livello, scorte e aspetto. Le ampolle piccole e chiuse sono le confezioni nuove.</p>` : `<div class="empty fr-dash">Lo sgabuzzino è vuoto. Aggiungi i prodotti che hai in casa: ogni prodotto diventa un'ampolla sulla mensola.</div>`}
-    <button class="btn" data-act="nuovoprodotto">Aggiungi prodotto</button>`;
+    const ultimo = S.config && S.config.controlloScorte;
+    body = `${avvisoControllo(Date.now())}${ps.length ? `<div class="scaffale">${mensole.map(m => `<div class="mensola">${m.map(cella).join("")}</div>`).join("")}</div><p class="muted small" style="margin:0">Tocca un'ampolla per cambiare livello, scorte e aspetto. Le ampolle piccole e chiuse sono le confezioni nuove.</p>` : `<div class="empty fr-dash">Lo sgabuzzino è vuoto. Aggiungi i prodotti che hai in casa: ogni prodotto diventa un'ampolla sulla mensola.</div>`}
+    <button class="btn" data-act="nuovoprodotto">Aggiungi prodotto</button>${ps.length ? `<p class="muted small" style="margin:0">${ultimo ? "Ultimo test: " + dataBreve(ultimo) + ". " : ""}<button class="linkbtn" data-act="controllo">Fai il test ora</button></p>` : ""}`;
   } else {
     const sp = [...S.spesa].sort((a, b) => (a.ts || 0) - (b.ts || 0));
     body = `${sp.length ? `<div class="list">${sp.map(x => `<label class="shop fr-stone"><input type="checkbox" id="spesa-${x.id}" data-act="comprato" data-id="${x.id}"><span class="sn">${esc(x.testo)}</span></label>`).join("")}</div>` : `<div class="empty fr-dash">La lista della spesa è vuota. Quando un prodotto sta finendo e non ci sono confezioni nuove, finisce qui da solo.</div>`}
@@ -1523,7 +1586,7 @@ async function esportaCsv() {
       "eroi.csv": O.csv(cG, rG),
       "riscatti.csv": O.csv(cR, rR),
       "premi.csv": O.csv(["nome", "costo"], premi),
-      "prodotti.csv": O.csv(["tipo", "marca", "scorta", "livello", "forma", "colore"], prod),
+      "prodotti.csv": O.csv(["tipo", "scorta", "livello", "forma", "colore"], prod),
       "lista_spesa.csv": O.csv(["testo"], spesa),
       "LEGGIMI.txt": "Our little world · esportazione del " + isoLocale(now) + "\r\nSeparatore: punto e virgola (;). Codifica: UTF-8.\r\nIn pandas: pd.read_csv('completamenti.csv', sep=';', encoding='utf-8-sig')\r\n"
     };
@@ -1688,7 +1751,7 @@ const libere = new Set(["pianta", "filtro", "fcat", "fstanza", "sgab", "stanza",
 document.addEventListener("click", e => {
   const nav = e.target.closest("nav.tabs button");
   if (nav) { S.view = nav.dataset.view; try { localStorage.setItem("olw-view", S.view); } catch (x) {} window.scrollTo(0, 0); render(); return; }
-  const b = e.target.closest("[data-act]"); if (!b || b.closest(".sheet")) return;
+  const b = e.target.closest("[data-act]"); if (!b || e.composedPath().some(n => n.classList && n.classList.contains("sheet"))) return; /* composedPath: il bersaglio può essere già stato tolto dalla pagina da uno sheet che si è ridisegnato */
   if (!db) return;
   const id = b.dataset.id, act = b.dataset.act;
   if (act === "comprato") return;
@@ -1738,6 +1801,7 @@ document.addEventListener("click", e => {
     case "sgab": S.sgab = b.dataset.t; render(); break;
     case "livello": case "scorta": case "finendo": case "delprodotto": azProdotto(act, id, b.dataset); break;
     case "nuovoprodotto": formProdotto(null); break;
+    case "controllo": apriControllo(); break;
     case "prodotto": apriProdotto(id); break;
     case "nuovaspesa": apriSemplice("Lista della spesa", [{ name: "testo", label: "Cosa comprare" }], v => v.testo ? db.collection("spesa").add({ testo: v.testo, prodottoId: null, ts: Date.now() }) : "Scrivi cosa comprare."); break;
   }
@@ -1749,14 +1813,14 @@ document.addEventListener("change", e => {
   b.checked = false;
   const aprire = !p || p.livello === "finito" || p.livello === "quasi finito";
   apriSemplice("Comprato", [
-    { name: "tipo", label: "Tipo", value: p ? p.tipo : x.testo }, { name: "marca", label: "Marca", value: p ? p.marca : "" },
+    { name: "tipo", label: "Tipo", value: p ? p.tipo : x.testo },
     { name: "q", label: "Quante confezioni", type: "number", value: 1 },
     { name: "dest", label: "Cosa fai con quella nuova", radio: [["apri", "La apro subito"], ["scorta", "La metto in scorta"]], value: aprire ? "apri" : "scorta" }
   ], v => {
     const q = Math.max(1, Math.round(+v.q || 1));
     if (!v.tipo) return "Scrivi il tipo di prodotto.";
     const apri = v.dest === "apri";
-    const dati = { tipo: v.tipo, marca: v.marca, scorta: (p ? p.scorta || 0 : 0) + (apri ? q - 1 : q) };
+    const dati = { tipo: v.tipo, scorta: (p ? p.scorta || 0 : 0) + (apri ? q - 1 : q) };
     if (apri) dati.livello = "pieno";
     const fatto = p ? db.doc("prodotti/" + p.id).update(dati) : db.collection("prodotti").add({ ...dati, livello: apri ? "pieno" : "finito", ts: Date.now() });
     return fatto.then(() => db.doc("spesa/" + x.id).delete()).then(() => toast(apri ? "Confezione nuova in uso" : "Messo in scorta nello sgabuzzino"));
