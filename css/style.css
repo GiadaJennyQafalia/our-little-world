@@ -496,3 +496,50 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .cat-det[hidden] { display: none; }
 .mini { display: flex; flex-direction: column; gap: 3px; font-size: .8rem; color: var(--muted, #b9aed0); }
 .mini input, .mini select { background: var(--night); color: inherit; border: 1px solid var(--seam); border-radius: 8px; padding: 8px 10px; font-size: .95rem; width: 100%; }
+
+/* Cronologia per giorno e punti per stanza compatti */
+.bars.compact { gap: 4px; padding: 8px 12px; }
+.bars.compact .brow { font-size: .82rem; grid-template-columns: 6.5em minmax(0, 1fr) 2.8em; gap: 6px; }
+.bars.compact .bar { height: 6px; border-width: 1px; }
+.cron { padding: 6px 12px 10px; }
+.giorno { border-bottom: 2px solid #1a1522; }
+.day-h { width: 100%; display: grid; grid-template-columns: 4.6em 1fr auto; gap: 8px; align-items: center; padding: 11px 0; background: none; border: 0; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.day-h .dn { font-weight: 800; text-transform: capitalize; }
+.day-h .chev { width: 9px; height: 9px; border-right: 2px solid var(--ash); border-bottom: 2px solid var(--ash); transform: rotate(45deg); transition: transform .15s; margin-right: 4px; }
+.giorno.open .chev { transform: rotate(-135deg); }
+.day-b { padding: 0 0 6px 4px; }
+.day-b .hist { padding: 7px 0; }
+.cron .btn.sm { margin-top: 8px; }
+/* Sgabuzzino: mensole con ampolle */
+.scaffale { display: flex; flex-direction: column; gap: 6px; padding: 8px 6px 4px; background: linear-gradient(#17111f, #1d1628); border: 2px solid #0c0911; border-radius: 4px; }
+.mensola { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; align-items: end; padding: 6px 2px 0; border-bottom: 12px solid #6b4426; box-shadow: 0 3px 0 #3a2415, inset 0 -3px 0 #8a5a33; }
+.slot { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px 2px 6px; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; min-width: 0; -webkit-tap-highlight-color: transparent; }
+.slot:active .amp-cv { transform: translateY(-3px); }
+.slot-amp { position: relative; display: block; }
+.slot-minis { position: absolute; right: -22px; bottom: 0; display: flex; flex-direction: column-reverse; align-items: center; gap: 1px; }
+.slot-minis b { font-size: .7rem; color: var(--candle); }
+.amp-cv { image-rendering: pixelated; display: block; width: calc(14px * 5); height: calc(18px * 5); transition: transform .12s; }
+.amp-cv.mini { width: 28px; height: 36px; }
+.slot-n { font-weight: 800; font-size: .88rem; line-height: 1.1; text-align: center; overflow-wrap: anywhere; }
+.slot-m { line-height: 1.1; text-align: center; overflow-wrap: anywhere; }
+.slot-l { font-size: .72rem; font-weight: 800; padding: 1px 7px; border-radius: 3px; background: #0c0911; color: var(--ash); }
+.slot-l.l-3 { background: var(--ember); color: #2a0e06; }
+.slot-l.l-2 { background: var(--candle); color: #2a1608; }
+.prod-top { display: flex; align-items: flex-end; gap: 14px; }
+.prod-top .amp-cv { width: calc(14px * 7); height: calc(18px * 7); }
+.forme, .cols { display: flex; flex-wrap: wrap; gap: 8px; }
+.fm input, .cl input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+.fm, .cl { position: relative; cursor: pointer; }
+.fm span { display: block; padding: 4px 6px; border: 2px solid var(--seam); border-radius: 4px; background: #1d1628; }
+.fm input:checked + span { border-color: var(--candle); background: #2a2040; }
+.fm .amp-cv { width: 42px; height: 54px; }
+.cl span, .cl.custom { display: block; width: 30px; height: 30px; border-radius: 4px; border: 2px solid #0c0911; box-shadow: 0 0 0 1px var(--seam); }
+.cl input:checked + span, .cl.custom.on { box-shadow: 0 0 0 3px var(--candle); }
+.cl.custom { background: conic-gradient(#e0359b, #e0a944, #6f9a5b, #5f9fb0, #8a6bb5, #e0359b); overflow: hidden; }
+.cl.custom input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; padding: 0; border: 0; }
+.day-h { grid-template-columns: minmax(4.6em, auto) 1fr auto; }
+.prod-top { margin-bottom: 14px; }
+#prodBody .field, #prodBody .sec-head, #prodBody .row-actions { margin-bottom: 12px; }
+#prodBody .sec-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+#prodBody .lab { display: block; margin-bottom: 6px; }
+#prodBody .sec-head .lab { margin: 0; }
