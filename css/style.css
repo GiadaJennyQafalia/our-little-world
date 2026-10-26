@@ -427,3 +427,29 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .pianta-info .btn { align-self: flex-start; }
 .pianta-info select { background: var(--night); border: 1px solid var(--seam); border-radius: 10px; padding: 10px 12px; width: 100%; }
 .pianta-avvisi p { margin: 0 0 6px; }
+
+/* ---------- Personaggio ---------- */
+.avatar { flex: none; width: 70px; height: 70px; border-radius: 50%; background: var(--vault-2); border: 2px solid var(--candle); image-rendering: pixelated; object-fit: cover; }
+.avatar.sm { width: 42px; height: 42px; }
+.avatar.xs { width: 36px; height: 36px; border-width: 1.5px; }
+.cr-classi { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity; padding: 2px 2px 8px; margin: 0 -2px; }
+.cr-card { flex: none; width: 118px; scroll-snap-align: start; display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 0 0 8px; background: var(--night-2); border: 2px solid var(--seam); border-radius: 4px; overflow: hidden; }
+.cr-card img { display: block; width: 100%; aspect-ratio: 2 / 3; object-fit: cover; image-rendering: pixelated; background: var(--night); }
+.cr-card b { font-family: var(--f-display); font-size: 1.05rem; font-weight: 600; padding: 0 8px; }
+.cr-card span { font-size: .78rem; line-height: 1.25; color: var(--ash); padding: 0 8px; }
+.cr-card.on { border-color: var(--candle); box-shadow: 0 0 0 2px #0c0911, 0 0 14px #e0a94455; }
+.cr-prev { position: sticky; top: -16px; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px; background: var(--night); }
+.cr-prev canvas { width: 160px; height: 160px; image-rendering: pixelated; background: radial-gradient(circle at 50% 40%, #3a2f52, #1a1424); border-radius: 4px; }
+.cr-tabs { justify-content: center; }
+.cr-pan { display: flex; flex-direction: column; gap: 16px; }
+.opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.opt { padding: 6px 10px; border: 2px solid var(--seam); border-radius: 3px; background: transparent; font-weight: 700; font-size: .92rem; }
+.opt.on { background: var(--candle); color: #2a1608; border-color: #0c0911; box-shadow: inset 0 -3px 0 #b97a22; }
+.opt.lock { opacity: .78; border-style: dashed; }
+.opt .prz { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; font-weight: 800; color: var(--candle); }
+.opt .prz svg { width: 12px; height: 12px; }
+.sws { display: flex; flex-wrap: wrap; gap: 6px; }
+.sw { position: relative; width: 30px; height: 30px; border-radius: 4px; border: 2px solid #0c0911; box-shadow: 0 0 0 1px var(--seam); cursor: pointer; padding: 0; }
+.sw.on { box-shadow: 0 0 0 2px var(--candle); }
+.sw.custom { background: conic-gradient(#e0359b, #e0a944, #6f9a5b, #5f9fb0, #8a6bb5, #e0359b); overflow: hidden; }
+.sw.custom input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; padding: 0; border: 0; }

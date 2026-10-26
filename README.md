@@ -43,3 +43,7 @@ js/app.js             game rules and screens
 sw.js                 service worker
 supabase/             database setup and data import
 ```
+
+
+## Personaggi e crediti
+I personaggi sono composti nell'app (`js/sprite.js`) con gli sprite del Liberated Pixel Cup / Universal LPC Spritesheet Character Generator, copiati e ricolorati da `tools/build_lpc.py` in `assets/lpc/`. Autori e licenze sono in [CREDITI.md](CREDITI.md). Le card delle classi in `img/classi/` sono illustrazioni generate con l'AI.

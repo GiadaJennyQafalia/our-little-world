@@ -5,7 +5,20 @@ const WEB = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w
 document.documentElement.style.setProperty("--web", `url("${WEB}")`);
 
 const DIMORE = { castello: "Il Castello", hobbit: "La Tana nella collina", caverna: "La Grotta di cristalli", reggia: "Il Palazzo", torre: "La Torre del mago", appartamento: "L'Appartamento in città" };
-const CLASSI = { cavaliere: "Cavaliere", strega: "Strega", ranger: "Ranger", alchimista: "Alchimista" };
+const CLASSI = { strega: "Strega", ranger: "Ranger", alchimista: "Alchimista", cavaliere: "Cavaliere", elfo: "Elfo", druido: "Druido" };
+const DESC_CLASSE = { strega: "Incantesimi e bastone nodoso", ranger: "Cappuccio, arco e passo silenzioso", alchimista: "Pozioni, occhiali e curiosità", cavaliere: "Armatura lucida e onore", elfo: "Eleganza e orecchie a punta", druido: "Corna, foresta e radici" };
+/* Il kit di ogni classe: i pezzi che l'eroe ha di serie. Gli altri pezzi "speciali" si comprano con le monete. */
+const KIT = {
+  strega: { capelli: { id: "wavy", col: "blonde" }, busto: { id: "robe", col: "black" }, gambe: { id: "skirt", col: "black" }, scarpe: { id: "boots", col: "brown" }, cappello: { id: "wizard", col: "black" }, mantello: { id: "solid", col: "#d6338f" }, arma: { id: "gnarled", col: "medium" } },
+  ranger: { capelli: { id: "mop", col: "sandy" }, busto: { id: "leather" }, gambe: { id: "pants", col: "black" }, scarpe: { id: "boots", col: "leather" }, cappello: { id: "hood", col: "#5c4a7a" }, mantello: { id: "solid", col: "#5c4a7a" } },
+  alchimista: { capelli: { id: "bedhead", col: "brown" }, busto: { id: "longsleeve2", col: "lavender" }, gambe: { id: "pants", col: "brown" }, scarpe: { id: "boots", col: "leather" }, accessorio: { id: "glasses", col: "black" }, arma: { id: "crystal", col: "purple" } },
+  cavaliere: { capelli: { id: "parted", col: "light_brown" }, busto: { id: "plate" }, gambe: { id: "pants", col: "gray" }, scarpe: { id: "boots", col: "gray" }, cappello: { id: "barbuta", col: "steel" } },
+  elfo: { capelli: { id: "long", col: "platinum" }, orecchie: { id: "elven" }, busto: { id: "longsleeve2", col: "forest" }, gambe: { id: "pants", col: "brown" }, scarpe: { id: "boots_fold", col: "leather" }, mantello: { id: "solid", col: "forest" } },
+  druido: { capelli: { id: "braid", col: "ginger" }, corna: { id: "curled" }, busto: { id: "longsleeve", col: "forest" }, gambe: { id: "pants", col: "brown" }, scarpe: { id: "boots", col: "leather" }, cappello: { id: "hood", col: "forest" }, arma: { id: "gnarled", col: "medium" } }
+};
+const SOSTITUTI = { busto: ["longsleeve2", "longsleeve", "scoop", "vneck", "sleeveless"], gambe: ["pants", "pants2"], scarpe: ["boots", "shoes"] };
+const PREZZO = { orecchie: 50, corna: 80, mantello: 70, cappello: 60, accessorio: 40, arma: 60 };
+const PELLI = ["light", "amber", "olive", "taupe", "bronze", "brown", "black"];
 const STATI = ["Splendente", "In ordine", "Trascurata", "Abbandonata"];
 /* ---------- Pianta della casa e skin delle dimore ----------
    La PIANTA dice quali sono le stanze vere di casa (nome, tipo, posizione nella mappa stilizzata) e vive in config/casa.pianta.
@@ -302,6 +315,18 @@ function sigillo(classe, cls) {
   };
   return `<svg class="sigil ${cls || ""}" viewBox="0 0 68 68" aria-hidden="true"><circle cx="34" cy="34" r="32" fill="var(--vault-2)" stroke="var(--candle)" stroke-width="1.5"/><circle cx="34" cy="34" r="27" fill="none" stroke="var(--seam)"/>${g[classe] || g.cavaliere}</svg>`;
 }
+/* Ritratto del personaggio composto con i pezzi LPC; finché non è pronto (o per gli eroi senza personaggio) si vede il sigillo della classe. */
+const AV = new Map(), AVattesa = new Set(); let avTimer = 0;
+function avatar(g, cls) {
+  if (!g || !g.pg || !window.OLW_SPRITE) return sigillo(g && g.classe, cls);
+  const k = JSON.stringify(g.pg), u = AV.get(k);
+  if (u) return `<img class="avatar ${cls || ""}" src="${u}" alt="" width="108" height="108">`;
+  if (!AVattesa.has(k)) {
+    AVattesa.add(k);
+    window.OLW_SPRITE.ritratto(g.pg, 3).then(d => { AV.set(k, d); clearTimeout(avTimer); avTimer = setTimeout(() => { if (db) render(); }, 60); }).catch(e => console.warn("ritratto", e));
+  }
+  return sigillo(g.classe, cls);
+}
 const pips = (n, cls, label) => `<span class="pips ${cls}" title="${label} ${n} su 5" aria-label="${label} ${n} su 5">${[1, 2, 3, 4, 5].map(k => `<i class="${k <= n ? "on" : ""}"></i>`).join("")}</span>`;
 function tempoRestante(i, f, now) {
   if (f.tipo !== "ricorrente" || !f.freq) {
@@ -328,7 +353,7 @@ function render() {
     const g = S.giocatori[me], xp = xpDi(me), L = livelloDa(xp);
     const pct = Math.min(100, (xp - L.soglia) / (L.prossima - L.soglia) * 100);
     hc.hidden = false;
-    hc.innerHTML = `${sigillo(g.classe, "xs")}<span class="hud-txt"><span class="hud-name">${esc(g.nome)}</span><span class="hud-lv"><b class="lvl">Lv ${L.lv}</b><span class="xpbar" aria-hidden="true"><i style="width:${pct}%"></i></span></span></span>`;
+    hc.innerHTML = `${avatar(g, "xs")}<span class="hud-txt"><span class="hud-name">${esc(g.nome)}</span><span class="hud-lv"><b class="lvl">Lv ${L.lv}</b><span class="xpbar" aria-hidden="true"><i style="width:${pct}%"></i></span></span></span>`;
     hc.setAttribute("aria-label", `Stai giocando come ${g.nome}, livello ${L.lv}. Cambia eroe`);
     cc.hidden = false; cc.innerHTML = `${ICON.coin()}<b class="num">${fmt(moneteDi(me))}</b>`;
     cc.setAttribute("aria-label", fmt(moneteDi(me)) + " monete");
@@ -553,7 +578,7 @@ function vEroe(now) {
   const storia = S.comp.slice(0, 25);
   return `
   <section class="hero-card fr-stone">
-    ${sigillo(eroe.classe)}
+    ${avatar(eroe)}
     <div class="stack">
       <span class="hn">${esc(eroe.nome)}</span>
       <span class="muted small">${esc(CLASSI[eroe.classe] || "Avventuriero")} · livello ${L.lv}</span>
@@ -564,7 +589,8 @@ function vEroe(now) {
   <div class="kv"><span class="muted">Sbloccato al livello ${L.lv}</span><span>${esc(L.sblocco)}</span></div>
   <div class="kv"><span class="muted">Minuti di pulizia negli ultimi 7 giorni</span><span class="num">${fmt(minSett)}</span></div>
   <div class="row-actions"><button class="btn sm" data-act="profilo">Modifica eroe</button><button class="btn sm ghost" data-act="chi">Cambia eroe</button></div>
-  <p class="muted small" style="margin:0">Il guardaroba, gli animali e il negozio arrivano in una prossima versione: XP e monete che accumuli adesso restano tuoi.</p>
+  ${eroe.pg ? "" : `<div class="notice fr-stone small"><b>Crea il tuo personaggio.</b> Scegli classe, aspetto e colori: lo vedranno anche nella barra in alto.<br><button class="btn prime sm" data-act="profilo">Crea il personaggio</button></div>`}
+  <p class="muted small" style="margin:0">Nel creatore trovi i pezzi speciali da comprare con le monete. Gli animali arrivano in una prossima versione.</p>
   <section class="sec"><h3>Punti negli ultimi 30 giorni</h3>
     <div class="bars fr-stone">${ids.map(id => `<div class="brow"><span>${esc(nome(id))}</span><span class="bar"><i style="width:${(perG[id] || 0) / maxG * 100}%"></i></span><span class="num">${fmt(perG[id] || 0)}</span></div>`).join("")}</div>
   </section>
@@ -653,7 +679,7 @@ function apriChi() {
   const ids = Object.keys(S.giocatori);
   apriSheet(`<h2>Chi sta giocando?</h2>
     <p class="muted small" style="margin:0">Ogni telefono ricorda il suo eroe. Puoi cambiarlo quando vuoi toccando il nome in alto.</p>
-    <div class="list">${ids.map(id => { const g = S.giocatori[id]; return `<button class="pick fr-stone2" data-pick="${id}">${sigillo(g.classe, "sm")}<span class="stack"><b>${esc(g.nome)}</b><span class="muted small">${esc(CLASSI[g.classe] || "")} · livello ${livelloDa(xpDi(id)).lv}</span></span></button>`; }).join("")}</div>
+    <div class="list">${ids.map(id => { const g = S.giocatori[id]; return `<button class="pick fr-stone2" data-pick="${id}">${avatar(g, "sm")}<span class="stack"><b>${esc(g.nome)}</b><span class="muted small">${esc(CLASSI[g.classe] || "")} · livello ${livelloDa(xpDi(id)).lv}</span></span></button>`; }).join("")}</div>
     <div class="sheet-actions"><button class="btn" id="nuovoEroe">Nuovo eroe</button>${me && S.giocatori[me] ? '<button class="btn ghost" data-close>Chiudi</button>' : ""}</div>`, (sh, scrim) => {
     if (!(me && S.giocatori[me])) scrim.dataset.lock = "1";
     sh.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { salvaEroe(b.dataset.pick); chiudiSheet(); render(); toast("Giochi come " + nome(me)); });
@@ -661,26 +687,131 @@ function apriChi() {
   });
 }
 
+/* ---------- Creatore del personaggio ---------- */
+const SP = () => window.OLW_SPRITE, LPC = () => SP().catalogo();
+const pezzoDi = (slot, id) => LPC().slot[slot].find(x => x.id === id);
+const pezzoOk = (slot, id, corpo) => { const v = pezzoDi(slot, id); return !!v && SP().compatibile(v, corpo); };
+function convalida(pg) {
+  /* Toglie o sostituisce i pezzi che non esistono per il corpo scelto. */
+  const out = { ...pg };
+  for (const slot of Object.keys(LPC().slot)) {
+    const x = out[slot]; if (!x) continue;
+    if (pezzoOk(slot, x.id, out.corpo)) continue;
+    const s = (SOSTITUTI[slot] || []).find(i => pezzoOk(slot, i, out.corpo));
+    out[slot] = s ? { id: s, col: x.col } : null;
+  }
+  return out;
+}
+function applicaKit(pg, classe, conCapelli) {
+  const k = KIT[classe] || {}, out = { ...pg, classe };
+  for (const slot of Object.keys(LPC().slot)) if (slot !== "capelli") out[slot] = k[slot] ? { ...k[slot] } : null;
+  if (conCapelli || !out.capelli) out.capelli = { ...k.capelli };
+  return convalida(out);
+}
+const pgIniziale = classe => applicaKit({ corpo: "female", pelle: "light", occhi: "brown", sopr: "thin" }, classe, true);
+const hexColore = (mat, col) => { if (/^#/.test(col)) return col; try { return SP().hexDi(mat, col); } catch (e) { return "#8a8494"; } };
+const MATERIALE_SLOT = { capelli: "hair", busto: "cloth", gambe: "cloth", scarpe: "cloth", mantello: "cloth", cappello: "cloth" };
+
 function apriProfilo(id, obbligatorio) {
   const g = id ? S.giocatori[id] : {};
-  apriSheet(`<h2>${id ? "Modifica eroe" : "Nuovo eroe"}</h2>
-    ${id ? "" : '<p class="muted small" style="margin:0">Scegli come ti chiamerai nel gioco. Il guardaroba completo arriva in una prossima versione.</p>'}
-    <div class="field"><label for="pNome">Nome</label><input type="text" id="pNome" name="nome" maxlength="24" value="${esc(g.nome || "")}"></div>
-    <div class="field"><span class="lab">Classe</span>${radio("classe", Object.entries(CLASSI), g.classe || "cavaliere")}</div>
-    <p class="err" id="pErr" hidden></p>
-    <div class="sheet-actions">${obbligatorio ? (Object.keys(S.giocatori).length ? '<button class="btn ghost" id="pBack">Indietro</button>' : "") : '<button class="btn ghost" data-close>Chiudi</button>'}<button class="btn prime" id="pSalva">Salva</button></div>`, (sh, scrim) => {
+  const D = { nome: g.nome || "", sbloccati: [...(g.sbloccati || [])], pg: null, tab: "corpo" };
+  const aperto = SP().carica().then(() => {
+    D.pg = g.pg ? convalida({ ...g.pg }) : pgIniziale(g.classe && CLASSI[g.classe] ? g.classe : "strega");
+    if (!D.pg.classe) D.pg.classe = g.classe || "strega";
+  });
+  apriSheet(`<h2>${id ? "Il tuo eroe" : "Nuovo eroe"}</h2><p class="muted small" style="margin:0">Caricamento dei pezzi…</p>`, async (sh, scrim) => {
     if (obbligatorio) scrim.dataset.lock = "1";
+    try { await aperto; } catch (e) { sh.innerHTML = `<h2>Eroe</h2><p class="err">Non riesco a caricare i pezzi del personaggio. Controlla la connessione e riprova.</p><div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button></div>`; console.error(e); return; }
+    const monete = () => (id ? moneteDi(id) : 0);
+    const possiede = (slot, i) => !PREZZO[slot] || ((KIT[D.pg.classe] || {})[slot] || {}).id === i || D.sbloccati.includes(slot + "/" + i);
+    const TAB = [["corpo", "Corpo"], ["capelli", "Capelli"], ["vestiti", "Vestiti"], ["extra", "Extra"]];
+    sh.innerHTML = `<h2>${id ? "Il tuo eroe" : "Nuovo eroe"}</h2>
+      <div class="field"><label for="cNome">Nome</label><input type="text" id="cNome" maxlength="24" value="${esc(D.nome)}"></div>
+      <div class="field"><span class="lab">Classe</span><div class="cr-classi" id="cClassi"></div></div>
+      <div class="cr-prev fr-dash"><canvas id="cPrev" aria-label="Anteprima del personaggio"></canvas><button class="btn sm ghost" id="cGira" type="button">Gira</button></div>
+      <div class="radios cr-tabs">${TAB.map(([k, l]) => `<label><input type="radio" name="tab" value="${k}" ${k === D.tab ? "checked" : ""}><span>${l}</span></label>`).join("")}</div>
+      <div id="cPan" class="cr-pan"></div>
+      <p class="err" id="pErr" hidden></p>
+      <div class="sheet-actions">${obbligatorio ? (Object.keys(S.giocatori).length ? '<button class="btn ghost" id="pBack">Indietro</button>' : "") : '<button class="btn ghost" data-close>Annulla</button>'}<button class="btn prime" id="pSalva">Salva</button></div>`;
     const back = sh.querySelector("#pBack"); if (back) back.onclick = apriChi;
-    sh.querySelector("#pNome").focus();
+    let riga = 2, stop = null, tm = 0;
+    const anteprima = () => { clearTimeout(tm); tm = setTimeout(() => { if (stop) stop(); stop = SP().anima(sh.querySelector("#cPrev"), D.pg, { riga, scala: 4 }); }, 40); };
+    const classi = () => { sh.querySelector("#cClassi").innerHTML = Object.entries(CLASSI).map(([k, n]) => `<button type="button" class="cr-card${k === D.pg.classe ? " on" : ""}" data-classe="${k}" aria-pressed="${k === D.pg.classe}"><img src="img/classi/${k}.webp" alt="" loading="lazy"><b>${n}</b><span>${DESC_CLASSE[k]}</span></button>`).join(""); };
+    const sw = (slot, mat, lista, cur) => `<div class="sws">${lista.map(c => `<button type="button" class="sw${c === cur ? " on" : ""}" data-for="${slot}" data-col="${esc(c)}" style="background:${hexColore(mat, c)}" title="${esc(c.replace(/_/g, " "))}" aria-label="${esc(c.replace(/_/g, " "))}"></button>`).join("")}</div>`;
+    const colori = (slot, extra) => {
+      const x = D.pg[slot]; if (!x) return "";
+      const v = pezzoDi(slot, x.id); if (!v) return "";
+      if (v.varianti) return `<div class="sws">${v.varianti.map(c => `<button type="button" class="sw${c === x.col ? " on" : ""}" data-for="${slot}" data-col="${esc(c)}" style="background:${hexColore("cloth", c)}" title="${esc(c.replace(/_/g, " "))}" aria-label="${esc(c.replace(/_/g, " "))}"></button>`).join("")}</div>`;
+      const m = v.materiale || MATERIALE_SLOT[slot]; if (!m || m === "eye") return "";
+      const lista = Object.keys(LPC().palette[m].rampe);
+      const libero = m === "metal" ? "" : `<label class="sw custom" title="Colore libero"><input type="color" data-for="${slot}" value="${/^#/.test(x.col || "") ? x.col : hexColore(m, x.col || LPC().palette[m].base)}"></label>`;
+      return `<div class="sws">${lista.map(c => `<button type="button" class="sw${c === x.col ? " on" : ""}" data-for="${slot}" data-col="${esc(c)}" style="background:${hexColore(m, c)}" title="${esc(c.replace(/_/g, " "))}" aria-label="${esc(c.replace(/_/g, " "))}"></button>`).join("")}${libero}</div>`;
+    };
+    const blocco = (slot, titolo, { nessuno } = {}) => {
+      const lista = LPC().slot[slot].filter(v => SP().compatibile(v, D.pg.corpo)), cur = D.pg[slot] && D.pg[slot].id;
+      const chips = lista.map(v => { const ok = possiede(slot, v.id); return `<button type="button" class="opt${v.id === cur ? " on" : ""}${ok ? "" : " lock"}" data-slot="${slot}" data-id="${v.id}">${esc(v.nome)}${ok ? "" : ` <span class="prz">${ICON.coin()}<b class="num">${PREZZO[slot]}</b></span>`}</button>`; }).join("");
+      return `<div class="field"><span class="lab">${titolo}</span><div class="opts">${nessuno ? `<button type="button" class="opt${cur ? "" : " on"}" data-slot="${slot}" data-id="">Nessuno</button>` : ""}${chips}</div>${colori(slot)}</div>`;
+    };
+    const pannello = () => {
+      const pg = D.pg, el = sh.querySelector("#cPan"); let h = "";
+      if (D.tab === "corpo") h = `
+        <div class="field"><span class="lab">Genere</span>${radio("corpo", [["female", "Femminile"], ["male", "Maschile"]], pg.corpo)}</div>
+        <div class="field"><span class="lab">Carnagione</span>${sw("pelle", "body", PELLI, pg.pelle)}<div class="sws"><label class="sw custom" title="Colore libero"><input type="color" data-for="pelle" value="${/^#/.test(pg.pelle || "") ? pg.pelle : hexColore("body", pg.pelle || "light")}"></label></div></div>
+        <div class="field"><span class="lab">Occhi</span>${sw("occhi", "eye", Object.keys(LPC().palette.eye.rampe), pg.occhi)}<div class="sws"><label class="sw custom" title="Colore libero"><input type="color" data-for="occhi" value="${/^#/.test(pg.occhi || "") ? pg.occhi : hexColore("eye", pg.occhi || "blue")}"></label></div></div>
+        <div class="field"><span class="lab">Sopracciglia</span>${radio("sopr", [["thin", "Sottili"], ["thick", "Folte"]], pg.sopr || "thin")}</div>
+        ${blocco("orecchie", "Orecchie", { nessuno: true })}${blocco("corna", "Corna", { nessuno: true })}`;
+      else if (D.tab === "capelli") h = blocco("capelli", "Stile dei capelli");
+      else if (D.tab === "vestiti") h = blocco("busto", "Busto") + blocco("gambe", "Gambe") + blocco("scarpe", "Scarpe") + blocco("mantello", "Mantello", { nessuno: true }) + blocco("cappello", "Cappello", { nessuno: true });
+      else h = blocco("accessorio", "Accessori", { nessuno: true }) + blocco("arma", "Bastone o arma", { nessuno: true }) + `<p class="muted small" style="margin:0">Gli oggetti con le monete si comprano toccandoli. Ne hai ${fmt(monete())}.</p>`;
+      el.innerHTML = h;
+    };
+    const tutto = () => { classi(); pannello(); anteprima(); };
+    const cambia = f => { f(D.pg); D.pg = convalida(D.pg); pannello(); anteprima(); };
+    tutto();
+    sh.addEventListener("change", e => {
+      const t = e.target;
+      if (t.name === "tab") { D.tab = t.value; pannello(); }
+      else if (t.name === "corpo") cambia(p => { p.corpo = t.value; });
+      else if (t.name === "sopr") cambia(p => { p.sopr = t.value; });
+      else if (t.type === "color") cambia(p => { setCol(p, t.dataset.for, t.value); });
+    });
+    sh.addEventListener("input", e => { const t = e.target; if (t.type === "color") { setCol(D.pg, t.dataset.for, t.value); anteprima(); } });
+    const setCol = (p, slot, c) => { if (slot === "pelle" || slot === "occhi") p[slot] = c; else if (p[slot]) p[slot] = { ...p[slot], col: c }; };
+    sh.addEventListener("click", e => {
+      const cl = e.target.closest("[data-classe]"), op = e.target.closest(".opt"), co = e.target.closest(".sw[data-col]");
+      if (cl) { D.pg = applicaKit(D.pg, cl.dataset.classe, false); tutto(); return; }
+      if (co) { cambia(p => setCol(p, co.dataset.for, co.dataset.col)); return; }
+      if (e.target.closest("#cGira")) { riga = [2, 1, 0, 3][([2, 1, 0, 3].indexOf(riga) + 1) % 4]; anteprima(); return; }
+      if (!op) return;
+      const slot = op.dataset.slot, pid = op.dataset.id;
+      if (!pid) { cambia(p => { p[slot] = null; }); return; }
+      if (!possiede(slot, pid)) {
+        const v = pezzoDi(slot, pid), c = PREZZO[slot];
+        if (!id) { toast("Lo compri dopo aver creato l'eroe, con le monete guadagnate"); return; }
+        if (monete() < c) { toast(`Ti servono ${c} monete: ne hai ${fmt(monete())}`); return; }
+        conferma("Comprare questo pezzo?", `${esc(v.nome)} costa ${fmt(c)} monete. Te ne restano ${fmt(monete() - c)}.`, "Compra", async () => {
+          try {
+            await db.collection("riscatti").add({ nome: "Negozio: " + v.nome, costo: c, giocatore: id, ts: Date.now(), consegnato: true, negozio: true });
+            D.sbloccati.push(slot + "/" + pid); await db.doc("giocatori/" + id).update({ sbloccati: D.sbloccati });
+            toast("Comprato: " + v.nome); cambia(p => { p[slot] = { id: pid, col: (p[slot] && p[slot].col) || null }; });
+          } catch (er) { errore(er); }
+        });
+        return;
+      }
+      const v = pezzoDi(slot, pid), prima = D.pg[slot];
+      cambia(p => { p[slot] = { id: pid, col: prima && prima.col && (v.varianti ? v.varianti.includes(prima.col) : true) ? prima.col : (KIT[p.classe] && KIT[p.classe][slot] && KIT[p.classe][slot].id === pid ? KIT[p.classe][slot].col : null) }; });
+    });
     sh.querySelector("#pSalva").onclick = async () => {
-      const n = sh.querySelector("#pNome").value.trim();
+      const n = sh.querySelector("#cNome").value.trim();
       if (!n) { const e = sh.querySelector("#pErr"); e.textContent = "Scrivi un nome per l'eroe."; e.hidden = false; return; }
       try {
-        if (id) await db.doc("giocatori/" + id).update({ nome: n, classe: val(sh, "classe") });
-        else { const ref = db.collection("giocatori").doc(); await ref.set({ nome: n, classe: val(sh, "classe"), ts: Date.now(), archivio: {} }); salvaEroe(ref.id); }
-        chiudiSheet(); render(); toast(id ? "Eroe aggiornato" : "Benvenuto, " + n);
+        const dati = { nome: n, classe: D.pg.classe, pg: D.pg, sbloccati: D.sbloccati };
+        if (id) await db.doc("giocatori/" + id).update(dati);
+        else { const ref = db.collection("giocatori").doc(); await ref.set({ ...dati, ts: Date.now(), archivio: {} }); salvaEroe(ref.id); }
+        if (stop) stop(); chiudiSheet(); render(); toast(id ? "Eroe aggiornato" : "Benvenuto, " + n);
       } catch (e) { errore(e); }
     };
+    scrim.addEventListener("remove", () => stop && stop());
   });
 }
 
@@ -814,9 +945,11 @@ function apriImpostazioni() {
     <div class="field"><span class="lab">Pianta della casa</span><button class="btn" id="sPianta">Apri la pianta</button><span class="muted small">Le tue stanze vere, disegnate in piccolo. Valgono per ogni dimora.</span></div>
     <div class="field"><span class="lab">Durata della sfida</span>${radio("sfida", [[14, "2 settimane"], [30, "1 mese"]], cfg.sfidaGiorni || 14)}<span class="muted small">La nuova durata vale dal periodo in corso: i punti già fatti restano.</span></div>
     <div class="field"><label for="sStanza">Aggiungi una stanza</label><div class="row-actions"><input type="text" id="sStanza" maxlength="30" style="flex:1;min-width:0;background:var(--ink);border:1px solid var(--seam);border-radius:10px;padding:10px 12px"><button class="btn" id="sAdd">Aggiungi</button></div><span class="muted small">${esc(stanze().join(", "))}</span></div>
+    <div class="field"><span class="lab">Crediti</span><button class="btn ghost" id="sCrediti">Chi ha disegnato i personaggi</button></div>
     <div class="field"><span class="lab">Account</span><div class="row-actions" style="align-items:center"><span class="muted small" style="flex:1;min-width:0;overflow-wrap:anywhere">${esc(utente ? utente.email : "")}</span><button class="btn sm ghost" id="sEsci">Esci</button></div></div>
     <div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button><button class="btn prime" id="sSalva">Salva</button></div>`, sh => {
     sh.querySelector("#sPianta").onclick = () => apriPianta();
+    sh.querySelector("#sCrediti").onclick = () => apriCrediti();
     sh.querySelector("#sEsci").onclick = async () => { try { localStorage.removeItem("olw-hero"); } catch (e) {} await sb.auth.signOut(); location.reload(); };
     sh.querySelector("#sAdd").onclick = async () => {
       const r = sh.querySelector("#sStanza").value.trim(); if (!r) return;
@@ -903,6 +1036,16 @@ function apriPianta() {
   });
 }
 
+function apriCrediti() {
+  window.OLW_SPRITE.carica().then(() => {
+    const cr = window.OLW_SPRITE.catalogo().crediti, autori = [...new Map(cr.flatMap(c => c.autori).map(a => [a.toLowerCase(), a])).values()].sort((a, b) => a.localeCompare(b)), lic = [...new Set(cr.flatMap(c => c.licenze))].sort();
+    apriSheet(`<h2>Crediti</h2>
+      <p class="muted small" style="margin:0">I personaggi sono composti con gli sprite del <b>Liberated Pixel Cup</b> e dell'<i>Universal LPC Spritesheet Character Generator</i>, opera di tanti artisti. Le immagini restano sotto le loro licenze: ${esc(lic.join(", "))}.</p>
+      <div class="panel fr-stone small" style="line-height:1.6">${autori.map(esc).join(" · ")}</div>
+      <p class="muted small" style="margin:0">Elenco completo con le fonti: <a href="https://github.com/GiadaJennyQafalia/our-little-world/blob/main/CREDITI.md" target="_blank" rel="noopener">CREDITI.md</a>. Le card delle classi sono illustrazioni generate con l'AI.</p>
+      <div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button></div>`);
+  }).catch(() => toast("Non riesco a caricare i crediti"));
+}
 function apriSemplice(titolo, campi, onSave, nota) {
   apriSheet(`<h2>${titolo}</h2>${nota ? `<p class="muted small" style="margin:0">${nota}</p>` : ""}
     ${campi.map(c => c.radio ? `<div class="field"><span class="lab">${c.label}</span>${radio(c.name, c.radio, c.value)}</div>` : `<div class="field"><label for="x-${c.name}">${c.label}</label><input type="${c.type || "text"}" id="x-${c.name}" name="${c.name}" ${c.type === "number" ? 'inputmode="numeric" min="0"' : 'maxlength="60"'} value="${esc(c.value ?? "")}"></div>`).join("")}
