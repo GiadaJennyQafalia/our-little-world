@@ -82,7 +82,8 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const SBLOCCHI = ["personaggio base", "vestiti", "cappelli e accessori", "segni particolari", "primo animale", "accessori per animali", "animali fantasy", "oggetti rari"];
+const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
+const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
   rapida: { nome: "Rapida", plur: "Rapide", col: "var(--rapida)", desc: "fino a 44 min, sbatti 1–3" },
   sbatti: { nome: "Sbatti", plur: "Sbatti", col: "var(--sbatti)", desc: "sbatti 4–5" },
@@ -738,6 +739,10 @@ function apriProfilo(id, obbligatorio) {
     if (obbligatorio) scrim.dataset.lock = "1";
     try { await aperto; } catch (e) { sh.innerHTML = `<h2>Eroe</h2><p class="err">Non riesco a caricare i pezzi del personaggio. Controlla la connessione e riprova.</p><div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button></div>`; console.error(e); return; }
     const monete = () => (id ? moneteDi(id) : 0);
+    const xpAttuale = () => (id ? xpDi(id) : 0);
+    const haPet = () => (g.sbloccati || []).some(k => k.startsWith("pet/"));
+    let gratis = null; /* animale scelto in regalo in questa sessione: finché non salvi puoi cambiarlo */
+    const regalo = () => livelloDa(xpAttuale()).lv >= LV_ANIMALE && !haPet();
     const possiede = (slot, i) => !PREZZO[slot] || ((KIT[D.pg.classe] || {})[slot] || {}).id === i || D.sbloccati.includes(slot + "/" + i);
     const TAB = [["corpo", "Corpo"], ["capelli", "Capelli"], ["vestiti", "Vestiti"], ["extra", "Extra"], ["oggetti", "Oggetti"], ["animali", "Animali"]];
     sh.innerHTML = `<h2>${id ? "Il tuo eroe" : "Nuovo eroe"}</h2>
@@ -771,9 +776,11 @@ function apriProfilo(id, obbligatorio) {
     const HEX_PET = { bianco: "#f2f0ee", dorato: "#e0b24a", rosso: "#b5532f", nero: "#2b2b33", marrone: "#8a5430" };
     const pannelloAnimali = () => {
       const A = SP().ANIMALI, cur = D.pet && D.pet.specie;
-      const chips = Object.entries(A).map(([k, a]) => { const ok = D.sbloccati.includes("pet/" + k); return `<button type="button" class="opt${k === cur ? " on" : ""}${ok ? "" : " lock"}" data-pet="${k}">${a.nome}${ok ? "" : ` <span class="prz">${ICON.coin()}<b class="num">${PREZZO.animale}</b></span>`}</button>`; }).join("");
+      const chips = Object.entries(A).map(([k, a]) => { const ok = D.sbloccati.includes("pet/" + k); return `<button type="button" class="opt${k === cur ? " on" : ""}${ok ? "" : " lock"}" data-pet="${k}">${a.nome}${ok ? "" : regalo() ? ` <span class="prz"><b>In regalo</b></span>` : ` <span class="prz">${ICON.coin()}<b class="num">${PREZZO.animale}</b></span>`}</button>`; }).join("");
+      const mancano = Math.max(0, XP_SOGLIE[LV_ANIMALE - 1] - xpAttuale());
+      const nota = regalo() ? `Hai raggiunto il livello ${LV_ANIMALE}: il tuo primo animale è un regalo, scegli quello che preferisci.` : !haPet() ? `Al livello ${LV_ANIMALE} scegli il tuo primo animale in regalo${mancano ? ` (ti mancano ${fmt(mancano)} XP)` : ""}. Intanto puoi comprarlo con le monete.` : "";
       const cols = cur ? `<div class="field"><span class="lab">Colore del pelo</span><div class="sws">${A[cur].colori.map((c, i) => `<button type="button" class="sw${(D.pet.col | 0) === i ? " on" : ""}" data-petcol="${i}" style="background:${HEX_PET[c]}" title="${c}" aria-label="${c}"></button>`).join("")}</div></div><div class="field"><label for="cPetNome">Nome dell'animale</label><input type="text" id="cPetNome" maxlength="20" value="${esc(D.pet.nome || "")}"></div>` : "";
-      return `<div class="field"><span class="lab">Compagno di avventure</span><div class="opts"><button type="button" class="opt${cur ? "" : " on"}" data-pet="">Nessuno</button>${chips}</div></div>${cols}<p class="muted small" style="margin:0">Ne hai ${fmt(monete())} monete. L'animale ti accompagna e compare nella tua scheda.</p>`;
+      return `<div class="field"><span class="lab">Compagno di avventure</span><div class="opts"><button type="button" class="opt${cur ? "" : " on"}" data-pet="">Nessuno</button>${chips}</div></div>${cols}<p class="muted small" style="margin:0">${nota ? nota + " " : ""}Ne hai ${fmt(monete())} monete. L'animale ti accompagna e compare nella tua scheda e nel castello.</p>`;
     };
     const pannello = () => {
       const pg = D.pg, el = sh.querySelector("#cPan"); let h = "";
@@ -820,7 +827,9 @@ function apriProfilo(id, obbligatorio) {
         const k = pb.dataset.pet;
         if (!k) { D.pet = null; pannello(); anteprima(); return; }
         const metti = () => { D.pet = { specie: k, col: D.pet && D.pet.specie === k ? D.pet.col : 0, nome: (D.pet && D.pet.nome) || "" }; pannello(); anteprima(); };
-        if (D.sbloccati.includes("pet/" + k)) metti(); else acquista("pet/" + k, SP().ANIMALI[k].nome, PREZZO.animale, metti);
+        if (D.sbloccati.includes("pet/" + k)) metti();
+        else if (regalo()) { if (gratis) D.sbloccati = D.sbloccati.filter(x => x !== "pet/" + gratis); gratis = k; D.sbloccati.push("pet/" + k); metti(); toast("Il tuo primo animale! Salva per tenerlo"); }
+        else acquista("pet/" + k, SP().ANIMALI[k].nome, PREZZO.animale, metti);
         return;
       }
       if (pc) { D.pet = { ...D.pet, col: +pc.dataset.petcol }; pannello(); anteprima(); return; }
