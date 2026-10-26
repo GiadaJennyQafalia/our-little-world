@@ -487,3 +487,12 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .tess-cv { width: 96px; height: 96px; image-rendering: pixelated; }
 .tess-pet { width: 64px; height: 64px; image-rendering: pixelated; margin: 16px 0; }
 .tess .btn { margin-top: 4px; }
+
+/* Catalogo faccende */
+.cat-row { border-bottom: 1px dashed var(--seam); padding: 6px 0; }
+.cat-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.cat-top .rst { flex: 1; min-width: 0; }
+.cat-det { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 4px; }
+.cat-det[hidden] { display: none; }
+.mini { display: flex; flex-direction: column; gap: 3px; font-size: .8rem; color: var(--muted, #b9aed0); }
+.mini input, .mini select { background: var(--night); color: inherit; border: 1px solid var(--seam); border-radius: 8px; padding: 8px 10px; font-size: .95rem; width: 100%; }

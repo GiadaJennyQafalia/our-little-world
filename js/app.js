@@ -82,7 +82,7 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.10.0";
+const VERSIONE_APP = "3.11.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -384,6 +384,7 @@ function render() {
   if (window.OLW_SPRITE && S.view === "eroe") avviaVetrina();
   if (window.OLW_SPRITE) { const cs = document.querySelector(".castle"), rc = document.querySelector(".room-chars"); if (cs) abitantiCastello(cs); else if (rc) abitantiStanza(rc); }
   document.querySelectorAll("canvas.pet-cv").forEach(c => window.OLW_SPRITE.animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 0, scala: 2, fps: 4 }));
+  if (S.loaded.giocatori && S.loaded.faccende && S.loaded.config && S.config && me && S.giocatori[me] && !S.faccende.length && !S.config.setupFatto && !S.setupMostrato) { S.setupMostrato = true; apriSetup(false); }
   if (S.loaded.giocatori && !(me && S.giocatori[me]) && !S.onboardingShown) {
     S.onboardingShown = true;
     if (Object.keys(S.giocatori).length) apriChi(); else apriProfilo(null, true);
@@ -571,7 +572,7 @@ function vMissioni(now) {
   ${cartaGiorno(now)}
   <div class="filters" role="group" aria-label="Filtra per categoria">${catBtns.map(([k, l, ic]) => `<button data-act="fcat" data-k="${k}" aria-pressed="${S.fCat === k}">${ic}${l}</button>`).join("")}</div>
   <div class="filters" role="group" aria-label="Filtra per stanza">${rs.map(r => `<button data-act="fstanza" data-r="${esc(r)}" aria-pressed="${S.fStanza === r}">${esc(r === "tutte" ? "Tutte le stanze" : r)}</button>`).join("")}</div>
-  ${tutte.length ? "" : `<div class="empty fr-dash">Nessuna faccenda nel registro. Tocca + per crearne una.</div>`}
+  ${tutte.length ? "" : `<div class="empty fr-dash">Nessuna faccenda nel registro.<br><button class="btn prime sm" data-act="catalogo">Scegli tra le faccende classiche</button></div>`}
   ${gruppo("Urgenti", urg, "Niente di scaduto qui.")}
   ${gruppo("Disponibili", disp, "Nessuna missione disponibile con questi filtri.")}
   ${rip.length ? gruppo("In riposo · fatte da poco", rip, "") : ""}
@@ -1082,14 +1083,16 @@ function apriImpostazioni() {
     <div class="field"><span class="lab">Pianta della casa</span><button class="btn" id="sPianta">Apri la pianta</button><span class="muted small">Le tue stanze vere, disegnate in piccolo. Valgono per ogni dimora.</span></div>
     <div class="field"><span class="lab">Durata della sfida</span>${radio("sfida", [[14, "2 settimane"], [30, "1 mese"]], cfg.sfidaGiorni || 14)}<span class="muted small">La nuova durata vale dal periodo in corso: i punti già fatti restano.</span></div>
     <div class="field"><label for="sStanza">Aggiungi una stanza</label><div class="row-actions"><input type="text" id="sStanza" maxlength="30" style="flex:1;min-width:0;background:var(--ink);border:1px solid var(--seam);border-radius:10px;padding:10px 12px"><button class="btn" id="sAdd">Aggiungi</button></div><span class="muted small">${esc(stanze().join(", "))}</span></div>
+    <div class="field"><span class="lab">Faccende classiche</span><button class="btn" id="sCat">Aggiungi dall'elenco</button><span class="muted small">Le faccende più comuni, già pronte: scegli quali tenere e regola tempo, difficoltà, sbatti e frequenza.</span></div>
     <div class="field"><span class="lab">Crediti</span><button class="btn ghost" id="sCrediti">Chi ha disegnato i personaggi</button></div>
-    <div class="field"><span class="lab">Dati</span><div class="row-actions"><button class="btn" id="sCsv">Scarica i dati (CSV)</button><button class="btn ghost danger" id="sReset">Azzera i test</button></div><span class="muted small">Il CSV contiene faccende, missioni fatte, punti, premi e spesa. "Azzera i test" riporta l'app a come nuova.</span></div>
+    <div class="field"><span class="lab">Dati</span><div class="row-actions"><button class="btn" id="sCsv">Scarica i dati (CSV)</button><button class="btn ghost danger" id="sReset">Reset</button></div><span class="muted small">Il CSV contiene faccende, missioni fatte, punti, premi e spesa. "Reset" riporta l'app a come nuova.</span></div>
     <div class="field"><span class="lab">Versione</span><span class="muted small">Our little world ${VERSIONE_APP}</span></div>
     <div class="field"><span class="lab">Account</span><div class="row-actions" style="align-items:center"><span class="muted small" style="flex:1;min-width:0;overflow-wrap:anywhere">${esc(utente ? utente.email : "")}</span><button class="btn sm ghost" id="sEsci">Esci</button></div></div>
     <div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button><button class="btn prime" id="sSalva">Salva</button></div>`, sh => {
     sh.querySelector("#sPianta").onclick = () => apriPianta();
     sh.querySelector("#sCrediti").onclick = () => apriCrediti();
     sh.querySelector("#sCsv").onclick = () => esportaCsv();
+    sh.querySelector("#sCat").onclick = () => apriSetup(true);
     sh.querySelector("#sReset").onclick = () => apriReset();
     sh.querySelector("#sEsci").onclick = async () => { try { localStorage.removeItem("olw-hero"); } catch (e) {} await sb.auth.signOut(); location.reload(); };
     sh.querySelector("#sAdd").onclick = async () => {
@@ -1128,6 +1131,131 @@ function abitantiStanza(host) {
   const r = S.stanzaSel, t = tipoStanza(r) === "corridoio" || r === "Tutta la casa" ? "corridoio" : tipoStanza(r), P = PIANI_STANZA[t] || PIANI_STANZA.altro;
   const ids = eroiPerPosto()[tipoPosto(r)] || [];
   window.OLW_SPRITE.abita(host, 720, t === "corridoio" ? 706 : 676, abitantiDi(ids, t, P, "stanza", 2.6));
+}
+
+/* ---------- Faccende classiche e configurazione iniziale ----------
+   Il catalogo parte da stanze "per tipo" (non per nome): così vale per qualunque casa. Ogni voce si può cambiare prima di salvarla:
+   si chiedono solo tempo, difficoltà, sbatti e frequenza, da cui si calcola il punteggio. */
+const CATALOGO = [
+  ["casa", "Aspirapolvere", "ricorrente", 3, 30, 4, 4], ["casa", "Mocio", "ricorrente", 7, 40, 5, 5], ["casa", "Spazzatura", "ricorrente", 7, 5, 3, 4],
+  ["casa", "Pulire finestre", "ricorrente", 90, 90, 5, 5], ["casa", "Pulire battiscopa e radiatori", "ricorrente", 90, 60, 3, 5], ["casa", "Pulire porte", "ricorrente", 365, 60, 4, 5],
+  ["casa", "Spolverare quadri e lampadari", "ricorrente", 365, 60, 5, 5],
+  ["bagno", "Pulire sanitari e spolverare", "ricorrente", 3, 15, 2, 3], ["bagno", "Lavatrice", "ricorrente", 3, 5, 1, 2], ["bagno", "Cambiare asciugamani", "ricorrente", 7, 5, 1, 1],
+  ["bagno", "Pulire vasca", "ricorrente", 7, 10, 2, 4], ["bagno", "Pulire specchio bagno", "ricorrente", 30, 5, 3, 4], ["bagno", "Pulire lavatrice", "ricorrente", 90, 45, 3, 5],
+  ["bagno", "Sistemare bagno", "occorrenza", null, 10, 2, 2],
+  ["camera", "Cambio lenzuola", "ricorrente", 7, 10, 3, 4], ["camera", "Spolverare camera", "ricorrente", 7, 15, 2, 2], ["camera", "Pulire specchio camera", "ricorrente", 30, 5, 3, 4],
+  ["camera", "Cambio stagione armadio", "ricorrente", 180, 180, 4, 5], ["camera", "Sistemare camera", "occorrenza", null, 10, 2, 2], ["camera", "Sistemare vestiti", "occorrenza", null, 10, 1, 3],
+  ["cucina", "Pulire ripiani e lavandino", "occorrenza", null, 15, 2, 3], ["cucina", "Pulire fornelli", "occorrenza", null, 10, 3, 3], ["cucina", "Lavare teglie", "occorrenza", null, 10, 3, 5],
+  ["cucina", "Sistemare scolapiatti", "occorrenza", null, 10, 2, 3], ["cucina", "Pulire lavastoviglie", "ricorrente", 60, 60, 5, 5], ["cucina", "Pulire frigo", "ricorrente", 120, 60, 4, 5],
+  ["cucina", "Pulire freezer", "ricorrente", 180, 60, 5, 5], ["cucina", "Pulire forno", "ricorrente", 180, 60, 3, 5], ["cucina", "Pulire microonde", "ricorrente", 180, 20, 3, 5],
+  ["cucina", "Pulire pensili", "ricorrente", 90, 40, 4, 5], ["cucina", "Pulire cestini", "ricorrente", 90, 60, 5, 5], ["cucina", "Sistemare dispensa", "ricorrente", 120, 60, 4, 4],
+  ["cucina", "Sistemare interni armadietti e cassetti", "ricorrente", 180, 180, 4, 5], ["cucina", "Spolverare scaffali", "ricorrente", 180, 60, 4, 5],
+  ["soggiorno", "Spolverare salotto", "ricorrente", 7, 15, 3, 3], ["soggiorno", "Spolverare e sistemare mobili", "ricorrente", 180, 60, 4, 5], ["soggiorno", "Sistemare salotto", "occorrenza", null, 10, 2, 2],
+  ["ingresso", "Spolverare ingresso", "ricorrente", 7, 10, 2, 2], ["ingresso", "Pulire specchio ingresso", "ricorrente", 30, 5, 3, 4], ["ingresso", "Pulire e idratare scarpe", "ricorrente", 180, 60, 5, 4],
+  ["ingresso", "Sistemare ingresso", "occorrenza", null, 10, 2, 2],
+  ["ripostiglio", "Sistemare e pulire sgabuzzino", "ricorrente", 180, 180, 5, 5], ["ripostiglio", "Pulire aspirapolvere", "ricorrente", 90, 45, 5, 5],
+  ["balcone", "Sistemare e pulire balcone", "ricorrente", 90, 120, 5, 5]
+].map(([tipo, nome, t, freq, minuti, diff, sbatti]) => ({ tipo, nome, t, freq, minuti, diff, sbatti }));
+const STANZE_STD = ["Bagno", "Camera", "Cucina", "Salotto", "Ingresso", "Sgabuzzino", "Balcone"];
+const FREQ_OPZ = [["3", "ogni 3 giorni"], ["7", "ogni settimana"], ["14", "ogni 2 settimane"], ["30", "ogni mese"], ["60", "ogni 2 mesi"], ["90", "ogni 3 mesi"], ["180", "ogni 6 mesi"], ["365", "ogni anno"], ["occorrenza", "all'occorrenza"], ["occasionale", "una volta sola"]];
+const freqDi = x => x.t === "ricorrente" ? String(x.freq) : x.t;
+const riepilogo = x => `${(FREQ_OPZ.find(o => o[0] === freqDi(x)) || ["", x.t])[1]} · ${x.minuti} min · difficoltà ${x.diff} · sbatti ${x.sbatti} · ${puntiBase(x.minuti, x.diff, x.sbatti)} punti`;
+
+/* solo = true: aggiunge faccende classiche a una casa che esiste già (salta il passo "la tua casa"). */
+function apriSetup(solo) {
+  const cfg = S.config || {};
+  const D = { nome: cfg.nome || "La mia casa", dimora: SKIN[cfg.dimora] ? cfg.dimora : "castello", stanze: solo ? stanze().filter(r => r !== "Tutta la casa") : [...STANZE_STD], items: [], passo: solo ? 2 : 1 };
+  const esistenti = new Set(S.faccende.filter(f => f.attiva !== false).map(f => String(f.nome).toLowerCase()));
+  const dimore = Object.keys(DIMORE).filter(k => SKIN[k]);
+  const costruisci = () => {
+    const vecchi = D.items.filter(x => x.custom), out = [];
+    for (const c of CATALOGO) {
+      if (esistenti.has(c.nome.toLowerCase())) continue;
+      const stanza = c.tipo === "casa" ? "Tutta la casa" : D.stanze.find(r => tipoDa(r) === c.tipo); if (!stanza) continue;
+      const prima = D.items.find(x => !x.custom && x.nome === c.nome);
+      out.push({ ...c, stanza, sel: prima ? prima.sel : true, ...(prima && prima.mod ? { t: prima.t, freq: prima.freq, minuti: prima.minuti, diff: prima.diff, sbatti: prima.sbatti, mod: true } : {}) });
+    }
+    D.items = [...out, ...vecchi];
+  };
+  apriSheet(`<div id="stP"></div>`, sh => {
+    const P = sh.querySelector("#stP");
+    const passo1 = () => {
+      P.innerHTML = `<h2>La tua casa</h2>
+        <p class="muted small" style="margin:0">Tre cose veloci: il nome, la dimora e le stanze. Poi scegli le faccende.</p>
+        <div class="field"><label for="stNome">Nome della casa</label><input type="text" id="stNome" maxlength="40" value="${esc(D.nome)}"></div>
+        <div class="field"><span class="lab">Dimora</span>${radio("stDim", dimore.map(k => [k, DIMORE[k].replace(/^(Il|La|L') ?/, "")]), D.dimora)}<span class="muted small">Le altre dimore arrivano presto: la pianta resta la stessa.</span></div>
+        <div class="field"><span class="lab">Stanze</span><div class="radios">${[...new Set([...STANZE_STD, ...D.stanze])].map(r => `<label><input type="checkbox" name="stSt" value="${esc(r)}" ${D.stanze.includes(r) ? "checked" : ""}><span>${esc(r)}</span></label>`).join("")}</div>
+          <div class="row-actions"><input type="text" id="stNuova" maxlength="30" placeholder="Un'altra stanza" style="flex:1;min-width:0;background:var(--night);border:1px solid var(--seam);border-radius:10px;padding:10px 12px"><button class="btn" id="stAdd">Aggiungi</button></div>
+          <span class="muted small">La pianta si disegna poi dalle impostazioni.</span></div>
+        <div class="sheet-actions"><button class="btn ghost" data-close>Salta</button><button class="btn prime" id="stAvanti">Avanti</button></div>`;
+      P.querySelector("#stAdd").onclick = () => { aggiorna1(); const n = P.querySelector("#stNuova").value.trim(); if (n && !D.stanze.includes(n) && n !== "Tutta la casa") D.stanze.push(n); passo1(); };
+      P.querySelector("#stAvanti").onclick = () => { aggiorna1(); if (!D.stanze.length) { toast("Scegli almeno una stanza"); return; } D.passo = 2; costruisci(); passo2(); };
+      P.querySelectorAll("[data-close]").forEach(b => b.onclick = chiudiSheet);
+    };
+    const aggiorna1 = () => { D.nome = (P.querySelector("#stNome").value.trim() || "La mia casa"); D.dimora = val(P, "stDim") || D.dimora; D.stanze = [...P.querySelectorAll('[name="stSt"]:checked')].map(x => x.value); };
+    const riga = (x, i) => `<div class="cat-row"><div class="cat-top"><label class="rst"><input type="checkbox" data-i="${i}" ${x.sel ? "checked" : ""}> <span><b>${esc(x.nome)}</b><br><span class="muted small" id="rp${i}">${esc(riepilogo(x))}</span></span></label><button class="btn sm ghost" data-mod="${i}">Cambia</button></div>
+      <div class="cat-det" id="det${i}" hidden>
+        <label class="mini">Minuti<input type="number" min="1" max="1440" inputmode="numeric" data-i="${i}" data-f="minuti" value="${x.minuti}"></label>
+        <label class="mini">Difficoltà<select data-i="${i}" data-f="diff">${[1, 2, 3, 4, 5].map(n => `<option ${n === x.diff ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label class="mini">Sbatti<select data-i="${i}" data-f="sbatti">${[1, 2, 3, 4, 5].map(n => `<option ${n === x.sbatti ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label class="mini">Frequenza<select data-i="${i}" data-f="freq">${FREQ_OPZ.map(([v, l]) => `<option value="${v}" ${v === freqDi(x) ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+      </div></div>`;
+    const passo2 = () => {
+      const gruppi = {}; D.items.forEach((x, i) => { (gruppi[x.stanza] = gruppi[x.stanza] || []).push([x, i]); });
+      const ordine = [...D.stanze, "Tutta la casa"].filter(r => gruppi[r]);
+      const n = () => D.items.filter(x => x.sel).length;
+      P.innerHTML = `<h2>${solo ? "Faccende classiche" : "Le faccende"}</h2>
+        <p class="muted small" style="margin:0">Togli la spunta a quelle che non ti servono. Con "Cambia" regoli tempo, difficoltà, sbatti e frequenza: da questi si calcolano i punti.</p>
+        <div class="row-actions"><button class="btn sm ghost" id="stTutte">Tutte</button><button class="btn sm ghost" id="stNessuna">Nessuna</button></div>
+        ${ordine.length ? ordine.map(r => `<div class="field"><span class="lab">${esc(nomeStanza(r))}</span>${gruppi[r].map(([x, i]) => riga(x, i)).join("")}</div>`).join("") : '<p class="muted small">Non ci sono altre faccende classiche da aggiungere.</p>'}
+        <div class="field"><span class="lab">Una faccenda tua</span>
+          <input type="text" id="stCNome" maxlength="60" placeholder="Es. Annaffiare le piante" style="background:var(--night);border:1px solid var(--seam);border-radius:10px;padding:10px 12px;width:100%">
+          <div class="cat-det" style="display:grid">
+            <label class="mini">Stanza<select id="stCStanza">${[...D.stanze, "Tutta la casa"].map(r => `<option>${esc(r)}</option>`).join("")}</select></label>
+            <label class="mini">Minuti<input type="number" min="1" max="1440" inputmode="numeric" id="stCMin" value="15"></label>
+            <label class="mini">Difficoltà<select id="stCDiff">${[1, 2, 3, 4, 5].map(k => `<option ${k === 2 ? "selected" : ""}>${k}</option>`).join("")}</select></label>
+            <label class="mini">Sbatti<select id="stCSb">${[1, 2, 3, 4, 5].map(k => `<option ${k === 3 ? "selected" : ""}>${k}</option>`).join("")}</select></label>
+            <label class="mini">Frequenza<select id="stCFreq">${FREQ_OPZ.map(([v, l]) => `<option value="${v}" ${v === "7" ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+          </div><button class="btn" id="stCAdd">Aggiungi alla lista</button></div>
+        <p class="err" id="stErr" hidden></p>
+        <div class="sheet-actions">${solo ? '<button class="btn ghost" data-close>Chiudi</button>' : '<button class="btn ghost" id="stIndietro">Indietro</button>'}<button class="btn prime" id="stSalva">Crea ${n()} faccende</button></div>`;
+      P.querySelectorAll("[data-close]").forEach(b => b.onclick = chiudiSheet);
+      const ind = P.querySelector("#stIndietro"); if (ind) ind.onclick = () => { D.passo = 1; passo1(); };
+      P.querySelector("#stTutte").onclick = () => { D.items.forEach(x => x.sel = true); passo2(); };
+      P.querySelector("#stNessuna").onclick = () => { D.items.forEach(x => x.sel = false); passo2(); };
+      P.querySelectorAll("[data-mod]").forEach(b => b.onclick = () => { const d = P.querySelector("#det" + b.dataset.mod); d.hidden = !d.hidden; });
+      P.querySelector("#stCAdd").onclick = () => {
+        const nome = P.querySelector("#stCNome").value.trim(), err = P.querySelector("#stErr"), minuti = Math.round(+P.querySelector("#stCMin").value);
+        if (!nome) { err.textContent = "Scrivi il nome della faccenda."; err.hidden = false; return; }
+        if (!(minuti > 0)) { err.textContent = "Indica quanti minuti ci vogliono."; err.hidden = false; return; }
+        const f = P.querySelector("#stCFreq").value;
+        D.items.push({ custom: true, tipo: "", nome, stanza: P.querySelector("#stCStanza").value, sel: true, t: /^\d+$/.test(f) ? "ricorrente" : f, freq: /^\d+$/.test(f) ? +f : null, minuti, diff: +P.querySelector("#stCDiff").value, sbatti: +P.querySelector("#stCSb").value });
+        passo2();
+      };
+      P.querySelector("#stSalva").onclick = async () => {
+        const scelte = D.items.filter(x => x.sel), err = P.querySelector("#stErr");
+        const b = P.querySelector("#stSalva"); b.disabled = true; b.textContent = "Creo…";
+        try {
+          const now = Date.now();
+          if (!solo) await db.doc("config/casa").update({ nome: D.nome, dimora: D.dimora, stanze: D.stanze.filter(r => r !== "Tutta la casa"), setupFatto: true });
+          for (let k = 0; k < scelte.length; k += 10) await Promise.all(scelte.slice(k, k + 10).map(x => db.collection("faccende").add({ nome: x.nome, stanza: x.stanza, minuti: x.minuti, diff: x.diff, sbatti: x.sbatti, tipo: x.t, freq: x.t === "ricorrente" ? x.freq : null, base: now, attiva: true })));
+          chiudiSheet(); toast(scelte.length ? `${scelte.length} faccende pronte` : "Casa pronta");
+        } catch (e) { b.disabled = false; b.textContent = "Riprova"; errore(e); }
+      };
+    };
+    /* Modifiche ai campi delle faccende: aggiorna in tempo reale il riepilogo. */
+    P.addEventListener("change", e => {
+      const t = e.target, i = t.dataset.i; if (i == null) return;
+      const x = D.items[+i]; if (!x) return;
+      if (t.type === "checkbox") { x.sel = t.checked; const b = P.querySelector("#stSalva"); if (b) b.textContent = `Crea ${D.items.filter(y => y.sel).length} faccende`; return; }
+      const f = t.dataset.f; x.mod = true;
+      if (f === "freq") { x.t = /^\d+$/.test(t.value) ? "ricorrente" : t.value; x.freq = /^\d+$/.test(t.value) ? +t.value : null; }
+      else x[f] = Math.max(1, Math.round(+t.value) || 1);
+      const r = P.querySelector("#rp" + i); if (r) r.textContent = riepilogo(x);
+    });
+    P.addEventListener("input", e => { const t = e.target; if (t.dataset.f === "minuti" && t.dataset.i != null) { const x = D.items[+t.dataset.i]; if (x) { x.mod = true; x.minuti = Math.max(1, Math.round(+t.value) || 1); const r = P.querySelector("#rp" + t.dataset.i); if (r) r.textContent = riepilogo(x); } } });
+    if (solo) { costruisci(); passo2(); } else passo1();
+  });
 }
 
 /* ---------- Esporta e azzera ---------- */
@@ -1176,22 +1304,24 @@ async function esportaCsv() {
 
 /* Riporta l'app a "nuova" dopo i test. Chiede di scrivere la parola RESET: non si fa per sbaglio. */
 function apriReset() {
-  apriSheet(`<h2>Azzera i test</h2>
-    <p class="muted small" style="margin:0">Cosa vuoi cancellare? Le faccende e le stanze restano sempre.</p>
+  apriSheet(`<h2>Reset</h2>
+    <p class="muted small" style="margin:0">Cosa vuoi cancellare? Con le prime tre scelte le faccende e le stanze restano.</p>
     <div class="field"><label class="rst"><input type="checkbox" id="rP" checked> <span><b>Progressi</b>: missioni fatte, punti, monete, premi riscattati, sfide. Le faccende ripartono "appena pulite". I personaggi restano come sono.</span></label></div>
     <div class="field"><label class="rst"><input type="checkbox" id="rE"> <span><b>Personaggi</b>: cancella anche gli eroi (aspetto, pezzi e animali comprati). Ognuno dovrà crearsi di nuovo.</span></label></div>
     <div class="field"><label class="rst"><input type="checkbox" id="rL"> <span><b>Liste</b>: premi, premi della sfida, prodotti e lista della spesa.</span></label></div>
+    <div class="field"><label class="rst"><input type="checkbox" id="rT"> <span><b>Tutto da capo</b>: cancella anche la casa (nome, dimora, pianta, stanze) e tutte le faccende, come la prima volta. Serve se cambi casa. Al riavvio ti guida la configurazione e puoi scegliere le faccende classiche.</span></label></div>
     <div class="field"><button class="btn" id="rCsv">Scarica prima una copia (CSV)</button></div>
     <div class="field"><label for="rConf">Per confermare scrivi <b>RESET</b></label><input type="text" id="rConf" autocomplete="off" autocapitalize="characters" style="background:var(--night);border:1px solid var(--seam);border-radius:10px;padding:10px 12px"></div>
     <p class="err" id="rErr" hidden></p>
-    <div class="sheet-actions"><button class="btn ghost" data-close>Annulla</button><button class="btn prime danger" id="rOk">Azzera</button></div>`, sh => {
+    <div class="sheet-actions"><button class="btn ghost" data-close>Annulla</button><button class="btn prime danger" id="rOk">Reset</button></div>`, sh => {
     sh.querySelector("#rCsv").onclick = () => esportaCsv();
+    sh.querySelector("#rT").onchange = ev => { for (const k of ["#rP", "#rE", "#rL"]) { const c = sh.querySelector(k); if (ev.target.checked) c.checked = true; c.disabled = ev.target.checked; } };
     sh.querySelector("#rOk").onclick = async () => {
-      const err = sh.querySelector("#rErr"), p = sh.querySelector("#rP").checked, e = sh.querySelector("#rE").checked, l = sh.querySelector("#rL").checked;
+      const err = sh.querySelector("#rErr"), t = sh.querySelector("#rT").checked, p = t || sh.querySelector("#rP").checked, e = t || sh.querySelector("#rE").checked, l = t || sh.querySelector("#rL").checked;
       if (!p && !e && !l) { err.textContent = "Scegli almeno una cosa da azzerare."; err.hidden = false; return; }
       if (sh.querySelector("#rConf").value.trim().toUpperCase() !== "RESET") { err.textContent = "Scrivi RESET per confermare."; err.hidden = false; return; }
-      const b = sh.querySelector("#rOk"); b.disabled = true; b.textContent = "Azzero…";
-      try { await azzera({ progressi: p, eroi: e, liste: l }); } catch (x) { b.disabled = false; b.textContent = "Azzera"; errore(x); }
+      const b = sh.querySelector("#rOk"); b.disabled = true; b.textContent = "Cancello…";
+      try { await azzera({ progressi: p, eroi: e, liste: l, tutto: t }); } catch (x) { b.disabled = false; b.textContent = "Reset"; errore(x); }
     };
   });
 }
@@ -1200,7 +1330,7 @@ async function azzera(o) {
   if (o.progressi) {
     const cs = (await db.collection("completamenti").get()).docs.map(d => d.data());
     const extra = new Set(cs.filter(c => c.extra).map(c => c.faccendaId)), fatte = new Set(cs.filter(c => !c.extra).map(c => c.faccendaId));
-    await lotti(S.faccende, async f => {
+    if (!o.tutto) await lotti(S.faccende, async f => {
       if (extra.has(f.id)) return db.doc("faccende/" + f.id).delete();
       const u = {};
       if (f.prenDa) { u.prenDa = null; u.prenFino = 0; }
@@ -1211,12 +1341,13 @@ async function azzera(o) {
     });
     for (const c of ["completamenti", "riscatti", "sfide"]) await db.svuota(c);
     if (!o.eroi) await lotti(Object.keys(S.giocatori), id => db.doc("giocatori/" + id).update({ archivio: {} }));
-    await db.doc("config/casa").update({ missioneGiorno: null, sfidaInizio: now });
+    if (!o.tutto) await db.doc("config/casa").update({ missioneGiorno: null, sfidaInizio: now });
   }
-  if (o.eroi) { await db.svuota("giocatori"); try { localStorage.removeItem("olw-hero"); } catch (x) {} }
+  if (o.eroi) { await db.svuota("giocatori"); await db.svuota("utenti"); try { localStorage.removeItem("olw-hero"); } catch (x) {} }
   if (o.liste) for (const c of ["premi", "sfidaPremi", "prodotti", "spesa"]) await db.svuota(c);
+  if (o.tutto) { await db.svuota("faccende"); await db.svuota("config"); try { localStorage.removeItem("olw-view"); } catch (x) {} }
   chiudiSheet();
-  if (o.eroi) { location.reload(); return; }
+  if (o.eroi || o.tutto) { location.reload(); return; }
   toast("Fatto: l'app riparte da zero");
 }
 
@@ -1351,6 +1482,7 @@ document.addEventListener("click", e => {
     }
     case "menu": { const f = trova(S.faccende, id); if (f) apriMenu(f); break; }
     case "extra": formFaccenda(null, "extra"); break;
+    case "catalogo": apriSetup(true); break;
     case "profilo": apriProfilo(me, false); break;
     case "gira": S.vetRiga = [2, 1, 0, 3][([2, 1, 0, 3].indexOf(S.vetRiga == null ? 2 : S.vetRiga) + 1) % 4]; render(); break;
     case "armadio": apriArmadio(); break;
