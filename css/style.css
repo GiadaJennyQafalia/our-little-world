@@ -680,3 +680,27 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .insegna.compatta .sigillo { width: 40px; height: 38px; }
 .insegna.compatta .sigillo svg.px { width: 15px; height: 15px; }
 @keyframes fiammella { 0%, 100% { transform: scaleY(1) translateX(0); } 33% { transform: scaleY(.88) translateX(-1px); } 66% { transform: scaleY(1.08) translateX(1px); } }
+
+/* ---------- Schermata d'ingresso ---------- */
+#ingresso { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; background: radial-gradient(120% 70% at 50% 0%, #2a1d44 0%, #140f22 55%, #0b0814 100%); color: #f2e2c4; transition: opacity .35s, transform .35s; }
+#ingresso.via { opacity: 0; transform: scale(1.03); pointer-events: none; }
+.ing-cielo { position: absolute; inset: 0; pointer-events: none; }
+.ing-castello { position: absolute; left: 50%; bottom: -6%; width: min(115vw, 620px); transform: translateX(-50%); opacity: .32; image-rendering: pixelated; filter: saturate(.8) brightness(.7); -webkit-mask-image: linear-gradient(to top, transparent 0%, #000 30%, #000 70%, transparent 100%); mask-image: linear-gradient(to top, transparent 0%, #000 30%, #000 70%, transparent 100%); }
+.ing-stella { position: absolute; width: 3px; height: 3px; background: #fff6c8; box-shadow: 0 0 6px #ffe9a0; opacity: .5; }
+@media (prefers-reduced-motion: no-preference) { .ing-stella { animation: scintilla 2.8s steps(4) infinite; } }
+@keyframes scintilla { 0%, 100% { opacity: .2; } 50% { opacity: .95; } }
+.ing-cont { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 24px 16px calc(28px + env(safe-area-inset-bottom)); text-align: center; }
+.ing-kick { font-size: .7rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: #d9b873; }
+.ing-titolo { margin: 0; font-family: var(--f-display); font-weight: 600; font-size: clamp(1.9rem, 9vw, 2.6rem); line-height: 1.05; color: #fff3dc; text-shadow: 0 3px 0 #1a0807, 0 0 18px #ffc24a55; }
+.ing-dom { margin: 0 0 4px; color: #e0c9a6; }
+.ing-eroi { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; width: 100%; max-width: 460px; }
+.ing-eroe { flex: 1 1 140px; max-width: 200px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 8px 12px; border-radius: 14px; border: 3px solid #3b2a4f; background: linear-gradient(180deg, #2b2140, #1a1428); color: inherit; font: inherit; cursor: pointer; box-shadow: 0 4px 0 #0009; transition: transform .12s, border-color .12s, box-shadow .12s; }
+.ing-eroe b { font-family: var(--f-display); font-size: 1.15rem; color: #fff3dc; }
+.ing-eroe .small { color: #cdb894; }
+.ing-eroe.on { border-color: var(--candle, #f2c445); box-shadow: 0 0 0 2px #1a0807, 0 0 22px #f2c44566, 0 4px 0 #0009; transform: translateY(-3px); }
+.ing-fig { position: relative; display: grid; place-items: end center; height: 150px; width: 100%; }
+.ing-cv { width: 144px; height: 144px; image-rendering: pixelated; }
+.ing-fig img.avatar, .ing-fig svg.sigil { width: 96px; height: 96px; margin-bottom: 20px; }
+.ing-pet { position: absolute; right: 2px; bottom: 6px; width: 64px; height: 64px; image-rendering: pixelated; }
+.ing-entra { min-width: 220px; font-size: 1.1rem; padding: 12px 20px; margin-top: 4px; }
+.ing-nuovo { color: #cdb894; }

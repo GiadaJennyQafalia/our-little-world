@@ -86,7 +86,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.28.0";
+const VERSIONE_APP = "3.29.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -430,9 +430,11 @@ function render() {
   if (window.OLW_SPRITE) { const cs = document.querySelector(".castle"), rc = document.querySelector(".room-chars"); if (cs) abitantiCastello(cs); else if (rc) abitantiStanza(rc); }
   document.querySelectorAll("canvas.pet-cv").forEach(c => window.OLW_SPRITE.animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 0, scala: 2, fps: 4 }));
   if (S.loaded.giocatori && S.loaded.faccende && S.loaded.config && S.config && me && S.giocatori[me] && !S.faccende.length && !S.config.setupFatto && !S.setupMostrato) { S.setupMostrato = true; apriSetup(false); }
-  if (S.loaded.giocatori && !(me && S.giocatori[me]) && !S.onboardingShown) {
-    S.onboardingShown = true;
-    if (Object.keys(S.giocatori).length) apriChi(); else apriProfilo(null, true);
+  /* All'apertura: la schermata d'ingresso (se attiva, o se il telefono non ha ancora un eroe); senza eroi si crea il primo. */
+  if (S.loaded.giocatori && !S.ingressoFatto) {
+    S.ingressoFatto = true;
+    if (!Object.keys(S.giocatori).length) { S.onboardingShown = true; apriProfilo(null, true); }
+    else if (ingressoAttivo() || !(me && S.giocatori[me])) mostraIngresso();
   }
 }
 
@@ -1203,6 +1205,45 @@ function chiudiSheet() { const s = $("#scrim"); if (s) s.remove(); }
 const radio = (name, opts, sel) => `<div class="radios">${opts.map(([v, l]) => `<label><input type="radio" name="${name}" value="${esc(v)}" ${String(v) === String(sel) ? "checked" : ""}><span>${esc(l)}</span></label>`).join("")}</div>`;
 const val = (sh, n) => { const el = sh.querySelector(`[name="${n}"]:checked`) || sh.querySelector(`[name="${n}"]`); return el ? el.value : ""; };
 
+/* ---------- Schermata d'ingresso ----------
+   Compare sopra l'app a ogni apertura: intanto l'app sotto finisce di caricarsi, quindi entrare non costa attesa.
+   L'eroe dell'ultima volta è già scelto: basta toccare "Entra". Si può spegnere dalle impostazioni (vale per questo telefono). */
+const ingressoAttivo = () => { try { return localStorage.getItem("olw-ingresso") !== "no"; } catch (e) { return true; } };
+function mostraIngresso() {
+  if ($("#ingresso")) return;
+  const ids = Object.keys(S.giocatori).sort((a, b) => (S.giocatori[a].ts || 0) - (S.giocatori[b].ts || 0));
+  let sel = me && S.giocatori[me] ? me : null;
+  const el = document.createElement("div"); el.id = "ingresso"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", "Ingresso");
+  const stelle = Array.from({ length: 18 }, (_, i) => `<i class="ing-stella" style="left:${(i * 37) % 100}%;top:${(i * 53) % 46}%;animation-delay:${(i % 6) * .45}s"></i>`).join("");
+  const card = id => { const g = S.giocatori[id], A = window.OLW_SPRITE && SP().ANIMALI, pet = g.pet && A && A[g.pet.specie] ? g.pet : null;
+    return `<button class="ing-eroe${id === sel ? " on" : ""}" data-id="${id}" aria-pressed="${id === sel}">
+      <span class="ing-fig">${g.pg ? `<canvas class="ing-cv" data-id="${id}" aria-hidden="true"></canvas>` : avatar(g)}${pet ? `<canvas class="ing-pet" data-specie="${pet.specie}" data-col="${pet.col | 0}" aria-hidden="true"></canvas>` : ""}</span>
+      <b>${esc(g.nome)}</b><span class="small">${esc(CLASSI[g.classe] || "")} · livello ${livelloDa(xpDi(id)).lv}</span></button>`; };
+  el.innerHTML = `<div class="ing-cielo">${stelle}<img class="ing-castello" src="img/castello.webp" alt=""></div>
+    <div class="ing-cont">
+      <span class="ing-kick">Benvenuti nella dimora</span>
+      <h1 class="ing-titolo">${esc((S.config && S.config.nome) || "Our little world")}</h1>
+      <p class="ing-dom">Chi entra?</p>
+      <div class="ing-eroi">${ids.map(card).join("")}</div>
+      <button class="btn prime ing-entra" ${sel ? "" : "disabled"}>${sel ? "Entra come " + esc(nome(sel)) : "Scegli il tuo eroe"}</button>
+      <button class="linkbtn ing-nuovo">Nuovo eroe</button>
+    </div>`;
+  document.body.appendChild(el);
+  const entra = () => {
+    if (!sel) return;
+    if (sel !== me) { salvaEroe(sel); S.onboardingShown = true; }
+    el.classList.add("via"); setTimeout(() => el.remove(), 380); render();
+  };
+  const aggiorna = () => { el.querySelectorAll(".ing-eroe").forEach(b => { b.classList.toggle("on", b.dataset.id === sel); b.setAttribute("aria-pressed", b.dataset.id === sel); }); const e = el.querySelector(".ing-entra"); e.disabled = !sel; e.textContent = sel ? "Entra come " + nome(sel) : "Scegli il tuo eroe"; };
+  el.querySelectorAll(".ing-eroe").forEach(b => b.onclick = () => { if (sel === b.dataset.id) return entra(); sel = b.dataset.id; aggiorna(); });
+  el.querySelector(".ing-entra").onclick = entra;
+  el.querySelector(".ing-nuovo").onclick = () => { el.remove(); apriProfilo(null, !(me && S.giocatori[me])); };
+  /* Le figure camminano sul posto non appena il catalogo dei pezzi è pronto. */
+  if (window.OLW_SPRITE) SP().carica().then(() => {
+    el.querySelectorAll("canvas.ing-cv").forEach(c => SP().anima(c, pgConUmore(c.dataset.id) || S.giocatori[c.dataset.id].pg, { riga: 2, scala: 3, fps: 7 }));
+    el.querySelectorAll("canvas.ing-pet").forEach(c => SP().animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 2, scala: 2, fps: 5 }));
+  }).catch(() => {});
+}
 function apriChi() {
   const ids = Object.keys(S.giocatori);
   apriSheet(`<h2>Chi sta giocando?</h2>
@@ -1560,10 +1601,12 @@ function apriImpostazioni() {
     <div class="field"><span class="lab">Faccende classiche</span><button class="btn" id="sCat">Aggiungi dall'elenco</button><span class="muted small">Le faccende più comuni, già pronte: scegli quali tenere e regola tempo, difficoltà, sbatti e frequenza.</span></div>
     <div class="field"><span class="lab">Crediti</span><button class="btn ghost" id="sCrediti">Chi ha disegnato i personaggi</button></div>
     <div class="field"><span class="lab">Dati</span><div class="row-actions"><button class="btn" id="sCsv">Scarica i dati (CSV)</button><button class="btn ghost danger" id="sReset">Reset</button></div><span class="muted small">Il CSV contiene faccende, missioni fatte, punti, premi e spesa. "Reset" riporta l'app a come nuova.</span></div>
+    <div class="field"><span class="lab">Schermata d'ingresso</span><label class="rst"><input type="checkbox" id="sIngresso" ${ingressoAttivo() ? "checked" : ""}> <span>Mostrala a ogni apertura su questo telefono</span></label></div>
     <div class="field"><span class="lab">Versione</span><span class="muted small">Our little world ${VERSIONE_APP}</span></div>
     <div class="field"><span class="lab">Account</span><div class="row-actions" style="align-items:center"><span class="muted small" style="flex:1;min-width:0;overflow-wrap:anywhere">${esc(utente ? utente.email : "")}</span><button class="btn sm ghost" id="sEsci">Esci</button></div></div>
     <div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button><button class="btn prime" id="sSalva">Salva</button></div>`, sh => {
     sh.querySelector("#sPianta").onclick = () => apriPianta();
+    sh.querySelector("#sIngresso").onchange = e => { try { localStorage.setItem("olw-ingresso", e.target.checked ? "si" : "no"); } catch (x) {} toast(e.target.checked ? "La schermata d'ingresso comparirà all'apertura" : "L'app si aprirà direttamente nella dimora"); };
     sh.querySelector("#sCrediti").onclick = () => apriCrediti();
     sh.querySelector("#sCsv").onclick = () => esportaCsv();
     sh.querySelector("#sCat").onclick = () => apriSetup(true);
