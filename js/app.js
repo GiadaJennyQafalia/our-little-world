@@ -906,6 +906,8 @@ const REPARTI = [["abiti", "Abiti", ["mantello", "cappello"]], ["speciali", "Abi
    in config/casa.arredi[nomeStanza][posto] = { id, da }. Ogni oggetto sta in un solo posto. La casa è di tutti e due:
    chiunque sposta o toglie qualsiasi oggetto, e si possono sistemare anche quelli dell'altro eroe. */
 const SLOT_ARREDI = {"bagno":{"t":[[190,545],[590,520],[370,640]],"p":[[230,220,"l"],[440,120,"r"]]},"camera":{"t":[[150,540],[590,530],[370,640]],"p":[[200,200,"l"],[600,140,"r"]]},"cucina":{"t":[[120,560],[600,560],[370,650]],"p":[[180,190,"l"],[560,140,"r"]]},"soggiorno":{"t":[[110,545],[620,540],[370,650]],"p":[[110,230,"l"],[440,100,"r"]]},"ingresso":{"t":[[150,560],[600,560],[370,650]],"p":[[300,140,"l"],[560,170,"r"]]},"sgabuzzino":{"t":[[120,550],[620,550],[370,650]],"p":[[110,220,"l"],[440,110,"r"]]},"corridoio":{"t":[[140,580],[600,600],[370,680]],"p":[[62,302,"l",0.42],[205,236,"l",0.45],[255,170,"l",0.32],[622,165,"r",0.45],[385,175,"r",0.28]]},"balcone":{"t":[[140,560],[620,560],[370,650]],"p":[[620,180,"r"]]}};
+/* Posti calcolati da tools/arredi/slot_auto.py misurando pareti e pavimento di ogni interno (le 8 stanze del castello restano quelle fatte a mano). */
+const SLOT_AUTO = { castello: {"cantina":{"t":[[179,497,0.687],[537,498,0.687],[358,604,0.687]],"p":[[180,225,"l",0.581],[538,225,"r",0.581]],"piano":{"x0":254,"x1":463,"y":506,"s":2.75}},"cucina_soggiorno":{"t":[[166,473,0.338],[552,472,0.338],[359,593,0.338]],"p":[[166,287,"l",0.286],[552,286,"r",0.286]],"piano":{"x0":247,"x1":471,"y":482,"s":1.56}},"giardino":{"t":[[212,495,0.699],[507,494,0.699],[359,597,0.699]],"p":[[494,213,"r",0.591]],"piano":{"x0":274,"x1":445,"y":502,"s":2.79}},"lavanderia":{"t":[[167,460,0.293],[554,443,0.293],[373,587,0.293]],"p":[[158,285,"l",0.248],[544,268,"r",0.248]],"piano":{"x0":249,"x1":474,"y":462,"s":1.56}},"studio":{"t":[[166,474,0.334],[553,472,0.334],[361,594,0.334]],"p":[[165,288,"l",0.283],[552,286,"r",0.283]],"piano":{"x0":247,"x1":472,"y":482,"s":1.56}}}, reggia: {"bagno":{"t":[[209,515,0.747],[509,515,0.747],[359,607,0.747]],"p":[[209,228,"l",0.632],[509,228,"r",0.632]],"piano":{"x0":272,"x1":446,"y":522,"s":2.86}},"balcone":{"t":[[174,467,0.664],[544,467,0.664],[359,589,0.664]],"p":[[527,180,"r",0.562]],"piano":{"x0":251,"x1":467,"y":477,"s":2.66}},"camera":{"t":[[166,505,0.419],[553,506,0.419],[363,606,0.419]],"p":[[164,312,"l",0.354],[551,312,"r",0.354]],"piano":{"x0":248,"x1":472,"y":513,"s":1.67}},"cantina":{"t":[[168,485,0.377],[553,484,0.377],[360,599,0.377]],"p":[[168,292,"l",0.319],[554,292,"r",0.319]],"piano":{"x0":248,"x1":473,"y":493,"s":1.56}},"corridoio":{"t":[[167,517,0.711],[548,506,0.711],[342,625,0.711]],"p":[[123,261,"l",0.451],[271,187,"l",0.451],[495,189,"r",0.451],[615,250,"r",0.451],[197,142,"l",0.301]],"piano":{"x0":245,"x1":467,"y":520,"s":2.85}},"cucina":{"t":[[223,527,0.747],[496,527,0.747],[359,610,0.747]],"p":[[224,232,"l",0.632],[496,232,"r",0.632]],"piano":{"x0":280,"x1":439,"y":534,"s":2.86}},"cucina_soggiorno":{"t":[[178,493,0.705],[541,493,0.705],[359,599,0.705]],"p":[[178,217,"l",0.596],[541,217,"r",0.596]],"piano":{"x0":254,"x1":465,"y":502,"s":2.82}},"giardino":{"t":[[166,484,0.379],[553,484,0.379],[359,599,0.379]],"p":[[535,282,"r",0.321]],"piano":{"x0":247,"x1":472,"y":493,"s":1.56}},"ingresso":{"t":[[179,476,0.601],[539,475,0.601],[359,594,0.601]],"p":[[178,218,"l",0.509],[539,218,"r",0.509]],"piano":{"x0":254,"x1":464,"y":485,"s":2.4}},"lavanderia":{"t":[[176,470,0.574],[542,470,0.574],[358,592,0.574]],"p":[[176,217,"l",0.486],[542,216,"r",0.486]],"piano":{"x0":252,"x1":465,"y":479,"s":2.3}},"sgabuzzino":{"t":[[182,476,0.609],[543,476,0.609],[362,594,0.609]],"p":[[182,217,"l",0.515],[544,217,"r",0.515]],"piano":{"x0":257,"x1":468,"y":485,"s":2.44}},"soggiorno":{"t":[[166,483,0.52],[553,482,0.52],[360,597,0.52]],"p":[[166,250,"l",0.44],[552,250,"r",0.44]],"piano":{"x0":247,"x1":472,"y":491,"s":2.08}},"studio":{"t":[[166,485,0.372],[553,485,0.372],[360,599,0.372]],"p":[[166,294,"l",0.315],[553,294,"r",0.315]],"piano":{"x0":247,"x1":472,"y":494,"s":1.56}},"terrazzo":{"t":[[178,489,0.697],[542,493,0.697],[368,598,0.697]],"p":[[519,210,"r",0.59]],"piano":{"x0":255,"x1":466,"y":499,"s":2.79}}} };
 const SCALA_ARREDO = { terra: 0.65, parete: 0.55 }, ROOM_W = 720;
 const TIPO_ARREDO = { reliquia: "Reliquia", casa: "Casa e hobby", strumento: "Strumento", dipinto: "Dipinto", arazzo: "Arazzo" };
 let caricaArredi = null;
@@ -920,7 +922,8 @@ const stanzeArredabili = () => Object.keys(pianta()).filter(r => postiStanza(r))
 const arrediCasa = () => (S.config && S.config.arredi) || {};
 /* Dove si trova un oggetto: { stanza, posto } oppure null. */
 function doveArredo(id) { const A = arrediCasa(); for (const r in A) for (const k in A[r]) if (A[r][k] && A[r][k].id === id) return { stanza: r, posto: k }; return null; }
-const postiStanza = r => { const sk = SKIN[dimoraMia()] || SKIN.castello; const f = sk.file[tipoConImmagine(sk, tipoStanza(r))]; return SLOT_ARREDI[f] || (f ? SLOT_ARREDI.soggiorno : null); };
+const postiStanza = r => { const dim = SKIN[dimoraMia()] ? dimoraMia() : "castello", sk = SKIN[dim], f = sk.file[tipoConImmagine(sk, tipoStanza(r))]; if (!f) return null;
+  const A = SLOT_AUTO[dim] || {}; return (dim === "castello" && SLOT_ARREDI[f]) || A[f] || SLOT_ARREDI[f] || SLOT_ARREDI.soggiorno; };
 /* Gli arredi disegnati dentro la scena della stanza (stesse coordinate dei personaggi, 720 px di larghezza). */
 function arrediScena(r, h) {
   const sl = postiStanza(r), A = arrediCasa()[r] || {}; if (!sl) return "";
@@ -928,7 +931,7 @@ function arrediScena(r, h) {
   return Object.entries(A).map(([k, v]) => {
     const a = v && arredo(v.id); if (!a) return "";
     const terra = k[0] === "t", pos = terra ? sl.t[+k.slice(1)] : sl.p[+k.slice(1)]; if (!pos) return "";
-    const sc = (!terra && pos[3]) || SCALA_ARREDO[terra ? "terra" : "parete"], w = a.w * sc, hh = a.h * sc;
+    const sc = (terra ? (typeof pos[2] === "number" && pos[2]) : pos[3]) || SCALA_ARREDO[terra ? "terra" : "parete"], w = a.w * sc, hh = a.h * sc;
     const left = terra ? pos[0] - w / 2 : pos[0] - w / 2, top = terra ? pos[1] - hh : pos[1] - hh / 2;
     return `<img class="arr-scena${!terra && pos[2] === "r" ? " spec" : ""}" src="assets/arredi/${a.id}.png" alt="" aria-hidden="true" style="left:${pc(left, ROOM_W)};top:${pc(top, h)};width:${pc(w, ROOM_W)};z-index:${terra ? Math.round(pos[1]) : 1}">`;
   }).join("");
@@ -1941,9 +1944,12 @@ function abitantiCastello(host) {
   window.OLW_SPRITE.abita(host, L.W, L.H, out);
 }
 function abitantiStanza(host) {
-  const r = S.stanzaSel, sk = SKIN[dimoraMia()] || SKIN.castello, t = r === "Tutta la casa" ? "corridoio" : tipoConImmagine(sk, tipoStanza(r)), P = PIANI_STANZA[t] || PIANI_STANZA.altro;
+  const r = S.stanzaSel, sk = SKIN[dimoraMia()] || SKIN.castello, t = r === "Tutta la casa" ? "corridoio" : tipoConImmagine(sk, tipoStanza(r));
+  /* Il pavimento misurato dell'interno (stanze nuove e altre dimore), altrimenti quello fatto a mano del castello. */
+  const dim = SKIN[dimoraMia()] ? dimoraMia() : "castello", auto = ((SLOT_AUTO[dim] || {})[sk.file[t]] || {}).piano;
+  const P = (dim !== "castello" || !PIANI_STANZA[t]) && auto ? auto : PIANI_STANZA[t] || PIANI_STANZA.altro;
   const ids = eroiPerStanza()[r] || [];
-  window.OLW_SPRITE.abita(host, 720, t === "corridoio" ? 706 : 676, abitantiDi(ids, r, P, "stanza", 2.6));
+  window.OLW_SPRITE.abita(host, 720, t === "corridoio" ? 706 : 676, abitantiDi(ids, r, P, "stanza", P.s || 2.6));
 }
 
 /* ---------- Faccende classiche e configurazione iniziale ----------
