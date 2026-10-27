@@ -721,3 +721,37 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 button.teca-ogg { cursor: pointer; }
 .teca-ogg .arr-img { max-height: 72px; width: auto; }
 .teca-ogg b { font-size: .78rem; line-height: 1.15; }
+
+/* ---------- Museo personale ---------- */
+.museo { overflow-x: auto; overflow-y: hidden; border: 3px solid #1a0807; border-radius: 6px; box-shadow: 0 4px 0 #0009; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.mu-sala { position: relative; display: flex; min-width: 100%; width: max-content; height: 330px;
+  background:
+    radial-gradient(60px 90px at 0 0, transparent, transparent),
+    linear-gradient(180deg, transparent 0 182px, #5a3424 182px 186px, #3e2216 186px 206px, #24130c 206px 210px, transparent 210px),
+    repeating-linear-gradient(180deg, #1c1529 0 2px, transparent 2px 22px),
+    repeating-linear-gradient(90deg, #1c152966 0 2px, transparent 2px 46px),
+    linear-gradient(180deg, #2c2240 0 210px, transparent 210px),
+    repeating-conic-gradient(#201828 0 25%, #2a2036 0 50%) 0 210px / 44px 44px; }
+.mu-ingresso { position: relative; flex: none; width: 120px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 14px;
+  background: radial-gradient(70px 120px at 50% 62%, #000a, transparent 70%); }
+.mu-eroe { width: 128px; height: 128px; image-rendering: pixelated; margin-bottom: -6px; }
+.mu-insegna { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); padding: 4px 10px; font: 600 .95rem var(--f-display); color: #fff3dc; background: linear-gradient(180deg, #62291f, #43190f); border: 2px solid #1a0807; box-shadow: inset 0 2px 0 #8a4332, 0 3px 0 #0008; white-space: nowrap; }
+.mu-campata { position: relative; flex: none; width: 160px; display: grid; grid-template-rows: 182px 1fr; scroll-snap-align: start; }
+.mu-campata::before { content: ""; position: absolute; left: 0; top: 20px; bottom: 120px; width: 6px; background: linear-gradient(90deg, #1a1226, #3a2d52, #1a1226); opacity: .7; }
+.mu-vuota { width: 240px; display: flex; align-items: center; padding: 16px; }
+.mu-parete, .mu-terra { position: relative; display: flex; align-items: center; justify-content: center; }
+.mu-parete { align-items: center; padding-top: 10px; }
+.mu-terra { align-items: flex-end; padding-bottom: 8px; }
+.mu-ogg { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.mu-quadro { max-height: 118px; max-width: 132px; width: auto; transform: skewY(26.6deg) scale(.92); transform-origin: center; filter: drop-shadow(0 4px 0 #0008); }
+.mu-pezzo { position: relative; z-index: 1; max-height: 92px; max-width: 128px; width: auto; filter: drop-shadow(0 3px 0 #0008); margin-bottom: -4px; }
+.mu-piedistallo { display: block; width: 92px; height: 18px; background: linear-gradient(180deg, #8d8499, #5f5669 40%, #3b3340); border: 2px solid #120d18; box-shadow: inset 0 2px 0 #b3aac0; }
+.mu-targa { font-size: .62rem; line-height: 1.15; max-width: 128px; padding: 2px 6px; color: #2a1608; background: linear-gradient(180deg, #e8c66a, #b98d2e); border: 1px solid #3a2410; text-align: center; }
+.mu-parete .mu-targa { margin-top: 18px; }
+.mu-torcia { position: absolute; left: -6px; top: 70px; width: 12px; height: 26px; background: linear-gradient(90deg, #2a2230, #4a4054, #2a2230); border-radius: 2px; z-index: 2; }
+.mu-torcia b { position: absolute; left: 50%; top: -14px; width: 10px; height: 14px; margin-left: -5px; clip-path: polygon(50% 0, 100% 62%, 80% 100%, 20% 100%, 0 62%); background: linear-gradient(180deg, #fff6c8 0 25%, #ffc24a 25% 65%, #e8643a 65%); filter: drop-shadow(0 0 8px #ffc24a); }
+.mu-torcia::after { content: ""; position: absolute; left: -60px; top: -60px; width: 132px; height: 132px; background: radial-gradient(closest-side, #ffc24a2e, transparent); pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) { .mu-torcia b { animation: fiammella 1.6s steps(3) infinite; } }
+.mu-fondo { flex: none; width: 90px; background: linear-gradient(90deg, transparent, #0b0814 85%); }
+.mu-fuori { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.mu-fuori .chip { font: inherit; font-size: .78rem; cursor: pointer; padding: 4px 9px; border-radius: 9px; border: 1px solid var(--seam, #4a3f58); background: var(--ink, #1a1428); color: inherit; }

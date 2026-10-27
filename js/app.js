@@ -86,7 +86,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.31.0";
+const VERSIONE_APP = "3.32.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -425,7 +425,7 @@ function render() {
   const v = { casa: vCasa, stanza: vStanza, missioni: vMissioni, eroe: vEroe, premi: vPremi, sgabuzzino: vSgab }[S.view] || vCasa;
   $("#view").innerHTML = v(now);
   disegnaAmpolle($("#view")); aggiornaProdotto();
-  if (window.OLW_SPRITE && S.view === "eroe") avviaVetrina();
+  if (window.OLW_SPRITE && S.view === "eroe") { avviaVetrina(); avviaMuseo(); }
   if (S.view === "eroe" || S.view === "premi") disegnaOggetti($("#view"));
   if (window.OLW_SPRITE) { const cs = document.querySelector(".castle"), rc = document.querySelector(".room-chars"); if (cs) abitantiCastello(cs); else if (rc) abitantiStanza(rc); }
   document.querySelectorAll("canvas.pet-cv").forEach(c => window.OLW_SPRITE.animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 0, scala: 2, fps: 4 }));
@@ -774,7 +774,7 @@ function vEroe(now) {
   </section>
   ${vetrina(eroe)}
   ${armadioFisico(eroe)}
-  ${teca(me)}
+  ${museo(me)}
   <div class="kv"><span class="muted">Sbloccato al livello ${L.lv}</span><span>${esc(L.sblocco)}</span></div>
   <div class="kv"><span class="muted">Minuti di pulizia negli ultimi 7 giorni</span><span class="num">${fmt(minSett)}</span></div>
   <div class="row-actions"><button class="btn sm" data-act="profilo">Modifica eroe</button><button class="btn sm ghost" data-act="chi">Cambia eroe</button></div>
@@ -823,7 +823,7 @@ const REPARTI = [["abiti", "Abiti", ["mantello", "cappello"]], ["speciali", "Abi
    Ogni eroe compra i suoi (sbloccati "arredo/<id>") e li mette nelle stanze: 3 posti a terra e fino a 2 a parete,
    in config/casa.arredi[nomeStanza][posto] = { id, da }. Ogni oggetto sta in un solo posto. La casa è di tutti e due:
    chiunque sposta o toglie qualsiasi oggetto, e si possono sistemare anche quelli dell'altro eroe. */
-const SLOT_ARREDI = {"bagno":{"t":[[190,545],[590,520],[370,640]],"p":[[230,220,"l"],[440,120,"r"]]},"camera":{"t":[[150,540],[590,530],[370,640]],"p":[[200,200,"l"],[600,140,"r"]]},"cucina":{"t":[[120,560],[600,560],[370,650]],"p":[[180,190,"l"],[560,140,"r"]]},"soggiorno":{"t":[[110,545],[620,540],[370,650]],"p":[[110,230,"l"],[440,100,"r"]]},"ingresso":{"t":[[150,560],[600,560],[370,650]],"p":[[300,140,"l"],[560,170,"r"]]},"sgabuzzino":{"t":[[120,550],[620,550],[370,650]],"p":[[110,220,"l"],[440,110,"r"]]},"corridoio":{"t":[[140,580],[600,600],[370,680]],"p":[[220,230,"l"]]},"balcone":{"t":[[140,560],[620,560],[370,650]],"p":[[620,180,"r"]]}};
+const SLOT_ARREDI = {"bagno":{"t":[[190,545],[590,520],[370,640]],"p":[[230,220,"l"],[440,120,"r"]]},"camera":{"t":[[150,540],[590,530],[370,640]],"p":[[200,200,"l"],[600,140,"r"]]},"cucina":{"t":[[120,560],[600,560],[370,650]],"p":[[180,190,"l"],[560,140,"r"]]},"soggiorno":{"t":[[110,545],[620,540],[370,650]],"p":[[110,230,"l"],[440,100,"r"]]},"ingresso":{"t":[[150,560],[600,560],[370,650]],"p":[[300,140,"l"],[560,170,"r"]]},"sgabuzzino":{"t":[[120,550],[620,550],[370,650]],"p":[[110,220,"l"],[440,110,"r"]]},"corridoio":{"t":[[140,580],[600,600],[370,680]],"p":[[62,302,"l",0.42],[205,236,"l",0.45],[255,170,"l",0.32],[622,165,"r",0.45],[385,175,"r",0.28]]},"balcone":{"t":[[140,560],[620,560],[370,650]],"p":[[620,180,"r"]]}};
 const SCALA_ARREDO = { terra: 0.65, parete: 0.55 }, ROOM_W = 720;
 const TIPO_ARREDO = { reliquia: "Reliquia", casa: "Casa e hobby", strumento: "Strumento", dipinto: "Dipinto", arazzo: "Arazzo" };
 let caricaArredi = null;
@@ -846,7 +846,7 @@ function arrediScena(r, h) {
   return Object.entries(A).map(([k, v]) => {
     const a = v && arredo(v.id); if (!a) return "";
     const terra = k[0] === "t", pos = terra ? sl.t[+k.slice(1)] : sl.p[+k.slice(1)]; if (!pos) return "";
-    const sc = SCALA_ARREDO[terra ? "terra" : "parete"], w = a.w * sc, hh = a.h * sc;
+    const sc = (!terra && pos[3]) || SCALA_ARREDO[terra ? "terra" : "parete"], w = a.w * sc, hh = a.h * sc;
     const left = terra ? pos[0] - w / 2 : pos[0] - w / 2, top = terra ? pos[1] - hh : pos[1] - hh / 2;
     return `<img class="arr-scena${!terra && pos[2] === "r" ? " spec" : ""}" src="assets/arredi/${a.id}.png" alt="" aria-hidden="true" style="left:${pc(left, ROOM_W)};top:${pc(top, h)};width:${pc(w, ROOM_W)};z-index:${terra ? Math.round(pos[1]) : 1}">`;
   }).join("");
@@ -871,7 +871,7 @@ async function mettiArredo(r, posto, id) {
 function apriArreda(r) {
   const sl = postiStanza(r); if (!sl) return;
   const A = arrediCasa()[r] || {};
-  const nomePosto = k => k[0] === "t" ? `A terra ${+k.slice(1) + 1}` : (sl.p[+k.slice(1)][2] === "l" ? "Parete sinistra" : "Parete destra");
+  const nomePosto = k => k[0] === "t" ? `A terra ${+k.slice(1) + 1}` : nomeParete(sl, +k.slice(1));
   const posti = [...sl.t.map((_, i) => "t" + i), ...sl.p.map((_, i) => "p" + i)];
   apriSheet(`<h2>Arreda: ${esc(nomeStanza(r))}</h2>
     <p class="muted small" style="margin:0">Tre posti a terra per mobili, reliquie e strumenti${sl.p.length ? `, ${sl.p.length === 1 ? "uno" : sl.p.length} a parete per dipinti e arazzi` : ""}. La casa è di tutti e due: potete mettere, spostare e togliere qualsiasi oggetto.</p>
@@ -894,6 +894,8 @@ function scegliArredo(r, posto) {
     sh.querySelectorAll("[data-id]").forEach(b => b.onclick = () => mettiArredo(r, posto, b.dataset.id).then(() => { toast("Sistemato in " + nomeStanza(r)); apriArreda(r); }, errore));
   });
 }
+/* "Parete sinistra", oppure "Parete sinistra 2" quando su quella parete ci sono più posti. */
+const nomeParete = (sl, i) => { const lato = sl.p[i][2], stessi = sl.p.filter(q => q[2] === lato), n = sl.p.slice(0, i + 1).filter(q => q[2] === lato).length; return (lato === "l" ? "Parete sinistra" : "Parete destra") + (stessi.length > 1 ? " " + n : ""); };
 /* Sistemare un oggetto partendo dall'oggetto (teca o Bottega): prima la stanza, poi il posto. */
 function sistemaOggetto(id) {
   const a = arredo(id); if (!a) return;
@@ -910,13 +912,41 @@ function sistemaOggetto(id) {
 function scegliPosto(id, r) {
   const a = arredo(id), sl = postiStanza(r), A = arrediCasa()[r] || {}, terra = a.posto === "terra";
   const chiavi = terra ? sl.t.map((_, i) => "t" + i) : sl.p.map((_, i) => "p" + i);
-  const nomePosto = k => k[0] === "t" ? `A terra ${+k.slice(1) + 1}` : (sl.p[+k.slice(1)][2] === "l" ? "Parete sinistra" : "Parete destra");
+  const nomePosto = k => k[0] === "t" ? `A terra ${+k.slice(1) + 1}` : nomeParete(sl, +k.slice(1));
   apriSheet(`<h2>${esc(nomeStanza(r))}: quale posto?</h2>
     <div class="list">${chiavi.map(k => { const v = A[k], o = v && arredo(v.id); return `<button class="arr-posto fr-stone" data-k="${k}"><span class="arr-th">${o ? imgArredo(o) : '<span class="arr-vuoto">vuoto</span>'}</span><span class="stack" style="flex:1;min-width:0;text-align:left"><b>${nomePosto(k)}</b><span class="muted small">${o ? (o.id === id ? "è già qui" : "sostituisce " + esc(o.nome)) : "Libero"}</span></span></button>`; }).join("")}</div>
     <div class="sheet-actions"><button class="btn ghost" id="aBack">Indietro</button></div>`, sh => {
     sh.querySelector("#aBack").onclick = () => sistemaOggetto(id);
     sh.querySelectorAll("[data-k]").forEach(b => b.onclick = () => mettiArredo(r, b.dataset.k, id).then(() => { chiudiSheet(); toast(`${a.nome}: sistemato in ${nomeStanza(r)}`); }, errore));
   });
+}
+/* Il museo personale: una galleria lunga che scorre di lato, con tutti gli oggetti dell'eroe che non sono nelle stanze.
+   In alto i dipinti e gli arazzi appesi, in basso gli oggetti su piedistalli, ognuno con la sua targhetta. */
+function museo(id) {
+  const cat = arrediCat(); if (!cat.length) return "";
+  const tutti = posseduti(id).map(arredo).filter(Boolean), esposti = tutti.filter(a => !doveArredo(a.id)), fuori = tutti.filter(a => doveArredo(a.id));
+  const pareti = esposti.filter(a => a.posto === "parete"), terra = esposti.filter(a => a.posto === "terra"), n = Math.max(pareti.length, terra.length);
+  const targa = a => `<span class="mu-targa">${esc(a.nome)}</span>`;
+  const campate = Array.from({ length: n }, (_, i) => { const p = pareti[i], t = terra[i];
+    return `<div class="mu-campata">${i % 2 ? '<i class="mu-torcia"><b></b></i>' : ""}
+      <div class="mu-parete">${p ? `<button class="mu-ogg" data-act="sistema" data-id="${p.id}" aria-label="${esc(p.nome)}: mettilo in una stanza">${imgArredo(p, "mu-quadro")}${targa(p)}</button>` : ""}</div>
+      <div class="mu-terra">${t ? `<button class="mu-ogg" data-act="sistema" data-id="${t.id}" aria-label="${esc(t.nome)}: mettilo in una stanza">${imgArredo(t, "mu-pezzo")}<i class="mu-piedistallo"></i>${targa(t)}</button>` : ""}</div></div>`; }).join("");
+  return `<section class="sec"><div class="sec-head"><h3>Il museo di ${esc(nome(id))}</h3><span class="muted small num">${esposti.length} in mostra · ${tutti.length} / ${cat.length}</span></div>
+    <div class="museo" tabindex="0" aria-label="Il museo: scorri di lato">
+      <div class="mu-sala" style="--n:${Math.max(n, 2)}">
+        <div class="mu-ingresso"><canvas class="mu-eroe" aria-hidden="true"></canvas><span class="mu-insegna">Museo</span></div>
+        ${campate || `<div class="mu-campata mu-vuota"><span class="muted small">${tutti.length ? "Tutti i tuoi oggetti sono nelle stanze." : "Ancora nessun pezzo. Reliquie, strumenti, dipinti e oggetti di casa si comprano in Bottega, reparto Arredi."}</span></div>`}
+        <div class="mu-fondo" aria-hidden="true"></div>
+      </div>
+    </div>
+    <p class="muted small" style="margin:0">Scorri la galleria. Tocca un pezzo per metterlo in una stanza; gli oggetti nelle stanze non sono in mostra.</p>
+    ${fuori.length ? `<div class="mu-fuori"><span class="muted small">Nelle stanze:</span>${fuori.map(a => `<button class="chip" data-act="sistema" data-id="${a.id}">${esc(a.nome)} · ${esc(nomeStanza(doveArredo(a.id).stanza))}</button>`).join("")}</div>` : ""}
+  </section>`;
+}
+/* L'eroe all'ingresso del museo, che cammina sul posto guardando la galleria. */
+function avviaMuseo() {
+  const c = document.querySelector("canvas.mu-eroe"); if (!c || !window.OLW_SPRITE || !S.giocatori[me] || !S.giocatori[me].pg) return;
+  SP().anima(c, pgConUmore(me) || S.giocatori[me].pg, { riga: 3, scala: 2, fps: 6 });
 }
 /* La teca nella scheda Eroe: la collezione degli oggetti comprati, con dove si trovano. */
 function teca(id) {
