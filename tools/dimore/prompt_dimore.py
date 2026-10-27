@@ -87,43 +87,86 @@ EXTRA = [
 STANZE = [("bagno", "bathroom", "bagno.webp"), ("camera", "bedroom", "camera.webp"), ("sgabuzzino", "storage room", "sgabuzzino.webp"), ("corridoio", "corridor", "corridoio.webp"),
           ("cucina", "kitchen", "cucina.webp"), ("ingresso", "entrance hall", "ingresso.webp"), ("soggiorno", "living room", "soggiorno.webp"), ("balcone", "balcony", "balcone.webp")]
 NOMI_IT = {"bagno": "Bagno", "camera": "Camera", "sgabuzzino": "Sgabuzzino", "corridoio": "Corridoio", "cucina": "Cucina", "ingresso": "Ingresso", "soggiorno": "Soggiorno", "balcone": "Balcone"}
+# Descrizioni delle 6 stanze in più, per dimora: stile comune + oggetti tipici
+EXTRA_DESC = {
+ "cucina_soggiorno": "ONE single open space room with a kitchen corner along the left wall (stove, counter, shelves) and a living area along the right wall (fireplace, sofa), a small dining table near the back",
+ "studio": "a study with a writing desk with candles and papers, bookshelves along the back walls, a reading armchair",
+ "lavanderia": "a laundry room with a washtub and washboard, a drying rack with linens, baskets of clothes",
+ "cantina": "a cellar with barrels and crates against the back walls, shelves of jars and bottles, a small workbench",
+ "terrazzo": "a wide open terrace with a balustrade along the front edges, potted plants, a small table with two chairs, open to a starry night sky with a crescent moon (show only the terrace, not the outside of the building)",
+ "giardino": "a small enclosed garden open to a starry night sky, grass and stone paths, flower beds and a little fountain against the back walls, a bench",
+}
+SPAZIO = ("Keep the furniture close to the back walls and leave room for decorations added later: three EMPTY floor spots with nothing on them "
+          "(one near the left wall, one near the right wall, one in the front center of the floor) and two BARE patches of wall at mid height "
+          "(one on the left back wall, one on the right back wall) with no windows, banners, paintings, mirrors or lamps there.")
+REGOLE = ("Every room drawn exactly like the attached room image: same 3/4 isometric angle seen from above (NOT a first-person or one-point perspective view), "
+          "a diamond-shaped floor, two back walls (left and right), an open door on the right back wall, same wall height and pixel scale. "
+          "Each room is ONE single complete room, separate from the others, with no extra rooms or sections around it.")
+# Stile degli interni (senza tetti, torri e paesaggi, che valgono solo per la sezione)
+INTERNI = {"reggia": "white marble walls with gold trims, tall gothic windows, blue velvet and blue and gold heraldic banners",
+ "hobbit": "round earthen walls with wooden beams, round windows and doors, warm lanterns, patchwork fabrics",
+ "torre": "curved dark grey stone walls, arched windows, glowing purple crystals, candles and violet lanterns",
+ "rifugio": "thick log walls on a stone base, wooden beams, red check fabrics and fur throws, warm lanterns",
+ "albero": "curved bark walls and branches, round wooden windows, leaves, hanging lanterns and glowing mushrooms",
+ "faro": "white painted planks and stone, round portholes, blue and white fabrics, brass lamps and ropes",
+ "abbazia": "grey stone walls with moss and ivy, pointed arches, small stained glass windows, candles in niches",
+ "nave": "curved dark wooden ship walls, portholes with clouds outside, brass fittings, ropes and hanging lanterns"}
+def foglio(chi, stile, stanze, n_col=2):
+    pos = ["Top left", "Top right", "Bottom left", "Bottom right"] if len(stanze) == 4 else ["Left", "Right"]
+    griglia = "a 2x2 grid" if len(stanze) == 4 else "a single row of 2"
+    return (f"16-bit pixel art sprite sheet of {len(stanze)} separate ISOMETRIC room interiors of {chi}, arranged in {griglia} with wide gaps of flat pure chroma green (#00FF00) between them. "
+            f"{REGOLE} Walls and furniture in the style of {stile}. {SPAZIO}\n" +
+            " ".join(f"{p}: {d}." for p, d in zip(pos, stanze)) +
+            "\nClean and tidy, warm light, dark fantasy cozy mood. No characters, no text, no letters, no green inside the rooms.")
+FOGLI = [
+ ("Foglio 1", "bagno, camera, cucina, soggiorno", ["bagno", "camera", "cucina", "soggiorno"]),
+ ("Foglio 2", "ingresso, corridoio, sgabuzzino, balcone", ["ingresso", "corridoio", "sgabuzzino", "balcone"]),
+ ("Foglio 3", "cucina-soggiorno, studio, lavanderia, cantina", ["cucina_soggiorno", "studio", "lavanderia", "cantina"]),
+ ("Foglio 4", "terrazzo, giardino", ["terrazzo", "giardino"]),
+]
+def desc(st, k):
+    if k in EXTRA_DESC: return EXTRA_DESC[k]
+    d = st[k]
+    if k == "corridoio": d += " (a narrow room, still isometric)"
+    return d
+def fronte(chi, stile):
+    return (f"16-bit pixel art sprite sheet of 6 separate FRONT-VIEW cutaway rooms of {chi}, in exactly the same flat front view, layout and pixel scale as the attached sheet "
+            f"(dollhouse cross-section seen straight from the front: back wall, floor, two short side walls; NOT isometric, NOT seen from above). "
+            f"3x2 grid with wide gaps of flat pure chroma green (#00FF00). Walls and furniture in the style of {stile}. "
+            "Top row, left to right: open space kitchen and living room, study, laundry room. Bottom row, left to right: terrace open to the starry night sky, small garden with a fountain open to the starry night sky, cellar with barrels. "
+            "Clean and tidy, warm light. No characters, no text, no letters, no green inside the rooms.")
+def sezione(chi, stile):
+    return (f"16-bit pixel art cutaway cross-section of {chi} at night, portrait format 768x1376 pixels, in exactly the same layout as the attached castle cutaway: "
+            "the same 8 rooms in the same positions and sizes (top row: bathroom on the left, bedroom on the right; middle row: storage room on the left, a narrow vertical corridor in the center, kitchen on the right; "
+            "bottom row: entrance hall on the left, living room on the right; a narrow balcony strip along the right side), the same thick dark outlines between rooms, the same camera, the same pixel scale. "
+            f"Restyle the outer walls, roofs, towers and surroundings as {stile}. Each room furnished in the same style, clean and tidy, warm candle light. Starry night sky with a crescent moon. No characters, no text, no letters.")
+P = lambda t: ["```", t, "```", ""]
 out = ["# Prompt delle dimore", "",
-       "## Come funziona il sistema delle stanze", "",
-       "Le stanze sono **standard**: ogni dimora ha la sua versione di ogni tipo. La vista d'insieme non è più un'immagine fissa: l'app la compone dalla **vostra pianta**, mettendo ogni stanza al suo posto dentro la cornice della dimora. Cambiando dimora la casa resta la stessa.", "",
-       "Per ogni dimora servono:",
-       "1. **Sezione** (1 immagine): da qui ricavo la cornice (tetto, mura, base) e le 8 stanze di base viste di fronte.",
-       "2. **Stanze in più viste di fronte** (1 immagine): open space, studio, lavanderia, terrazzo, giardino, cantina.",
-       "3. **Interni** (14 immagini): le 8 stanze di base e le 6 in più, in prospettiva isometrica.", "",
-       "Finché un'immagine manca, l'app usa quella più simile (es. lo studio usa il soggiorno), quindi si può generare un po' alla volta.", "",
-       "**Come generarle**",
-       "- Sezione: allega `castello.png` (modello della disposizione) e l'esterno della dimora come stile.",
-       "- Stanze in più viste di fronte: allega `castello.png` come stile.",
-       "- Interni: allega la stanza del castello con lo stesso nome (`bagno.png`, `camera.png`…); per le 6 stanze in più allega `soggiorno.png`.",
-       "- Salva con i nomi indicati e mandami una dimora alla volta.", "",
-       "Le stanze sono di notte, in ordine e senza personaggi: lo sporco e gli eroi li aggiunge l'app.", ""]
-def blocco_extra(k, nome, chi, stile, st):
-    righe = ["### Stanze in più viste di fronte", "", "Allega: `castello.png`. Salva come `tessere_extra.png`.", "", "```",
-             f"16-bit pixel art sprite sheet of 6 separate front-view cutaway rooms of {chi}, in exactly the same style, pixel scale and front cutaway view as the rooms inside the attached castle cutaway (back wall, floor, furniture seen from the front, thick dark outline around each room). Arranged in a 3x2 grid with wide gaps of flat pure chroma green (#00FF00) between them. Walls and furniture in the style of {stile}. Top row, left to right: " + ", ".join(e[2] for e in EXTRA[:3]) + ". Bottom row, left to right: " + ", ".join(e[2] for e in EXTRA[3:]) + ". The terrace and the garden are open to a starry night sky. Clean and tidy, warm light. No characters, no text, no letters.",
-             "```", ""]
-    for eid, enome, en, desc in EXTRA:
-        dim = "720x676"
-        righe += [f"### {enome} (interno)", "", "Allega: `soggiorno.png` del castello. Salva come `" + eid + ".png`.", "", "```",
-                  f"16-bit pixel art isometric interior of {desc}, inside {chi}, in the style of {stile}, {dim} pixels, in exactly the same framing, camera angle, wall height and pixel scale as the attached room image: the same two back walls (left and right), the same open door on the right wall, the same floor shape, with free floor space in the middle and in the front. Clean and tidy, warm light, dark fantasy cozy mood. No characters, no text, no letters.",
-                  "```", ""]
-    return righe
-k, nome, lv, chi, stile, st = CASTELLO
-out += ["---", "", f"## {nome} (il castello di adesso)", "", "Ha già la sezione e le 8 stanze di base: mancano solo le stanze in più.", ""]
-out += blocco_extra(k, nome, chi, stile, st)
+ "## Come funziona", "",
+ "Le stanze sono **standard**: ogni dimora ha la sua versione di ogni tipo, e la vista d'insieme si compone dalla vostra pianta.",
+ "Ogni stanza lascia libero lo spazio per gli arredi: **3 punti a terra** (vicino alla parete sinistra, vicino alla parete destra, al centro davanti) e **2 tratti di parete spogli** (uno a sinistra e uno a destra) per quadri e arazzi.", "",
+ "**Per ogni dimora servono 6 immagini:**",
+ "1. **Sezione**: allega `castello.png` e, se lo hai, l'esterno della dimora.",
+ "2. **Stanze in più viste di fronte**: allega il foglio verde del castello (`tessere_extra_castello.png`).",
+ "3. **Interni, fogli 1–4**: 4 stanze per foglio su fondo verde (il 4° ne ha 2). Allega `soggiorno.png` del castello come riferimento dell'inquadratura.", "",
+ "**Consigli**",
+ "- Genera i fogli uno dopo l'altro **nella stessa chat** del generatore: lo stile resta coerente.",
+ "- Se in un foglio una stanza viene male, rigenera solo quel foglio.",
+ "- Mandami una dimora alla volta: ritaglio, allineo e collego io.",
+ "- Finché manca un'immagine l'app usa quella più simile, quindi si può fare un po' alla volta.", "",
+ "---", "", "## La Rocca di Pietranotte", "", "**Completa.** Sezione, 14 interni e stanze in più viste di fronte ci sono tutti.", ""]
 for k, nome, lv, chi, stile, st in D:
-    out += ["---", "", f"## {nome}", "", f"Si sblocca al livello {lv}." if lv > 1 else "Disponibile da subito.", "", "### Sezione", "",
-            "Allega: `castello.png` + l'esterno della dimora. Salva come `sezione.png`.", "", "```",
-            f"16-bit pixel art cutaway cross-section of {chi} at night, portrait format 768x1376 pixels, in exactly the same layout as the attached castle cutaway: the same 8 rooms in the same positions and sizes (top row: bathroom on the left, bedroom on the right; middle row: storage room on the left, a narrow vertical corridor in the center, kitchen on the right; bottom row: entrance hall on the left, living room on the right; a narrow balcony strip along the right side), the same thick dark outlines between rooms, the same camera, the same pixel scale. Restyle the outer walls, roofs, towers and surroundings as {stile}. Each room furnished in the same style, clean and tidy, warm candle light. Starry night sky with a crescent moon. No characters, no text, no letters.",
-            "```", ""]
-    out += blocco_extra(k, nome, chi, stile, st)
-    for sid, en, ref in STANZE:
-        dim = "720x706" if sid == "corridoio" else "720x676"
-        out += [f"### {NOMI_IT[sid]} (interno)", "", f"Allega: `{ref.replace('.webp', '.png')}` del castello. Salva come `{sid}.png`.", "", "```",
-                f"16-bit pixel art isometric interior of {st[sid]}, inside {chi}, {dim} pixels, in exactly the same framing, camera angle, wall height and pixel scale as the attached room image: the same two back walls (left and right), the same open door on the right wall, the same floor shape, with free floor space in the middle and in the front. Clean and tidy, warm light, dark fantasy cozy mood. No characters, no text, no letters.",
-                "```", ""]
+    out += ["---", "", f"## {nome}", "", (f"Si sblocca al livello {lv}." if lv > 1 else "Disponibile da subito."), ""]
+    if k == "reggia":
+        out += ["**Già pronte:** sezione, bagno, sgabuzzino, cucina, ingresso, soggiorno, balcone, studio, lavanderia, cantina, giardino.",
+                "**Da fare:** camera, corridoio, cucina-soggiorno, terrazzo (un foglio da 4) e le stanze in più viste di fronte.", "",
+                "### Interni da rifare (1 foglio)", "", "Allega: `soggiorno.png` del castello.", ""]
+        out += P(foglio(chi, INTERNI[k], [desc(st, "camera"), desc(st, "corridoio"), desc(st, "cucina_soggiorno"), desc(st, "terrazzo")]))
+        out += ["### Stanze in più viste di fronte", "", "Allega: `tessere_extra_castello.png`.", ""] + P(fronte(chi, INTERNI[k]))
+        continue
+    out += ["### Sezione", "", "Allega: `castello.png` + l'esterno della dimora.", ""] + P(sezione(chi, stile))
+    out += ["### Stanze in più viste di fronte", "", "Allega: `tessere_extra_castello.png`.", ""] + P(fronte(chi, INTERNI[k]))
+    for titolo, elenco, ks in FOGLI:
+        out += [f"### Interni · {titolo}: {elenco}", "", "Allega: `soggiorno.png` del castello.", ""] + P(foglio(chi, INTERNI[k], [desc(st, x) for x in ks]))
 open("PROMPT-DIMORE.md", "w", encoding="utf-8").write("\n".join(out))
 print(sum(1 for x in out if x == "```") // 2, "prompt")
