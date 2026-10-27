@@ -651,4 +651,10 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .insegna .cand.l { left: 9px; } .insegna .cand.r { right: 9px; }
 .insegna .cand b { position: absolute; left: 50%; top: -11px; width: 7px; height: 10px; margin-left: -3.5px; clip-path: polygon(50% 0, 100% 62%, 80% 100%, 20% 100%, 0 62%); background: linear-gradient(180deg, #fff6c8 0 25%, #ffc24a 25% 65%, #e8643a 65%); filter: drop-shadow(0 0 4px #ffc24a99); }
 @media (prefers-reduced-motion: no-preference) { .insegna .cand b { animation: fiammella 1.6s steps(3) infinite; } .insegna .cand.r b { animation-delay: .5s; } }
+/* Versione compatta nella scheda di una stanza: senza candele, più bassa. */
+.hero-cap.insegna.compatta { padding: 14px 10px 10px; }
+.insegna.compatta .catena { height: 18px; }
+.insegna.compatta .ins-board { padding: 8px 10px 9px; }
+.insegna.compatta .sigillo { width: 40px; height: 38px; }
+.insegna.compatta .sigillo svg.px { width: 15px; height: 15px; }
 @keyframes fiammella { 0%, 100% { transform: scaleY(1) translateX(0); } 33% { transform: scaleY(.88) translateX(-1px); } 66% { transform: scaleY(1.08) translateX(1px); } }

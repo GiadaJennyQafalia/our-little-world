@@ -84,7 +84,7 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.19.0";
+const VERSIONE_APP = "3.20.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -364,6 +364,19 @@ function tempoRestante(i, f, now) {
   return `<div class="timer"><div class="gauge ${cls}"><i style="width:${Math.max(3, i.frac * 100)}%"></i></div><div class="tlabel"><b>${txt}</b><span>entro ${dataBreve(i.scadenza)} · ogni ${f.freq} g</span></div></div>`;
 }
 
+/* Simboli delle stanze dentro il sigillo di ceralacca: incisi nella cera come la torre della Dimora. */
+const SIMBOLI_STANZA = {
+  cucina: [".......", "...a...", "aaaaaaa", ".abbba.", ".abbba.", ".aaaaa.", "......."],
+  camera: [".......", "a......", "abb....", "aaaaaaa", "aaaaaaa", "a.....a", "......."],
+  bagno: ["a......", "aa.....", "a......", "aaaaaaa", ".abbba.", "..aaa..", ".a...a."],
+  ripostiglio: ["..aaa..", "...a...", "..aba..", ".abbba.", ".abbba.", ".aaaaa.", "......."],
+  corridoio: ["...b...", "..bab..", "...a...", "...a...", "..aaa..", "...a...", "...a..."],
+  ingresso: ["..aaa..", ".aaaaa.", ".aaaaa.", ".aaaba.", ".aaaaa.", ".aaaaa.", "......."],
+  soggiorno: [".......", ".aaaaa.", ".aaaaa.", "abbbbba", "aaaaaaa", "a.....a", "......."],
+  balcone: ["..b.b..", "...a...", ".b.a.b.", "..aaa..", ".aaaaa.", "..aaa..", "......."]
+};
+const iconaStanza = t => SIMBOLI_STANZA[t] ? pix(SIMBOLI_STANZA[t], { a: "#0000005a", b: "#ffffff40" }) : ICON.torre();
+
 /* ---------- Viste ---------- */
 function render() {
   const now = Date.now();
@@ -449,15 +462,24 @@ function vStanza(now) {
   const urg = tutte.filter(y => y.i.evidenza && !y.i.riposo).sort(ordUrgenti);
   const disp = tutte.filter(y => !y.i.evidenza && !y.i.riposo).sort((a, b) => (a.i.scadenza ?? 1e15) - (b.i.scadenza ?? 1e15));
   const rip = tutte.filter(y => y.i.riposo).sort((a, b) => a.i.riposo - b.i.riposo);
-  const pulita = Math.round((1 - x.pct) * 100), col = ["var(--candle)", "var(--moss)", "var(--arcane)", "var(--ember)"][x.livello];
+  const pulita = Math.round((1 - x.pct) * 100);
   return `
   <button class="btn ghost sm back" data-act="indietro">← ${esc(DIMORE[dimS] || "La dimora")}</button>
   <section class="hero fr-stone st${x.livello} room-hero">
     <div class="room-scene">${img ? `<img src="${sk.stanze}${img}.webp" alt="${esc(nome)}" decoding="async">` : ""}${velo(x.livello, img ? sk.stanze + img + ".webp" : "")}<div class="room-chars"></div></div>
-    <div class="hero-cap">
-      <div class="sec-head"><span class="state">${esc(nome)}</span><span class="pill p${x.livello}">${STATI[x.livello]}</span></div>
-      <span class="bar big" aria-hidden="true"><i style="width:${Math.max(4, pulita)}%;background:${col}"></i></span>
-      <span class="muted small"><span class="num">${pulita}%</span> pulita${r === "Tutta la casa" ? " (stato medio della casa)" : ""} · ${x.urg ? `<span class="num">${x.urg}</span> ${x.urg === 1 ? "missione urgente" : "missioni urgenti"}` : "nessuna missione urgente"}</span>
+    <div class="hero-cap insegna compatta st${x.livello}">
+      <i class="catena l"></i><i class="catena r"></i>
+      <div class="ins-board">
+        <div class="ins-txt">
+          <span class="ins-kick">${r === "Tutta la casa" ? "Stato medio della casa" : esc(DIMORE[dimS] || "La dimora")}</span>
+          <span class="state">${esc(nome)}</span>
+          <span class="ins-stat">
+            <span class="ins-s" title="Quanto è pulita la stanza">${ICON.sabbia()}<b class="num">${pulita}%</b> pulita</span>
+            <span class="ins-s" title="Missioni scadute o segnate da fare">${ICON.fiamma()}${x.urg ? `<b class="num">${x.urg}</b> urgent${x.urg === 1 ? "e" : "i"}` : "nessuna urgenza"}</span>
+          </span>
+        </div>
+        <div class="ins-sig"><span class="sigillo" role="img" aria-label="${STATI[x.livello]}">${iconaStanza(tipoStanza(r))}</span><span class="ins-stato">${STATI[x.livello]}</span></div>
+      </div>
     </div>
   </section>
   ${r === "Tutta la casa" ? `<p class="muted small" style="margin:0">Le faccende di tutta la casa, come l'aspirapolvere, stanno nel corridoio.</p>` : ""}
