@@ -35,11 +35,24 @@ const TIPI = { ingresso: "Ingresso", soggiorno: "Soggiorno", cucina: "Cucina", c
 const RIPIEGO = { cucina_soggiorno: "soggiorno", studio: "soggiorno", lavanderia: "ripostiglio", cantina: "ripostiglio", terrazzo: "balcone", giardino: "balcone", altro: "soggiorno" };
 /* Ogni dimora: cornice (tetto, base, muro), "tessere" frontali per la vista d'insieme e interni isometrici 720×676 per tipo.
    La vista d'insieme è composta dalla pianta: le stanze vere, nelle loro posizioni, dentro la cornice della dimora. */
-const SKIN = { castello: { img: "img/castello.webp", w: 768, h: 1376, stanze: "img/stanze/",
+/* Posti tappabili sull'illustrazione in sezione (pixel dell'immagine 768×1376) e tratto di pavimento dove camminano gli eroi. */
+const SEZ_CASTELLO = {
+  bagno: { rect: [112, 283, 376, 530], piano: { x0: 165, x1: 335, y: 520 } }, camera: { rect: [392, 283, 656, 530], piano: { x0: 440, x1: 615, y: 515 } },
+  ripostiglio: { rect: [112, 550, 312, 798], piano: { x0: 160, x1: 285, y: 790 } }, corridoio: { rect: [328, 550, 440, 898], stretta: true, piano: { x0: 372, x1: 398, y: 880 } },
+  cucina: { rect: [456, 550, 656, 898], piano: { x0: 490, x1: 625, y: 885 } }, ingresso: { rect: [112, 918, 312, 1198], piano: { x0: 165, x1: 285, y: 1185 } },
+  soggiorno: { rect: [328, 918, 656, 1198], piano: { x0: 385, x1: 600, y: 1165 } }, balcone: { rect: [678, 400, 756, 1062], stretta: true, piano: { x0: 717, x1: 717, y: 1080 } }
+};
+const SEZ_REGGIA = {
+  bagno: { rect: [102, 302, 322, 550], piano: { x0: 150, x1: 280, y: 538 } }, camera: { rect: [332, 302, 622, 550], piano: { x0: 390, x1: 570, y: 538 } },
+  ripostiglio: { rect: [100, 570, 292, 802], piano: { x0: 140, x1: 255, y: 790 } }, corridoio: { rect: [303, 552, 405, 802], stretta: true, piano: { x0: 354, x1: 354, y: 790 } },
+  cucina: { rect: [415, 570, 622, 802], piano: { x0: 455, x1: 585, y: 790 } }, ingresso: { rect: [100, 822, 365, 1085], piano: { x0: 150, x1: 315, y: 1070 } },
+  soggiorno: { rect: [376, 822, 622, 1085], piano: { x0: 420, x1: 580, y: 1070 } }, balcone: { rect: [628, 690, 750, 1085], stretta: true, piano: { x0: 690, x1: 690, y: 1070 } }
+};
+const SKIN = { castello: { img: "img/castello.webp", w: 768, h: 1376, sezione: SEZ_CASTELLO, stanze: "img/stanze/",
   cornice: { dir: "img/dimore/castello/", tetto: [768, 283], base: [768, 178], muro: [112, 340] },
   tessere: { dir: "img/dimore/castello/tessere/", tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "lavanderia", "terrazzo", "giardino", "cantina"] },
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino" } },
-  reggia: { img: "img/dimore/reggia/sezione.webp", w: 768, h: 1376, stanze: "img/dimore/reggia/stanze/",
+  reggia: { img: "img/dimore/reggia/sezione.webp", w: 768, h: 1376, sezione: SEZ_REGGIA, stanze: "img/dimore/reggia/stanze/",
   cornice: { dir: "img/dimore/reggia/", tetto: [768, 300], base: [768, 291], muro: [100, 340] },
   tessere: { dir: "img/dimore/reggia/tessere/", tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "terrazzo", "giardino", "cantina"] },
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino", terrazzo: "terrazzo" } } };
@@ -102,7 +115,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.35.0";
+const VERSIONE_APP = "3.35.1";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -499,7 +512,31 @@ function tessera(sk, t) {
   if (T.tipi.includes(RIPIEGO[t])) return { src: T.dir + RIPIEGO[t] + ".webp" };
   return { src: sk.stanze + sk.file[tipoConImmagine(sk, t)] + ".webp", interno: true };
 }
+/* Vista in sezione: l'illustrazione intera della dimora, con ogni stanza sul posto del suo tipo (o del ripiego).
+   Il corridoio dell'immagine è "Tutta la casa". Le stanze che non trovano un posto libero restano in "altre". */
+function postiSezione(dim) {
+  const sk = SKIN[dim] || SKIN.castello, Z = sk.sezione; if (!Z) return null;
+  const pi = pianta(), posti = { "Tutta la casa": Z.corridoio }, altre = [], usati = new Set(["corridoio"]);
+  for (const r of Object.keys(pi)) {
+    if (r === "Tutta la casa") continue;
+    const t = [pi[r].tipo, RIPIEGO[pi[r].tipo]].find(k => Z[k] && !usati.has(k));
+    if (t) { usati.add(t); posti[r] = Z[t]; } else altre.push(r);
+  }
+  return { posti, altre };
+}
 function dimoraMappa(dim, st, now) {
+  const Z = postiSezione(dim);
+  if (Z) {
+    const sk = SKIN[dim] || SKIN.castello, pc = (v, t) => (v / t * 100).toFixed(3) + "%";
+    const tasti = Object.entries(Z.posti).map(([r, po]) => {
+      const x = statoUna(r, now, st); if (!x) return "";
+      const [x0, y0, x1, y1] = po.rect, nome = nomeStanza(r);
+      return `<button class="rm lv${x.livello}${po.stretta ? " stretta" : ""}" data-act="stanza" data-r="${esc(r)}" style="left:${pc(x0, sk.w)};top:${pc(y0, sk.h)};width:${pc(x1 - x0, sk.w)};height:${pc(y1 - y0, sk.h)}" title="${esc(nome)}" aria-label="${esc(nome)}: ${STATI[x.livello]}, ${x.urg ? x.urg + (x.urg === 1 ? " missione urgente" : " missioni urgenti") : "tutto in pari"}">${velo(x.livello)}${x.urg ? `<span class="rm-badge num" aria-hidden="true">${x.urg}</span>` : ""}</button>`;
+    }).join("");
+    const altre = Z.altre.map(r => { const x = statoUna(r, now, st); if (!x) return ""; const nome = nomeStanza(r);
+      return `<button class="altra fr-stone lv${x.livello}" data-act="stanza" data-r="${esc(r)}" aria-label="${esc(nome)}: ${STATI[x.livello]}"><span class="altra-ic">${iconaStanza(tipoConImmagine(sk, tipoStanza(r)))}</span><b>${esc(nome)}</b>${x.urg ? `<span class="rm-badge num" aria-hidden="true">${x.urg}</span>` : ""}</button>`; }).join("");
+    return `<div class="castle"><img src="${sk.img}" width="${sk.w}" height="${sk.h}" alt="${esc(DIMORE[dim])} in sezione: tocca una stanza" decoding="async">${tasti}</div>${altre ? `<div class="altre-stanze" role="group" aria-label="Altre stanze">${altre}</div>` : ""}`;
+  }
   const L = vistaLayout(dim), sk = L.sk, cr = sk.cornice, pc = (v, t) => (v / t * 100).toFixed(3) + "%";
   const celle = Object.entries(L.celle).map(([r, c]) => {
     const x = statoUna(r, now, st); if (!x) return "";
@@ -1880,7 +1917,13 @@ function abitantiDi(ids, stanza, P, vista, scala) {
 }
 /* Nella vista d'insieme il pavimento di ogni stanza è il bordo basso della sua cella. */
 function abitantiCastello(host) {
-  const L = vistaLayout(dimoraMia()), out = [];
+  const dim = dimoraMia(), Z = postiSezione(dim), out = [];
+  if (Z) {
+    const sk = SKIN[dim] || SKIN.castello;
+    for (const [r, ids] of Object.entries(eroiPerStanza())) if (Z.posti[r]) out.push(...abitantiDi(ids, r, Z.posti[r].piano, "castello", 2));
+    return window.OLW_SPRITE.abita(host, sk.w, sk.h, out);
+  }
+  const L = vistaLayout(dim);
   for (const [r, ids] of Object.entries(eroiPerStanza())) {
     const c = L.celle[r]; if (!c) continue;
     const m = c.w > VU * 1.5 ? c.w * 0.2 : c.w / 2, P = { x0: c.x + m, x1: c.x + c.w - m, y: c.y + c.h - 8 };
