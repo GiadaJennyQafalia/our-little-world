@@ -755,3 +755,18 @@ button.teca-ogg { cursor: pointer; }
 .mu-fondo { flex: none; width: 90px; background: linear-gradient(90deg, transparent, #0b0814 85%); }
 .mu-fuori { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .mu-fuori .chip { font: inherit; font-size: .78rem; cursor: pointer; padding: 4px 9px; border-radius: 9px; border: 1px solid var(--seam, #4a3f58); background: var(--ink, #1a1428); color: inherit; }
+
+.mu-titoli { flex: none; display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; padding: 18px 8px 0; width: 132px; }
+.mu-pergamena { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 9px 6px 7px; text-align: center; color: #2a1608;
+  background: linear-gradient(180deg, #f6e7c1, #e2c98f); border: 2px solid #5a3a1a; border-radius: 3px 3px 10px 10px / 3px 3px 6px 6px; box-shadow: 0 3px 0 #0008; transform: rotate(-1.5deg); }
+.mu-pergamena:nth-child(even) { transform: rotate(1.5deg); }
+.mu-pergamena b { font: 600 .74rem/1.1 var(--f-display); }
+.mu-pergamena small { font-size: .56rem; color: #6b4a1c; }
+.mu-chiodo { position: absolute; top: -5px; left: 50%; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #d9cfe0, #5f5669); box-shadow: 0 1px 0 #000; }
+.mu-frecce { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; gap: 4px; }
+.mu-frecce button { font: inherit; font-size: .8rem; width: 30px; height: 26px; border-radius: 6px; border: 2px solid #1a0807; background: var(--candle, #f2c445); color: #2a1608; cursor: pointer; }
+.mu-ordine { margin-top: 2px; }
+.mu-elenco-titoli summary { cursor: pointer; color: var(--candle, #f2c445); }
+.mu-elenco-titoli > div { display: grid; gap: 3px; padding: 6px 2px 0; }
+.dimore .dim-chiusa { display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; border-radius: 10px; border: 1px dashed var(--seam, #4a3f58); color: var(--ash, #8d8499); }
+.dimore .dim-chiusa small { font-size: .68rem; }

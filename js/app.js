@@ -4,7 +4,9 @@ const DAY = 864e5, HOUR = 36e5;
 const WEB = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="#a89cb3" stroke-width="1.1"><path d="M0 0L100 70M0 0L70 100M0 0L30 100M0 0L100 30"/><path d="M0 22Q18 18 22 0M0 44Q30 38 44 0M0 66Q45 56 66 0M0 88Q60 74 88 0"/></svg>');
 document.documentElement.style.setProperty("--web", `url("${WEB}")`);
 
-const DIMORE = { castello: "Il Castello", hobbit: "La Tana nella collina", caverna: "La Grotta di cristalli", reggia: "Il Palazzo", torre: "La Torre del mago", appartamento: "L'Appartamento in città" };
+const DIMORE = { castello: "Il Castello", reggia: "Il Palazzo bianco", hobbit: "La Tana nella collina", torre: "La Torre del mago", rifugio: "Il Rifugio in montagna", albero: "La Casa sull'albero", faro: "Il Faro sull'isola", abbazia: "L'Abbazia nel bosco", nave: "La Nave volante" };
+/* Livello dell'eroe a cui si sblocca ogni dimora. Castello e Palazzo bianco sono disponibili da subito. */
+const LV_DIMORA = { castello: 1, reggia: 1, hobbit: 4, torre: 6, rifugio: 8, albero: 10, faro: 12, abbazia: 14, nave: 16 };
 const CLASSI = { strega: "Strega", ranger: "Ranger", alchimista: "Alchimista", cavaliere: "Cavaliere", elfo: "Elfo", druido: "Druido" };
 const DESC_CLASSE = { strega: "Incantesimi e bastone nodoso", ranger: "Cappuccio, arco e passo silenzioso", alchimista: "Pozioni, occhiali e curiosità", cavaliere: "Armatura lucida e onore", elfo: "Eleganza e orecchie a punta", druido: "Corna, foresta e radici" };
 /* Il kit di ogni classe: i pezzi che l'eroe ha di serie. Gli altri pezzi "speciali" si comprano con le monete. */
@@ -76,6 +78,9 @@ function pianta() {
   return out;
 }
 const tipoStanza = r => (pianta()[r] || {}).tipo || "altro";
+/* Ognuno vede la sua dimora (giocatori/{id}.dimora); se non l'ha scelta vale quella della casa. Solo le dimore già disegnate e sbloccate. */
+const dimoraSbloccata = (k, id = me) => !!SKIN[k] && livelloDa(xpDi(id)).lv >= (LV_DIMORA[k] || 99);
+function dimoraMia() { const d = (S.giocatori[me] || {}).dimora || (S.config && S.config.dimora); return d && SKIN[d] && dimoraSbloccata(d) ? d : "castello"; }
 const nomeStanza = r => r === "Tutta la casa" ? "Corridoio" : r;
 /* La stanza della pianta che occupa un posto: la prima, in ordine, che ha quel tipo. */
 function stanzaDelPosto(tipo, pi) {
@@ -86,7 +91,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.32.0";
+const VERSIONE_APP = "3.33.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -426,6 +431,7 @@ function render() {
   $("#view").innerHTML = v(now);
   disegnaAmpolle($("#view")); aggiornaProdotto();
   if (window.OLW_SPRITE && S.view === "eroe") { avviaVetrina(); avviaMuseo(); }
+  controllaTitoli();
   if (S.view === "eroe" || S.view === "premi") disegnaOggetti($("#view"));
   if (window.OLW_SPRITE) { const cs = document.querySelector(".castle"), rc = document.querySelector(".room-chars"); if (cs) abitantiCastello(cs); else if (rc) abitantiStanza(rc); }
   document.querySelectorAll("canvas.pet-cv").forEach(c => window.OLW_SPRITE.animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 0, scala: 2, fps: 4 }));
@@ -480,7 +486,7 @@ function gruppoMissioni(t, a, vuoto, now) {
 function vStanza(now) {
   const r = S.stanzaSel, st = statoStanze(now), x = r && statoUna(r, now, st);
   if (!x) { S.view = "casa"; return vCasa(now); }
-  const nome = nomeStanza(r), dimS = (S.config && S.config.dimora) || "castello", sk = SKIN[dimS], img = sk && sk.file[tipoStanza(r)], ult = ultimeComp();
+  const nome = nomeStanza(r), dimS = dimoraMia(), sk = SKIN[dimS], img = sk && sk.file[tipoStanza(r)], ult = ultimeComp();
   const tutte = S.faccende.filter(f => f.attiva !== false && f.stanza === r).map(f => ({ f, i: infoFaccenda(f, ult, now) }));
   const urg = tutte.filter(y => y.i.evidenza && !y.i.riposo).sort(ordUrgenti);
   const disp = tutte.filter(y => !y.i.evidenza && !y.i.riposo).sort((a, b) => (a.i.scadenza ?? 1e15) - (b.i.scadenza ?? 1e15));
@@ -519,7 +525,7 @@ function vCasa(now) {
   const st = statoStanze(now), rs = Object.keys(st);
   const media = rs.length ? rs.reduce((a, r) => a + st[r].pct, 0) / rs.length : 0;
   const liv = media <= 0.10 ? 0 : media <= 0.25 ? 1 : media <= 0.50 ? 2 : 3;
-  const dim = cfg.dimora || "castello";
+  const dim = dimoraMia();
   const sparks = [[14, 30], [30, 18], [52, 26], [72, 14], [86, 36], [44, 8]].map(([x, y]) => `<i class="spark" style="left:${x}%;top:${y}%"></i>`).join("");
   const webOp = [0, 0, 0.35, 0.8][liv], dustOp = [0, 0.2, 0.6, 1][liv];
   const ids = Object.keys(S.giocatori);
@@ -838,7 +844,7 @@ const stanzeArredabili = () => [...new Set(POSTI.map(po => stanzaDelPosto(po.tip
 const arrediCasa = () => (S.config && S.config.arredi) || {};
 /* Dove si trova un oggetto: { stanza, posto } oppure null. */
 function doveArredo(id) { const A = arrediCasa(); for (const r in A) for (const k in A[r]) if (A[r][k] && A[r][k].id === id) return { stanza: r, posto: k }; return null; }
-const postiStanza = r => { const sk = SKIN[(S.config && S.config.dimora) || "castello"] || SKIN.castello; return SLOT_ARREDI[sk.file[tipoStanza(r)]] || null; };
+const postiStanza = r => { const sk = SKIN[dimoraMia()] || SKIN.castello; return SLOT_ARREDI[sk.file[tipoStanza(r)]] || null; };
 /* Gli arredi disegnati dentro la scena della stanza (stesse coordinate dei personaggi, 720 px di larghezza). */
 function arrediScena(r, h) {
   const sl = postiStanza(r), A = arrediCasa()[r] || {}; if (!sl) return "";
@@ -922,24 +928,69 @@ function scegliPosto(id, r) {
 }
 /* Il museo personale: una galleria lunga che scorre di lato, con tutti gli oggetti dell'eroe che non sono nelle stanze.
    In alto i dipinti e gli arazzi appesi, in basso gli oggetti su piedistalli, ognuno con la sua targhetta. */
+/* Ordine del museo: per tipo, per data d'acquisto (ordine in sbloccati) o a mano (giocatori/{id}.museo.mano). */
+const ORDINE_TIPI = ["reliquia", "strumento", "casa", "dipinto", "arazzo"];
+function ordinaMuseo(id, lista) {
+  const m = (S.giocatori[id] || {}).museo || {}, o = m.ordine || "data", data = posseduti(id);
+  if (o === "tipo") return [...lista].sort((a, b) => ORDINE_TIPI.indexOf(a.tipo) - ORDINE_TIPI.indexOf(b.tipo) || a.nome.localeCompare(b.nome));
+  if (o === "mano") { const mano = m.mano || []; const pos = x => { const i = mano.indexOf(x.id); return i < 0 ? 1e6 + data.indexOf(x.id) : i; }; return [...lista].sort((a, b) => pos(a) - pos(b)); }
+  return [...lista].sort((a, b) => data.indexOf(a.id) - data.indexOf(b.id));
+}
+async function spostaInMuseo(id, d) {
+  const g = S.giocatori[me], tutti = ordinaMuseo(me, posseduti(me).map(arredo).filter(Boolean)).map(a => a.id), a = arredo(id);
+  /* lo spostamento avviene tra i pezzi della stessa fila (parete o terra) */
+  const fila = tutti.filter(x => arredo(x).posto === a.posto && !doveArredo(x)), i = fila.indexOf(id), j = i + d; if (i < 0 || j < 0 || j >= fila.length) return;
+  const altro = fila[j], ia = tutti.indexOf(id), ib = tutti.indexOf(altro); tutti[ia] = altro; tutti[ib] = id;
+  await db.doc("giocatori/" + me).update({ museo: { ...(g.museo || {}), ordine: "mano", mano: tutti } });
+}
+/* ---------- Titoli ----------
+   Si conquistano completando una collezione o raggiungendo un numero di pezzi; restano per sempre (giocatori/{id}.titoli)
+   e sono appesi come pergamene all'ingresso del museo. */
+const TITOLI = [
+  { id: "reliquie", nome: "Custode delle reliquie", desc: "tutte le reliquie", prova: m => tuttiDiTipo(m, a => a.tipo === "reliquia") },
+  { id: "strumenti", nome: "Anima della musica", desc: "tutti gli strumenti", prova: m => tuttiDiTipo(m, a => a.tipo === "strumento") },
+  { id: "casa", nome: "Cuore della casa", desc: "tutti gli oggetti di casa e hobby", prova: m => tuttiDiTipo(m, a => a.tipo === "casa") },
+  { id: "arti", nome: "Mecenate delle arti", desc: "tutti i dipinti e gli arazzi", prova: m => tuttiDiTipo(m, a => a.posto === "parete") },
+  { id: "q10", nome: "Collezionista", desc: "10 pezzi", prova: m => m.length >= 10 },
+  { id: "q25", nome: "Curatore del museo", desc: "25 pezzi", prova: m => m.length >= 25 },
+  { id: "q50", nome: "Leggenda del museo", desc: "50 pezzi", prova: m => m.length >= 50 }
+];
+function tuttiDiTipo(miei, filtro) { const tutti = arrediCat().filter(filtro); return tutti.length > 0 && tutti.every(a => miei.includes(a.id)); }
+const titoliDi = id => ((S.giocatori[id] || {}).titoli || []);
+let controllandoTitoli = false;
+async function controllaTitoli() {
+  if (controllandoTitoli || !me || !S.giocatori[me] || !arrediCat().length) return;
+  const miei = posseduti(me), gia = new Set(titoliDi(me).map(t => t.id)), nuovi = TITOLI.filter(t => !gia.has(t.id) && t.prova(miei));
+  if (!nuovi.length) return;
+  controllandoTitoli = true;
+  try { await db.doc("giocatori/" + me).update({ titoli: [...titoliDi(me), ...nuovi.map(t => ({ id: t.id, ts: Date.now() }))] }); nuovi.forEach((t, i) => setTimeout(() => festa(`Nuovo titolo: ${t.nome}!`), i * 2500)); }
+  catch (e) { console.error("titoli", e); }
+  controllandoTitoli = false;
+}
 function museo(id) {
   const cat = arrediCat(); if (!cat.length) return "";
-  const tutti = posseduti(id).map(arredo).filter(Boolean), esposti = tutti.filter(a => !doveArredo(a.id)), fuori = tutti.filter(a => doveArredo(a.id));
+  const tutti = ordinaMuseo(id, posseduti(id).map(arredo).filter(Boolean)), esposti = tutti.filter(a => !doveArredo(a.id)), fuori = tutti.filter(a => doveArredo(a.id));
+  const ordine = ((S.giocatori[id] || {}).museo || {}).ordine || "data", riordina = !!S.museoRiordina && id === me;
+  const tit = titoliDi(id).map(t => TITOLI.find(x => x.id === t.id)).filter(Boolean);
   const pareti = esposti.filter(a => a.posto === "parete"), terra = esposti.filter(a => a.posto === "terra"), n = Math.max(pareti.length, terra.length);
-  const targa = a => `<span class="mu-targa">${esc(a.nome)}</span>`;
-  const campate = Array.from({ length: n }, (_, i) => { const p = pareti[i], t = terra[i];
+  const frecce = a => riordina ? `<span class="mu-frecce"><button data-act="museoSposta" data-id="${a.id}" data-d="-1" aria-label="Sposta ${esc(a.nome)} a sinistra">◀</button><button data-act="museoSposta" data-id="${a.id}" data-d="1" aria-label="Sposta ${esc(a.nome)} a destra">▶</button></span>` : "";
+  const targa = a => `<span class="mu-targa">${esc(a.nome)}</span>${frecce(a)}`;
+  const campate = Array.from({ length: n }, (_, i) => { const p = pareti[i], t = terra[i], tg = riordina ? "div" : "button";
     return `<div class="mu-campata">${i % 2 ? '<i class="mu-torcia"><b></b></i>' : ""}
-      <div class="mu-parete">${p ? `<button class="mu-ogg" data-act="sistema" data-id="${p.id}" aria-label="${esc(p.nome)}: mettilo in una stanza">${imgArredo(p, "mu-quadro")}${targa(p)}</button>` : ""}</div>
-      <div class="mu-terra">${t ? `<button class="mu-ogg" data-act="sistema" data-id="${t.id}" aria-label="${esc(t.nome)}: mettilo in una stanza">${imgArredo(t, "mu-pezzo")}<i class="mu-piedistallo"></i>${targa(t)}</button>` : ""}</div></div>`; }).join("");
+      <div class="mu-parete">${p ? `<${tg} class="mu-ogg"${riordina ? "" : ' data-act="sistema"'} data-id="${p.id}" aria-label="${esc(p.nome)}: mettilo in una stanza">${imgArredo(p, "mu-quadro")}${targa(p)}</${tg}>` : ""}</div>
+      <div class="mu-terra">${t ? `<${tg} class="mu-ogg"${riordina ? "" : ' data-act="sistema"'} data-id="${t.id}" aria-label="${esc(t.nome)}: mettilo in una stanza">${imgArredo(t, "mu-pezzo")}<i class="mu-piedistallo"></i>${targa(t)}</${tg}>` : ""}</div></div>`; }).join("");
   return `<section class="sec"><div class="sec-head"><h3>Il museo di ${esc(nome(id))}</h3><span class="muted small num">${esposti.length} in mostra · ${tutti.length} / ${cat.length}</span></div>
     <div class="museo" tabindex="0" aria-label="Il museo: scorri di lato">
       <div class="mu-sala" style="--n:${Math.max(n, 2)}">
         <div class="mu-ingresso"><canvas class="mu-eroe" aria-hidden="true"></canvas><span class="mu-insegna">Museo</span></div>
+        ${tit.length ? `<div class="mu-titoli">${tit.map(t => `<div class="mu-pergamena" title="${esc(t.desc)}"><i class="mu-chiodo"></i><b>${esc(t.nome)}</b><small>${esc(t.desc)}</small></div>`).join("")}</div>` : ""}
         ${campate || `<div class="mu-campata mu-vuota"><span class="muted small">${tutti.length ? "Tutti i tuoi oggetti sono nelle stanze." : "Ancora nessun pezzo. Reliquie, strumenti, dipinti e oggetti di casa si comprano in Bottega, reparto Arredi."}</span></div>`}
         <div class="mu-fondo" aria-hidden="true"></div>
       </div>
     </div>
-    <p class="muted small" style="margin:0">Scorri la galleria. Tocca un pezzo per metterlo in una stanza; gli oggetti nelle stanze non sono in mostra.</p>
+    ${id === me && esposti.length > 1 ? `<div class="filters mu-ordine" role="group" aria-label="Ordine del museo">${[["tipo", "Per tipo"], ["data", "Per acquisto"], ["mano", "A piacere"]].map(([k, l]) => `<button data-act="museoOrdine" data-k="${k}" aria-pressed="${ordine === k && !(k === "mano" && riordina)}">${l}</button>`).join("")}<button data-act="museoRiordina" aria-pressed="${riordina}">${riordina ? "Fatto" : "Riordina"}</button></div>` : ""}
+    <p class="muted small" style="margin:0">${riordina ? "Usa le frecce sotto ogni pezzo per spostarlo; l'ordine resta salvato." : "Scorri la galleria. Tocca un pezzo per metterlo in una stanza; gli oggetti nelle stanze non sono in mostra."}</p>
+    ${id === me ? `<details class="mu-elenco-titoli"><summary class="small">Titoli: ${tit.length} su ${TITOLI.length}</summary><div class="small">${TITOLI.map(t => `<div class="${tit.includes(t) ? "" : "muted"}">${tit.includes(t) ? "★" : "☆"} <b>${esc(t.nome)}</b> · ${esc(t.desc)}</div>`).join("")}</div></details>` : ""}
     ${fuori.length ? `<div class="mu-fuori"><span class="muted small">Nelle stanze:</span>${fuori.map(a => `<button class="chip" data-act="sistema" data-id="${a.id}">${esc(a.nome)} · ${esc(nomeStanza(doveArredo(a.id).stanza))}</button>`).join("")}</div>` : ""}
   </section>`;
 }
@@ -1739,11 +1790,18 @@ function apriMenu(f) {
   });
 }
 
+/* Scelta della dimora: quelle sbloccate si scelgono, le altre mostrano il livello o "in arrivo". */
+function scelteDimora() {
+  const lv = livelloDa(xpDi(me)).lv, cur = dimoraMia();
+  return `<div class="radios dimore">${Object.entries(DIMORE).map(([k, n]) => { const corto = n.replace(/^(Il|La|L') ?/, ""), ok = dimoraSbloccata(k), pronta = !!SKIN[k], liv = LV_DIMORA[k];
+    return ok ? `<label><input type="radio" name="dimora" value="${k}" ${k === cur ? "checked" : ""}><span>${esc(corto)}</span></label>`
+      : `<span class="dim-chiusa" title="${pronta ? "Si sblocca al livello " + liv : "In arrivo"}">${esc(corto)} <small>${lv >= liv && !pronta ? "in arrivo" : "liv. " + liv}</small></span>`; }).join("")}</div>`;
+}
 function apriImpostazioni() {
   const cfg = S.config || {};
   apriSheet(`<h2>La casa</h2>
     <div class="field"><label for="sNome">Nome della casa</label><input type="text" id="sNome" maxlength="40" value="${esc(cfg.nome || "Our little world")}"></div>
-    <div class="field"><span class="lab">Dimora</span>${radio("dimora", Object.entries(DIMORE).filter(([k]) => SKIN[k]).map(([k, v]) => [k, v.replace(/^(Il|La|L') ?/, "")]), SKIN[cfg.dimora] ? cfg.dimora : "castello")}<span class="muted small">Le altre dimore arrivano presto: la pianta resta la stessa.</span></div>
+    <div class="field"><span class="lab">La tua dimora</span>${scelteDimora()}<span class="muted small">La vedi solo tu: ${esc(nome(altroEroe()) || "l'altro eroe")} sceglie la sua. Le altre si sbloccano salendo di livello; la pianta resta la stessa.</span></div>
     <div class="field"><span class="lab">Pianta della casa</span><button class="btn" id="sPianta">Apri la pianta</button><span class="muted small">Le tue stanze vere, disegnate in piccolo. Valgono per ogni dimora.</span></div>
     <div class="field"><label for="sStanza">Aggiungi una stanza</label><div class="row-actions"><input type="text" id="sStanza" maxlength="30" style="flex:1;min-width:0;background:var(--ink);border:1px solid var(--seam);border-radius:10px;padding:10px 12px"><button class="btn" id="sAdd">Aggiungi</button></div><span class="muted small">${esc(stanze().join(", "))}</span></div>
     <div class="field"><span class="lab">Faccende classiche</span><button class="btn" id="sCat">Aggiungi dall'elenco</button><span class="muted small">Le faccende più comuni, già pronte: scegli quali tenere e regola tempo, difficoltà, sbatti e frequenza.</span></div>
@@ -1765,7 +1823,8 @@ function apriImpostazioni() {
       try { await db.doc("config/casa").update({ stanze: [...new Set([...(cfg.stanze || []), r])] }); toast("Stanza aggiunta: " + r); sh.querySelector("#sStanza").value = ""; } catch (e) { errore(e); }
     };
     sh.querySelector("#sSalva").onclick = async () => {
-      const dati = { nome: sh.querySelector("#sNome").value.trim() || "Our little world", dimora: val(sh, "dimora") };
+      const dati = { nome: sh.querySelector("#sNome").value.trim() || "Our little world" };
+      const dm = val(sh, "dimora"); if (dm && me && dm !== (S.giocatori[me] || {}).dimora && dimoraSbloccata(dm)) await db.doc("giocatori/" + me).update({ dimora: dm }).catch(errore);
       try { await db.doc("config/casa").update(dati); chiudiSheet(); toast("Casa aggiornata"); } catch (e) { errore(e); }
     };
   });
@@ -1785,7 +1844,7 @@ function abitantiDi(ids, t, P, vista, scala) {
   return ids.map((id, i) => { const g = S.giocatori[id], u = umoreDi(id); return { id, vista, pg: g.pg, pet: g.pet, stanza: t, faccia: u.faccia, spavento: !!u.spavento, x0: P.x0 + larg * i + (n > 1 ? 8 : 0), x1: P.x0 + larg * (i + 1) - (n > 1 ? 8 : 0), y: P.y, scala }; });
 }
 function abitantiCastello(host) {
-  const dim = (S.config && S.config.dimora) || "castello", sk = SKIN[dim]; if (!sk || dim !== "castello") return;
+  const dim = dimoraMia(), sk = SKIN[dim]; if (!sk || dim !== "castello") return;
   const out = [];
   for (const [t, ids] of Object.entries(eroiPerPosto())) if (PIANI[t]) out.push(...abitantiDi(ids, t, PIANI[t], "castello", 2));
   window.OLW_SPRITE.abita(host, sk.w, sk.h, out);
@@ -1829,7 +1888,7 @@ function apriSetup(solo) {
   const cfg = S.config || {};
   const D = { nome: cfg.nome || "La mia casa", dimora: SKIN[cfg.dimora] ? cfg.dimora : "castello", stanze: solo ? stanze().filter(r => r !== "Tutta la casa") : [...STANZE_STD], items: [], passo: solo ? 2 : 1 };
   const esistenti = new Set(S.faccende.filter(f => f.attiva !== false).map(f => String(f.nome).toLowerCase()));
-  const dimore = Object.keys(DIMORE).filter(k => SKIN[k]);
+  const dimore = Object.keys(DIMORE).filter(k => SKIN[k] && LV_DIMORA[k] === 1);
   const costruisci = () => {
     const vecchi = D.items.filter(x => x.custom), out = [];
     for (const c of CATALOGO) {
@@ -2236,6 +2295,9 @@ document.addEventListener("click", e => {
     case "arrTipo": S.arrTipo = b.dataset.k; render(); break;
     case "arreda": apriArreda(S.stanzaSel); break;
     case "sistema": sistemaOggetto(id); break;
+    case "museoOrdine": { S.museoRiordina = false; const g = S.giocatori[me]; db.doc("giocatori/" + me).update({ museo: { ...(g.museo || {}), ordine: b.dataset.k, mano: (g.museo && g.museo.mano) || ordinaMuseo(me, posseduti(me).map(arredo).filter(Boolean)).map(a => a.id) } }).catch(errore); break; }
+    case "museoRiordina": { S.museoRiordina = !S.museoRiordina; const g = S.giocatori[me]; if (S.museoRiordina && ((g.museo || {}).ordine !== "mano")) db.doc("giocatori/" + me).update({ museo: { ...(g.museo || {}), ordine: "mano", mano: ordinaMuseo(me, posseduti(me).map(arredo).filter(Boolean)).map(a => a.id) } }).catch(errore); render(); break; }
+    case "museoSposta": spostaInMuseo(id, +b.dataset.d).catch(errore); break;
     case "vaiArredi": chiudiSheet(); S.view = "premi"; S.premiTab = "bottega"; S.reparto = "arredi"; render(); window.scrollTo(0, 0); break;
     case "usaPozione": cambiaBonus(me, "pozione", -1).then(() => db.doc("giocatori/" + me).update({ pozione: true })).then(() => toast("Pozione attiva: +50% di monete sulla prossima missione"), errore); break;
     case "fatta": { const f = trova(S.faccende, id); if (f) { b.disabled = true; completa(f, [me]); } break; }
