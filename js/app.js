@@ -10,10 +10,10 @@ const DESC_CLASSE = { strega: "Incantesimi e bastone nodoso", ranger: "Cappuccio
 /* Il kit di ogni classe: i pezzi che l'eroe ha di serie. Gli altri pezzi "speciali" si comprano con le monete. */
 const KIT = {
   strega: { capelli: { id: "wavy", col: "blonde" }, busto: { id: "robe", col: "black" }, gambe: { id: "skirt", col: "black" }, scarpe: { id: "boots", col: "brown" }, cappello: { id: "wizard", col: "black" }, mantello: { id: "solid", col: "#d6338f" }, arma: { id: "gnarled", col: "medium" } },
-  ranger: { capelli: { id: "mop", col: "sandy" }, busto: { id: "leather" }, gambe: { id: "pants", col: "black" }, scarpe: { id: "boots", col: "leather" }, cappello: { id: "hood", col: "#5c4a7a" }, mantello: { id: "solid", col: "#5c4a7a" } },
+  ranger: { capelli: { id: "mop", col: "sandy" }, busto: { id: "leather" }, gambe: { id: "pants", col: "black" }, scarpe: { id: "boots", col: "leather" }, cappello: { id: "hood", col: "#5c4a7a" }, mantello: { id: "solid", col: "#5c4a7a" }, arma: { id: "bow", col: "medium" } },
   alchimista: { capelli: { id: "bedhead", col: "brown" }, busto: { id: "longsleeve2", col: "lavender" }, gambe: { id: "pants", col: "brown" }, scarpe: { id: "boots", col: "leather" }, accessorio: { id: "glasses", col: "black" }, arma: { id: "crystal", col: "purple" } },
-  cavaliere: { capelli: { id: "parted", col: "light_brown" }, busto: { id: "plate" }, gambe: { id: "pants", col: "gray" }, scarpe: { id: "boots", col: "gray" }, cappello: { id: "barbuta", col: "steel" } },
-  elfo: { capelli: { id: "long", col: "platinum" }, orecchie: { id: "elven" }, busto: { id: "longsleeve2", col: "forest" }, gambe: { id: "pants", col: "brown" }, scarpe: { id: "boots_fold", col: "leather" }, mantello: { id: "solid", col: "forest" } },
+  cavaliere: { capelli: { id: "parted", col: "light_brown" }, busto: { id: "plate" }, gambe: { id: "pants", col: "gray" }, scarpe: { id: "boots", col: "gray" }, cappello: { id: "barbuta", col: "steel" }, arma: { id: "arming", col: "steel" }, scudo: { id: "heater_cross", col: "navy" } },
+  elfo: { capelli: { id: "long", col: "platinum" }, orecchie: { id: "elven" }, busto: { id: "longsleeve2", col: "forest" }, gambe: { id: "pants", col: "brown" }, scarpe: { id: "boots_fold", col: "leather" }, mantello: { id: "solid", col: "forest" }, arma: { id: "greatbow", col: "light" } },
   druido: { capelli: { id: "braid", col: "ginger" }, corna: { id: "curled" }, busto: { id: "longsleeve", col: "forest" }, gambe: { id: "pants", col: "brown" }, scarpe: { id: "boots", col: "leather" }, cappello: { id: "hood", col: "forest" }, arma: { id: "gnarled", col: "medium" } }
 };
 const SOSTITUTI = { busto: ["longsleeve2", "longsleeve", "scoop", "vneck", "sleeveless"], gambe: ["pants", "pants2"], scarpe: ["boots", "shoes"] };
@@ -84,7 +84,7 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.22.0";
+const VERSIONE_APP = "3.23.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -629,7 +629,10 @@ function vMissioni(now) {
 
 const SLOT_NOME = { capelli: "Capelli", barba: "Barba", orecchie: "Orecchie", corna: "Corna", coda: "Coda", ali: "Ali", busto: "Busto", gambe: "Gambe", scarpe: "Scarpe", mantello: "Mantello", cappello: "Cappello", accessorio: "Accessorio", collo: "Collo", vita: "Vita", braccia: "Braccia", schiena: "Schiena", arma: "Arma o attrezzo", scudo: "Scudo" };
 const ORDINE_SLOT = ["capelli", "barba", "orecchie", "corna", "coda", "ali", "busto", "gambe", "scarpe", "mantello", "cappello", "accessorio", "collo", "vita", "braccia", "schiena", "arma", "scudo"];
-const COL_IT = { black: "nero", white: "bianco", blonde: "biondo", brown: "marrone", red: "rosso", blue: "blu", green: "verde", gray: "grigio", grey: "grigio", purple: "viola", pink: "rosa", orange: "arancio", yellow: "giallo", leather: "cuoio", steel: "acciaio", gold: "oro", silver: "argento", sandy: "sabbia", lavender: "lavanda", medium: "medio", light: "chiaro", dark: "scuro", navy: "blu notte", teal: "verde acqua", maroon: "bordeaux", brass: "ottone", bronze: "bronzo", copper: "rame", iron: "ferro", ceramic: "ceramica" };
+const COL_IT = { kite: "", black: "nero", white: "bianco", blonde: "biondo", brown: "marrone", red: "rosso", blue: "blu", green: "verde", gray: "grigio", grey: "grigio", purple: "viola", pink: "rosa", orange: "arancio", yellow: "giallo", leather: "cuoio", steel: "acciaio", gold: "oro", silver: "argento", sandy: "sabbia", lavender: "lavanda", medium: "medio", light: "chiaro", dark: "scuro", navy: "blu notte", teal: "verde acqua", maroon: "bordeaux", brass: "ottone", bronze: "bronzo", copper: "rame", iron: "ferro", ceramic: "ceramica" };
+/* Campioni per le varianti già colorate di armi e scudi (legni, metalli, lame luminose, scudi a mandorla). */
+const HEX_VAR = { light: "#c89a62", medium: "#9a6a3c", dark: "#5a3a22", red: "#8e3b2a", brass: "#c9a24a", bronze: "#a8703a", copper: "#b8643c", iron: "#6d6a6e", silver: "#c9cbd2", steel: "#9aa3ad", gold: "#e0b84a", ceramic: "#e8e2d6", blue: "#5aa8ff", yellow: "#e0c04a", green: "#4f8a4a", black: "#2b2b33", brown: "#7a5232",
+  kite_blue_blue: "#3d5fa8", kite_blue_gray: "#5a6f9a", kite_gray: "#8a8d92", kite_gray_blue: "#7d8aa3", kite_gray_gray: "#9a9a9a", kite_gray_green: "#7f9480", kite_gray_orange: "#a08a72", kite_green_gray: "#5f8a5a", kite_orange: "#d07a2a", kite_red_gray: "#a0524a" };
 const nomeColore = c => !c ? "" : /^#/.test(c) ? "" : String(c).split("_").map(x => COL_IT[x] || x).join(" ");
 const puntoColore = (slot, v, col) => { if (!col) return ""; try { const m = v.materiale || MATERIALE_SLOT[slot] || "cloth"; return `<i class="dot" style="background:${hexColore(m === "eye" ? "cloth" : m, col)}"></i>`; } catch (e) { return ""; } };
 /* La vetrina dell'eroe: figura intera che cammina, con l'elenco di quello che indossa e dell'animale che lo segue. */
@@ -800,7 +803,7 @@ function vBottega() {
   } else {
     carte = rep[2].flatMap(sl => LPC().slot[sl].filter(v => SP().compatibile(v, corpo)).map(v => {
       const ha = possiedePezzo(g, sl, v.id), ind = !!(g.pg[sl] && g.pg[sl].id === v.id);
-      return { ha, html: `<div class="bt-card fr-stone"><canvas class="tess-cv" data-sl="${sl}" data-id="${esc(v.id)}" data-col="" aria-hidden="true"></canvas><b>${esc(v.nome)}</b><span class="muted small">${SLOT_NOME[sl]}</span>${stato(ind, ha, PREZZO[sl], "p", sl, v.id, false)}</div>` };
+      return { ha, html: `<div class="bt-card fr-stone"><canvas class="tess-cv" data-sl="${sl}" data-id="${esc(v.id)}" data-col="" aria-hidden="true"></canvas><b>${esc(v.nome)}</b><span class="muted small">${SLOT_NOME[sl]}</span>${stato(ind, ha, prezzoDi(sl, v.id), "p", sl, v.id, false)}</div>` };
     }));
   }
   carte.sort((a, b) => a.ha - b.ha);
@@ -812,7 +815,7 @@ function vBottega() {
 }
 function compraOggetto(t, sl, pid) {
   const g = S.giocatori[me]; if (!g) return;
-  const prezzo = t === "pet" ? PREZZO.animale : PREZZO[sl], nm = t === "pet" ? SP().ANIMALI[pid].nome : pezzoDi(sl, pid).nome, chiave = t === "pet" ? "pet/" + pid : sl + "/" + pid;
+  const prezzo = t === "pet" ? PREZZO.animale : prezzoDi(sl, pid), nm = t === "pet" ? SP().ANIMALI[pid].nome : pezzoDi(sl, pid).nome, chiave = t === "pet" ? "pet/" + pid : sl + "/" + pid;
   if (moneteDi(me) < prezzo) { toast(`Ti servono ${fmt(prezzo)} monete: ne hai ${fmt(moneteDi(me))}`); return; }
   conferma("Comprare questo oggetto?", `${esc(nm)} costa ${fmt(prezzo)} monete. Te ne restano ${fmt(moneteDi(me) - prezzo)}.`, "Compra", async () => {
     try {
@@ -1132,6 +1135,8 @@ function apriChi() {
 /* ---------- Creatore del personaggio ---------- */
 const SP = () => window.OLW_SPRITE, LPC = () => SP().catalogo();
 const pezzoDi = (slot, id) => LPC().slot[slot].find(x => x.id === id);
+/* Prezzo di un pezzo: alcune armi e scudi hanno un prezzo proprio (fasce 60 / 120 / 200), gli altri quello dello slot. */
+const prezzoDi = (slot, id) => { const v = pezzoDi(slot, id); return (v && v.prezzo) || PREZZO[slot]; };
 const pezzoOk = (slot, id, corpo) => { const v = pezzoDi(slot, id); return !!v && SP().compatibile(v, corpo); };
 function convalida(pg) {
   /* Toglie o sostituisce i pezzi che non esistono per il corpo scelto. */
@@ -1188,15 +1193,15 @@ function apriProfilo(id, obbligatorio) {
     const colori = (slot, extra) => {
       const x = D.pg[slot]; if (!x) return "";
       const v = pezzoDi(slot, x.id); if (!v) return "";
-      if (v.varianti) return `<div class="sws">${v.varianti.map(c => `<button type="button" class="sw${c === x.col ? " on" : ""}" data-for="${slot}" data-col="${esc(c)}" style="background:${hexColore("cloth", c)}" title="${esc(c.replace(/_/g, " "))}" aria-label="${esc(c.replace(/_/g, " "))}"></button>`).join("")}</div>`;
-      const m = v.materiale || MATERIALE_SLOT[slot]; if (!m || m === "eye") return "";
+      if (v.varianti) return `<div class="sws">${v.varianti.map(c => `<button type="button" class="sw${c === x.col ? " on" : ""}" data-for="${slot}" data-col="${esc(c)}" style="background:${HEX_VAR[c] || hexColore("cloth", c)}" title="${esc(nomeColore(c).trim() || c)}" aria-label="${esc(nomeColore(c).trim() || c)}"></button>`).join("")}</div>`;
+      const m = v.materiale || MATERIALE_SLOT[slot]; if (!m || m === "eye" || !LPC().palette[m]) return "";
       const lista = Object.keys(LPC().palette[m].rampe);
       const libero = m === "metal" ? "" : `<label class="sw custom" title="Colore libero"><input type="color" data-for="${slot}" value="${/^#/.test(x.col || "") ? x.col : hexColore(m, x.col || LPC().palette[m].base)}"></label>`;
       return `<div class="sws">${lista.map(c => `<button type="button" class="sw${c === x.col ? " on" : ""}" data-for="${slot}" data-col="${esc(c)}" style="background:${hexColore(m, c)}" title="${esc(c.replace(/_/g, " "))}" aria-label="${esc(c.replace(/_/g, " "))}"></button>`).join("")}${libero}</div>`;
     };
     const blocco = (slot, titolo, { nessuno } = {}) => {
       const lista = LPC().slot[slot].filter(v => SP().compatibile(v, D.pg.corpo)), cur = D.pg[slot] && D.pg[slot].id;
-      const chips = lista.map(v => { const ok = possiede(slot, v.id); return `<button type="button" class="opt${v.id === cur ? " on" : ""}${ok ? "" : " lock"}" data-slot="${slot}" data-id="${v.id}">${esc(v.nome)}${ok ? "" : ` <span class="prz">${ICON.coin()}<b class="num">${PREZZO[slot]}</b></span>`}</button>`; }).join("");
+      const chips = lista.map(v => { const ok = possiede(slot, v.id); return `<button type="button" class="opt${v.id === cur ? " on" : ""}${ok ? "" : " lock"}" data-slot="${slot}" data-id="${v.id}">${esc(v.nome)}${ok ? "" : ` <span class="prz">${ICON.coin()}<b class="num">${prezzoDi(slot, v.id)}</b></span>`}</button>`; }).join("");
       return `<div class="field"><span class="lab">${titolo}</span><div class="opts">${nessuno ? `<button type="button" class="opt${cur ? "" : " on"}" data-slot="${slot}" data-id="">Nessuno</button>` : ""}${chips}</div>${colori(slot)}</div>`;
     };
     const HEX_PET = { bianco: "#f2f0ee", dorato: "#e0b24a", rosso: "#b5532f", nero: "#2b2b33", marrone: "#8a5430", grigio: "#8f8a86", blu: "#2f4a7a", viola: "#6b4c8f", argento: "#cfcbd6" };
@@ -1267,7 +1272,7 @@ function apriProfilo(id, obbligatorio) {
       const slot = op.dataset.slot, pid = op.dataset.id;
       if (!pid) { cambia(p => { p[slot] = null; }); return; }
       if (!possiede(slot, pid)) {
-        const v = pezzoDi(slot, pid), c = PREZZO[slot];
+        const v = pezzoDi(slot, pid), c = prezzoDi(slot, pid);
         if (!id) { toast("Lo compri dopo aver creato l'eroe, con le monete guadagnate"); return; }
         if (monete() < c) { toast(`Ti servono ${c} monete: ne hai ${fmt(monete())}`); return; }
         conferma("Comprare questo pezzo?", `${esc(v.nome)} costa ${fmt(c)} monete. Te ne restano ${fmt(monete() - c)}.`, "Compra", async () => {

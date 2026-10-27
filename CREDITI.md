@@ -185,5 +185,25 @@ Il codice dell'app è un'altra cosa e non è coperto da queste licenze.
 | `weapon/sword/dagger` | bluecarrot16, Johannes Sjölund (wulax), Matthew Krohn (makrohn) | OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0 | <https://opengameart.org/content/lpc-medieval-fantasy-character-sprites> <https://opengameart.org/content/lpc-extended-weapon-animations> |
 | `weapon/sword/longsword` | Johannes Sjölund (wulax), bluecarrot16 | OGA-BY 3.0, CC-BY-SA 3.0 | <https://opengameart.org/content/lpc-medieval-fantasy-character-sprites> <https://opengameart.org/content/lpc-extended-weapon-animations> |
 | `weapon/sword/rapier` | Johannes Sjölund (wulax), bluecarrot16 | OGA-BY 3.0, CC-BY-SA 3.0 | <https://opengameart.org/content/lpc-medieval-fantasy-character-sprites> <https://opengameart.org/content/lpc-extended-weapon-animations> |
+| `weapon/ranged/bow/normal` | Johannes Sjölund (wulax), Pierre Vigier (pvigier) | OGA-BY 3.0+, GPL 3.0, CC-BY 4.0 | <https://opengameart.org/content/lpc-medieval-fantasy-character-sprites> <https://opengameart.org/content/lpc-walk-animations-for-bows> |
+| `weapon/ranged/bow/recurve` | Daniel Eddeland (daneeklu), gr3yh47, Johannes Sjölund (wulax), Pierre Vigier (pvigier) | CC-BY-SA 3.0 | <https://opengameart.org/content/lpc-weapons-two-bows-a-spear-and-a-trident> <https://opengameart.org/content/lpc-walk-animations-for-bows> |
+| `weapon/ranged/bow/great` | Daniel Eddeland (daneeklu), gr3yh47, Johannes Sjölund (wulax), Pierre Vigier (pvigier) | CC-BY-SA 3.0 | <https://opengameart.org/content/lpc-weapons-two-bows-a-spear-and-a-trident> <https://opengameart.org/content/lpc-walk-animations-for-bows> |
+| `weapon/ranged/crossbow` | bluecarrot16, drjamgo@hotmail.com | CC0 | <https://opengameart.org/content/lpc-crossbow-final> |
+| `weapon/ranged/slingshot` | bluecarrot16 | OGA-BY 3.0+, GPL 3.0, CC-BY 4.0 | <https://opengameart.org/content/lpc-more-weapons> |
+| `weapon/sword/katana` | Pierre Vigier and DCSS artists (see https://github.com/crawl/tiles/blob/master/ARTISTS.md) | OGA-BY 3.0 | <https://opengameart.org/content/lpc-dcss-swords> |
+| `weapon/sword/saber` | Daniel Eddeland (daneeklu), Johannes Sjölund (wulax), gr3yh47, bluecarrot16 | CC-BY-SA 3.0 | <https://opengameart.org/content/lpc-medieval-fantasy-character-sprites> <https://opengameart.org/content/lpc-extended-weapon-animations> |
+| `weapon/sword/scimitar` | Pierre Vigier and DCSS artists (see https://github.com/crawl/tiles/blob/master/ARTISTS.md) | OGA-BY 3.0 | <https://opengameart.org/content/lpc-dcss-swords> |
+| `weapon/sword/glowsword` | bluecarrot16, tskaufma, Johannes Sjölund (wulax) | OGA-BY 3.0, CC-BY-SA 3.0 | <https://opengameart.org/content/lpc-medieval-fantasy-character-sprites> <https://opengameart.org/content/lpc-glow-sword> <https://opengameart.org/content/lpc-extended-weapon-animations> |
+| `weapon/blunt/waraxe` | Benjamin K. Smith (BenCreating), bluecarrot16, Sander Frenken (castelonia) | CC-BY-SA 3.0, GPL 3.0 | <https://opengameart.org/content/lpc-medieval-weapons> |
+| `weapon/blunt/flail` | Benjamin K. Smith (BenCreating), bluecarrot16, Sander Frenken (castelonia) | CC-BY-SA 3.0, GPL 3.0 | <https://opengameart.org/content/lpc-medieval-weapons> |
+| `weapon/polearm/halberd` | Benjamin K. Smith (BenCreating), bluecarrot16, Sander Frenken (castelonia) | CC-BY-SA 3.0, GPL 3.0 | <https://opengameart.org/content/lpc-medieval-weapons> |
+| `shield/round` | Johannes Sjölund (wulax), Michael Whitlock (bigbeargames), DarkwallLKE, Tuomo Untinen (reemax) | OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0 | <https://opengameart.org/content/lpc-medieval-fantasy-character-sprites> <https://opengameart.org/content/lpc-shields-pack> |
+| `shield/kite` | DarkwallLKE, Tuomo Untinen (reemax), Michael Whitlock (bigbeargames) | CC-BY-SA 3.0, GPL 2.0, GPL 3.0 | <https://opengameart.org/content/lpc-kite-shield> <https://opengameart.org/content/lpc-shields-pack> |
+| `shield/spartan` | bluecarrot16, Sander Frenken (castelonia) | OGA-BY 3.0 | <https://opengameart.org/content/lpc-shields> |
+| `shield/heater/revised/wood` | bluecarrot16, Sander Frenken (castelonia), ElizaWy, JaidynReiman | OGA-BY 3.0 | <https://opengameart.org/content/lpc-shields> |
+| `shield/heater/revised/paint` | bluecarrot16, ElizaWy, JaidynReiman | OGA-BY 3.0 | <https://github.com/ElizaWy/LPC/tree/main/Characters/Props/Shield%2001%20-%20Heater%20Shield> <https://opengameart.org/content/lpc-expanded-sit-run-jump-more> |
+| `shield/heater/revised/trim` | bluecarrot16, Sander Frenken (castelonia), ElizaWy, JaidynReiman | OGA-BY 3.0 | <https://opengameart.org/content/lpc-shields> |
+| `shield/heater/revised/pattern` | bluecarrot16, Sander Frenken (castelonia), ElizaWy, JaidynReiman | OGA-BY 3.0 | <https://opengameart.org/content/lpc-shields> |
+| `shield/heater/revised/pattern/paly` | bluecarrot16, Sander Frenken (castelonia), ElizaWy, JaidynReiman | OGA-BY 3.0 | <https://opengameart.org/content/lpc-shields> |
 
 La scimmia (`assets/pets/scimmia.png`) è disegnata da codice per questa app (`tools/scimmia.py`). Le varianti di colore di corvo e pipistrello sono ricolorazioni degli originali (`tools/volanti.py`).
