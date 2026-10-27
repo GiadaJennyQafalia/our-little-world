@@ -1,6 +1,6 @@
 """Fogli di corvo e pipistrello nel formato degli animali dell'app.
 512x256, celle 32x32: 4 colori x 4 colonne; righe 0 destra, 1 su, 2 giù, 3 sinistra.
-Colonne 0-2 = volo (ali giù, a metà, su), colonna 3 = posato a terra.
+Colonne 0-2 = volo (ali giù, a metà, su), colonna 3 = a riposo (corvo posato a terra, pipistrello appeso a testa in giù).
 Sorgenti: [LPC] Birds (bluecarrot16) e [LPC] Monsters, pipistrello di bagzie."""
 from PIL import Image
 import colorsys
@@ -54,7 +54,10 @@ def cp(r, c, terra=False):
     x0, y0 = c * 64 + 16, r * 64 + (21 if terra else 12)
     return P.crop((x0, y0, x0 + 32, y0 + 32))
 ord_bat = {0: 3, 1: 0, 2: 2, 3: 1}
-pip = [[cp(ord_bat[r], 1), cp(ord_bat[r], 2), cp(ord_bat[r], 3), cp(ord_bat[r], 0, True)] for r in range(4)]
+import importlib.util, os
+_sp = importlib.util.spec_from_file_location("appeso", os.path.join(os.path.dirname(__file__), "pipistrello_appeso.py")); _m = importlib.util.module_from_spec(_sp); _sp.loader.exec_module(_m)
+appeso = _m.posa()  # colonna 3: a riposo, appeso a testa in giù (disegnato da codice)
+pip = [[cp(ord_bat[r], 1), cp(ord_bat[r], 2), cp(ord_bat[r], 3), appeso] for r in range(4)]
 occhi = lambda r, g, b: r > 150 and g < 90 and b < 90
 foglio(pip, [
     lambda i: i,                                                                   # viola

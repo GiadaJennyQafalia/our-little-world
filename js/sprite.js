@@ -141,9 +141,9 @@
     gatto: { nome: "Gatto", file: "assets/pets/gatto.png", colori: ["bianco", "dorato", "rosso", "nero"] },
     cane: { nome: "Cane", file: "assets/pets/cane.png", colori: ["bianco", "marrone", "dorato", "nero"] },
     scimmia: { nome: "Scimmia", file: "assets/pets/scimmia.png", colori: ["marrone", "dorato", "grigio", "nero"] },
-    /* Volanti: colonne 0–2 = battito d'ali, 3 = posato a terra. Volano accanto alla spalla dell'eroe e atterrano quando si ferma. */
+    /* Volanti: colonne 0–2 = battito d'ali, 3 = posato a terra. Volano accanto alla spalla dell'eroe; quando si ferma il corvo si posa a terra, il pipistrello si appende a testa in giù. */
     corvo: { nome: "Corvo", file: "assets/pets/corvo.png", colori: ["nero", "blu", "grigio", "bianco"], vola: true },
-    pipistrello: { nome: "Pipistrello", file: "assets/pets/pipistrello.png", colori: ["viola", "nero", "marrone", "argento"], vola: true }
+    pipistrello: { nome: "Pipistrello", file: "assets/pets/pipistrello.png", colori: ["viola", "nero", "marrone", "argento"], vola: true, appeso: true }
   };
   const fogli = new Map();
   const foglio = f => { if (!fogli.has(f)) fogli.set(f, new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error("manca " + f)); i.src = f; })); return fogli.get(f); };
@@ -236,6 +236,7 @@
           if (o.A && o.A.vola) {
             const meta = inMoto || moto ? 1 : 0; st.vol = (st.vol || 0) + (meta - (st.vol || 0)) * Math.min(1, dt * 3);
             su = st.vol * (30 + Math.sin(t / 260) * 2.5) * a.scala;
+            if (o.A.appeso) su += (1 - st.vol) * 38 * a.scala; /* a riposo il pipistrello resta in alto, appeso a testa in giù */
           }
           o.pcv.style.left = pc(st.px - 16 * a.scala, w); o.pcv.style.top = pc(yE + 4 - PIEDI_PET * a.scala - su, h); o.pcv.style.zIndex = Math.round(yE) + (su > 1 ? 3 : 1);
         }
