@@ -50,11 +50,11 @@ const SEZ_REGGIA = {
 };
 const SKIN = { castello: { img: "img/castello.webp", w: 768, h: 1376, sezione: SEZ_CASTELLO, stanze: "img/stanze/",
   cornice: { dir: "img/dimore/castello/", tetto: [768, 283], base: [768, 178], muro: [112, 340] },
-  tessere: { dir: "img/dimore/castello/tessere/", tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "lavanderia", "terrazzo", "giardino", "cantina"] },
+  tessere: { dir: "img/dimore/castello/tessere/", dim: {"bagno":[264,247],"balcone":[78,662],"camera":[264,247],"cantina":[797,538],"corridoio":[112,348],"cucina":[200,348],"cucina_soggiorno":[916,538],"giardino":[706,538],"ingresso":[200,280],"lavanderia":[782,537],"ripostiglio":[200,248],"soggiorno":[328,280],"studio":[599,537],"terrazzo":[797,531]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "lavanderia", "terrazzo", "giardino", "cantina"] },
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino" } },
   reggia: { img: "img/dimore/reggia/sezione.webp", w: 768, h: 1376, sezione: SEZ_REGGIA, stanze: "img/dimore/reggia/stanze/",
   cornice: { dir: "img/dimore/reggia/", tetto: [768, 300], base: [768, 291], muro: [100, 340] },
-  tessere: { dir: "img/dimore/reggia/tessere/", tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "terrazzo", "giardino", "cantina"] },
+  tessere: { dir: "img/dimore/reggia/tessere/", dim: {"bagno":[220,248],"balcone":[122,395],"camera":[290,248],"cantina":[841,782],"corridoio":[102,250],"cucina":[207,232],"cucina_soggiorno":[1684,759],"giardino":[845,782],"ingresso":[265,263],"ripostiglio":[192,232],"soggiorno":[246,263],"studio":[844,758],"terrazzo":[840,781]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "terrazzo", "giardino", "cantina"] },
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino", terrazzo: "terrazzo" } } };
 /* Lo stesso nelle viste delle singole stanze (immagini 720×676, 720×706 il corridoio): il pavimento è un rombo, i piedi stanno nella parte centrale. */
 const PIANI_STANZA = {
@@ -115,7 +115,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.35.1";
+const VERSIONE_APP = "3.36.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -502,27 +502,36 @@ function vistaLayout(dim) {
   const x0 = Math.min(...rs.map(r => pi[r].x)), y0 = Math.min(...rs.map(r => pi[r].y)), x1 = Math.max(...rs.map(r => pi[r].x + pi[r].w)), y1 = Math.max(...rs.map(r => pi[r].y + pi[r].h));
   const W = (x1 - x0) * VU + 2 * VMARG, tetto = cr.tetto[1] * W / cr.tetto[0], base = cr.base[1] * W / cr.base[0];
   const top = tetto - 24, H = Math.round(top + (y1 - y0) * VU + base - 20), celle = {};
-  for (const r of rs) { const q = pi[r]; celle[r] = { x: VMARG + (q.x - x0) * VU, y: top + (q.y - y0) * VU, w: q.w * VU, h: q.h * VU, tipo: q.tipo }; }
+  /* Ogni tessera entra intera nella sua cella (appoggiata in basso, centrata); se avanza spazio si ingrandisce un poco
+     tagliando al massimo un quinto, così non resta troppo muro vuoto ma l'arredo non viene mozzato. */
+  for (const r of rs) {
+    const q = pi[r], cx = VMARG + (q.x - x0) * VU, cy = top + (q.y - y0) * VU, cw = q.w * VU, ch = q.h * VU, tes = tessera(sk, q.tipo);
+    const [tw, th] = tes.dim || [720, 676], k = Math.min(cw / tw, ch / th) * Math.min(1.25, Math.max(cw / tw, ch / th) / Math.min(cw / tw, ch / th));
+    const iw = tw * k, ih = th * k, vw = Math.min(iw, cw), vh = Math.min(ih, ch);
+    celle[r] = { x: cx + (cw - vw) / 2, y: cy + ch - vh, w: vw, h: vh, iw, ih, tes, tipo: q.tipo };
+  }
   return { W, H, tetto, base, celle, sk };
 }
 /* Immagine della tessera frontale di un tipo: la tessera della dimora, il ripiego, oppure l'interno ritagliato. */
 function tessera(sk, t) {
   const T = sk.tessere || { tipi: [] };
-  if (T.tipi.includes(t)) return { src: T.dir + t + ".webp" };
-  if (T.tipi.includes(RIPIEGO[t])) return { src: T.dir + RIPIEGO[t] + ".webp" };
+  const d = T.dim || {};
+  if (T.tipi.includes(t)) return { src: T.dir + t + ".webp", dim: d[t] };
+  if (T.tipi.includes(RIPIEGO[t])) return { src: T.dir + RIPIEGO[t] + ".webp", dim: d[RIPIEGO[t]] };
   return { src: sk.stanze + sk.file[tipoConImmagine(sk, t)] + ".webp", interno: true };
 }
-/* Vista in sezione: l'illustrazione intera della dimora, con ogni stanza sul posto del suo tipo (o del ripiego).
-   Il corridoio dell'immagine è "Tutta la casa". Le stanze che non trovano un posto libero restano in "altre". */
+/* Vista in sezione: l'illustrazione intera della dimora. Si usa finché la pianta è quella di partenza (ogni stanza al suo posto,
+   con la sua misura); appena la pianta cambia, la vista si compone dalla pianta, così la dimora segue la casa vera. */
+const RECT_BASE = Object.fromEntries([...Object.values(PIANTA_BASE), CORRIDOIO].map(q => [q.tipo, q]));
 function postiSezione(dim) {
   const sk = SKIN[dim] || SKIN.castello, Z = sk.sezione; if (!Z) return null;
-  const pi = pianta(), posti = { "Tutta la casa": Z.corridoio }, altre = [], usati = new Set(["corridoio"]);
+  const pi = pianta(), posti = {}, usati = new Set(), uguale = (a, b) => b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
   for (const r of Object.keys(pi)) {
-    if (r === "Tutta la casa") continue;
-    const t = [pi[r].tipo, RIPIEGO[pi[r].tipo]].find(k => Z[k] && !usati.has(k));
-    if (t) { usati.add(t); posti[r] = Z[t]; } else altre.push(r);
+    const t = r === "Tutta la casa" ? "corridoio" : [pi[r].tipo, RIPIEGO[pi[r].tipo]].find(k => Z[k] && !usati.has(k));
+    if (!t || !uguale(pi[r], RECT_BASE[t])) return null;
+    usati.add(t); posti[r] = Z[t];
   }
-  return { posti, altre };
+  return { posti, altre: [] };
 }
 function dimoraMappa(dim, st, now) {
   const Z = postiSezione(dim);
@@ -540,11 +549,11 @@ function dimoraMappa(dim, st, now) {
   const L = vistaLayout(dim), sk = L.sk, cr = sk.cornice, pc = (v, t) => (v / t * 100).toFixed(3) + "%";
   const celle = Object.entries(L.celle).map(([r, c]) => {
     const x = statoUna(r, now, st); if (!x) return "";
-    const nome = nomeStanza(r), tes = tessera(sk, c.tipo), stretta = c.w <= VU || c.h <= VU;
-    return `<div class="vc${tes.interno ? " interno" : ""}" style="left:${pc(c.x, L.W)};top:${pc(c.y, L.H)};width:${pc(c.w, L.W)};height:${pc(c.h, L.H)}"><img src="${tes.src}" alt="" decoding="async" loading="lazy"></div>
+    const nome = nomeStanza(r), tes = c.tes, stretta = c.w <= VU || c.h <= VU;
+    return `<div class="vc${tes.interno ? " interno" : ""}" style="left:${pc(c.x, L.W)};top:${pc(c.y, L.H)};width:${pc(c.w, L.W)};height:${pc(c.h, L.H)}"><img src="${tes.src}" alt="" decoding="async" loading="lazy" style="width:${pc(c.iw, c.w)};height:${pc(c.ih, c.h)};left:${pc((c.w - c.iw) / 2, c.w)}"></div>
       <button class="rm lv${x.livello}${stretta ? " stretta" : ""}" data-act="stanza" data-r="${esc(r)}" style="left:${pc(c.x, L.W)};top:${pc(c.y, L.H)};width:${pc(c.w, L.W)};height:${pc(c.h, L.H)}" title="${esc(nome)}" aria-label="${esc(nome)}: ${STATI[x.livello]}, ${x.urg ? x.urg + (x.urg === 1 ? " missione urgente" : " missioni urgenti") : "tutto in pari"}">${velo(x.livello)}${x.urg ? `<span class="rm-badge num" aria-hidden="true">${x.urg}</span>` : ""}</button>`;
   }).join("");
-  return `<div class="castle vista" style="aspect-ratio:${L.W} / ${L.H};--muro:url(${cr.dir}muro.webp);--muro-w:${pc(cr.muro[0], L.W)}" role="group" aria-label="${esc(DIMORE[dim])}: tocca una stanza">
+  return `<div class="castle vista" style="aspect-ratio:${L.W} / ${L.H};background-image:url(${cr.dir}muro.webp);background-size:${pc(cr.muro[0], L.W)} auto" role="group" aria-label="${esc(DIMORE[dim])}: tocca una stanza">
     <img class="v-tetto" src="${cr.dir}tetto.webp" alt="" style="height:${pc(L.tetto, L.H)}"><img class="v-base" src="${cr.dir}base.webp" alt="" style="height:${pc(L.base, L.H)}">${celle}</div>`;
 }
 function gruppoMissioni(t, a, vuoto, now) {
@@ -2155,40 +2164,62 @@ async function azzera(o) {
   toast("Fatto: l'app riparte da zero");
 }
 
-/* Editor della pianta: rettangoli su una griglia, un tipo per stanza. Il tipo decide in quale posto della dimora compare la stanza. */
+/* Editor della pianta: rettangoli su una griglia, un tipo per stanza. Il tipo decide l'immagine della stanza nella dimora.
+   La griglia cresce: sotto e a destra delle stanze resta sempre spazio libero per aggiungerne o allargarle. */
+const NOME_TIPO = { ingresso: "Ingresso", soggiorno: "Salotto", cucina: "Cucina", cucina_soggiorno: "Zona giorno", camera: "Camera", bagno: "Bagno", ripostiglio: "Sgabuzzino",
+  studio: "Studio", lavanderia: "Lavanderia", balcone: "Balcone", terrazzo: "Terrazzo", giardino: "Giardino", cantina: "Cantina" };
 function apriPianta() {
-  const cfg = S.config || {}, W = GRIGLIA.w, H = GRIGLIA.h, base = pianta(), D = {};
+  const base = pianta(), D = {};
   for (const r of Object.keys(base)) D[r] = { ...base[r] };
-  let sel = null, drag = null;
+  let sel = null, drag = null, W = GRIGLIA.w, H = GRIGLIA.h;
+  const MAXW = 16, MAXH = 20;
+  const misura = () => {
+    const q = Object.values(D);
+    W = Math.min(MAXW, Math.max(GRIGLIA.w, ...q.map(x => x.x + x.w + 2)));
+    H = Math.min(MAXH, Math.max(GRIGLIA.h, ...q.map(x => x.y + x.h + 3)));
+  };
+  const sovrapposte = () => { const k = Object.keys(D), out = new Set();
+    for (let i = 0; i < k.length; i++) for (let j = i + 1; j < k.length; j++) { const a = D[k[i]], c = D[k[j]];
+      if (a.x < c.x + c.w && c.x < a.x + a.w && a.y < c.y + c.h && c.y < a.y + a.h) { out.add(k[i]); out.add(k[j]); } }
+    return out; };
   const nFacc = r => S.faccende.filter(f => f.attiva !== false && f.stanza === r).length;
+  const opzTipi = cur => Object.entries(TIPI).filter(([k]) => k !== "corridoio").map(([k, v]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${esc(v)}</option>`).join("");
   apriSheet(`<h2>Pianta della casa</h2>
-    <p class="muted small" style="margin:0">Trascina una stanza per spostarla, il quadratino in basso a destra per cambiarne la misura. Non serve la scala giusta: basta che si capisca com'è fatta casa.</p>
-    <div class="pianta-wrap fr-dash"><svg id="pSvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pianta stilizzata della casa"></svg></div>
+    <p class="muted small" style="margin:0">Trascina una stanza per spostarla. Toccala per cambiarne tipo e misura (o tira il quadratino giallo). Non serve la scala giusta: basta che si capisca com'è fatta casa.</p>
+    <div class="pianta-wrap fr-dash"><svg id="pSvg" role="img" aria-label="Pianta stilizzata della casa"></svg></div>
     <div id="pInfo" class="pianta-info"></div>
-    <div class="field"><label for="pNuova">Aggiungi una stanza</label><div class="row-actions"><input type="text" id="pNuova" maxlength="30" style="flex:1;min-width:0;background:var(--night);border:1px solid var(--seam);border-radius:10px;padding:10px 12px"><button class="btn" id="pAdd">Aggiungi</button></div></div>
+    <div class="field"><label for="pNuova">Aggiungi una stanza</label><div class="row-actions"><select id="pNuova" style="flex:1;min-width:0"><option value="">Scegli il tipo…</option>${opzTipi("")}</select><button class="btn" id="pAdd">Aggiungi</button></div></div>
     <div id="pAvvisi" class="pianta-avvisi small"></div>
     <div class="sheet-actions"><button class="btn ghost" data-close>Annulla</button><button class="btn prime" id="pSalva">Salva la pianta</button></div>`, sh => {
     const svg = sh.querySelector("#pSvg"), info = sh.querySelector("#pInfo"), av = sh.querySelector("#pAvvisi");
-    const ridisegna = () => {
-      svg.innerHTML = `<defs><pattern id="pg" width="1" height="1" patternUnits="userSpaceOnUse"><path d="M1 0H0V1" fill="none" stroke="#ffffff" stroke-opacity=".07" stroke-width=".04"/></pattern></defs><rect width="${W}" height="${H}" fill="url(#pg)"/>` +
+    const ridisegna = (rimisura = true) => {
+      if (rimisura) misura();
+      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      const sov = sovrapposte();
+      svg.innerHTML = `<defs><pattern id="pg" width="1" height="1" patternUnits="userSpaceOnUse"><path d="M1 0H0V1" fill="none" stroke="#ffffff" stroke-opacity=".09" stroke-width=".04"/></pattern></defs><rect width="${W}" height="${H}" fill="url(#pg)"/>` +
         Object.entries(D).map(([r, q]) => {
           const on = r === sel, nm = nomeStanza(r), max = Math.max(3, Math.floor(q.w * 2.4));
-          return `<g data-r="${esc(r)}"><rect class="pr${on ? " on" : ""}${r === "Tutta la casa" ? " fix" : ""}" x="${q.x + .06}" y="${q.y + .06}" width="${q.w - .12}" height="${q.h - .12}" rx=".18" fill="${COL_TIPO[q.tipo] || COL_TIPO.altro}"/>` +
+          return `<g data-r="${esc(r)}"><rect class="pr${on ? " on" : ""}${r === "Tutta la casa" ? " fix" : ""}${sov.has(r) ? " sov" : ""}" x="${q.x + .06}" y="${q.y + .06}" width="${q.w - .12}" height="${q.h - .12}" rx=".18" fill="${COL_TIPO[q.tipo] || COL_TIPO.altro}"/>` +
             `<text x="${q.x + q.w / 2}" y="${q.y + q.h / 2 + .18}" text-anchor="middle" class="pt">${esc(nm.length > max ? nm.slice(0, max - 1) + "…" : nm)}</text>` +
-            (on ? `<rect class="ph" data-h="1" x="${q.x + q.w - .62}" y="${q.y + q.h - .62}" width=".5" height=".5" rx=".1"/>` : "") + `</g>`;
+            (on ? `<rect class="ph-hit" data-h="1" x="${q.x + q.w - 1.1}" y="${q.y + q.h - 1.1}" width="1.3" height="1.3"/><rect class="ph" data-h="1" x="${q.x + q.w - .78}" y="${q.y + q.h - .78}" width=".66" height=".66" rx=".12"/>` : "") + `</g>`;
         }).join("");
       const q = sel && D[sel];
+      const passi = q ? `<div class="p-misure">
+          <span class="p-mis"><span class="muted small">Larghezza</span><button class="btn ghost sm" data-m="w" data-d="-1" aria-label="Più stretta">−</button><b class="num">${q.w}</b><button class="btn ghost sm" data-m="w" data-d="1" aria-label="Più larga">+</button></span>
+          <span class="p-mis"><span class="muted small">Altezza</span><button class="btn ghost sm" data-m="h" data-d="-1" aria-label="Più bassa">−</button><b class="num">${q.h}</b><button class="btn ghost sm" data-m="h" data-d="1" aria-label="Più alta">+</button></span></div>` : "";
       info.innerHTML = q ? (sel === "Tutta la casa"
-        ? `<b>Corridoio</b><span class="muted small">Qui stanno le faccende di "tutta la casa", come l'aspirapolvere. Puoi spostarlo e ridimensionarlo.</span>`
-        : `<div class="field"><label for="pTipo"><b>${esc(sel)}</b> · che tipo di stanza è?</label><select id="pTipo">${Object.entries(TIPI).filter(([k]) => k !== "corridoio").map(([k, v]) => `<option value="${k}" ${k === q.tipo ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></div>
+        ? `<b>Corridoio</b><span class="muted small">Qui stanno le faccende di "tutta la casa", come l'aspirapolvere.</span>${passi}`
+        : `<div class="p-sel"><b>${esc(sel)}</b><select id="pTipo" aria-label="Tipo di ${esc(sel)}">${opzTipi(q.tipo)}</select></div>${passi}
            <button class="btn ghost sm" id="pDel" ${nFacc(sel) ? "disabled" : ""}>${nFacc(sel) ? `Ha ${nFacc(sel)} faccende: non si può togliere` : "Togli questa stanza"}</button>`)
-        : `<span class="muted small">Tocca una stanza per scegliere il suo tipo.</span>`;
+        : `<span class="muted small">Tocca una stanza per cambiarne tipo e misura.</span>`;
       const t = info.querySelector("#pTipo"); if (t) t.onchange = () => { D[sel].tipo = t.value; ridisegna(); };
       const d = info.querySelector("#pDel"); if (d) d.onclick = () => { delete D[sel]; sel = null; ridisegna(); };
+      info.querySelectorAll("[data-m]").forEach(bt => bt.onclick = () => { const k = bt.dataset.m, lim = k === "w" ? MAXW - q.x : MAXH - q.y; q[k] = Math.max(1, Math.min(lim, q[k] + +bt.dataset.d)); ridisegna(); });
       const sk = SKIN[dimoraMia()] || SKIN.castello, msg = [];
+      if (sov.size) msg.push(`<b>Stanze sovrapposte:</b> ${[...sov].map(r => esc(nomeStanza(r))).join(", ")}. Spostale o rimpiccioliscile prima di salvare.`);
       const senza = [...new Set(Object.values(D).map(x => x.tipo).filter(t => !(sk.tessere && sk.tessere.tipi.includes(t)) && t !== "corridoio"))];
       if (senza.length) msg.push(`${senza.map(t => TIPI[t]).join(", ")}: la ${esc(DIMORE[dimoraMia()].replace(/^(Il |La |L')/, ""))} non ha ancora un disegno su misura, per ora ${senza.length === 1 ? "usa" : "usano"} quello più simile.`);
-      av.innerHTML = msg.map(m => `<p class="muted">${m}</p>`).join("");
+      av.innerHTML = msg.map(m => `<p class="${m.startsWith("<b>") ? "err" : "muted"}">${m}</p>`).join("");
     };
     const cella = e => { const b = svg.getBoundingClientRect(); return [(e.clientX - b.left) / b.width * W, (e.clientY - b.top) / b.height * H]; };
     svg.addEventListener("pointerdown", e => {
@@ -2198,22 +2229,27 @@ function apriPianta() {
       try { svg.setPointerCapture(e.pointerId); } catch (x) {}
       e.preventDefault(); ridisegna();
     });
+    /* Durante il trascinamento la griglia resta ferma (altrimenti scapperebbe sotto il dito); si adatta quando si lascia. */
     svg.addEventListener("pointermove", e => {
       if (!drag) return; const q = D[drag.r], [cx, cy] = cella(e);
       if (drag.resize) { q.w = Math.max(1, Math.min(W - q.x, Math.round(drag.w0 + cx - drag.x0))); q.h = Math.max(1, Math.min(H - q.y, Math.round(drag.h0 + cy - drag.y0))); }
       else { q.x = Math.max(0, Math.min(W - q.w, Math.round(cx - drag.dx))); q.y = Math.max(0, Math.min(H - q.h, Math.round(cy - drag.dy))); }
-      ridisegna();
+      ridisegna(false);
     });
-    const fine = () => { drag = null; };
+    const fine = () => { if (drag) { drag = null; ridisegna(); } };
     svg.addEventListener("pointerup", fine); svg.addEventListener("pointercancel", fine);
     sh.querySelector("#pAdd").onclick = () => {
-      const inp = sh.querySelector("#pNuova"), n = inp.value.trim(); if (!n) return;
-      if (D[n] || n === "Tutta la casa") { toast("Esiste già una stanza con questo nome"); return; }
-      const occ = (x, y) => Object.values(D).some(q => x < q.x + q.w && x + 3 > q.x && y < q.y + q.h && y + 2 > q.y);
-      let px = 0, py = 0; outer: for (let y = 0; y <= H - 2; y++) for (let x = 0; x <= W - 3; x++) if (!occ(x, y)) { px = x; py = y; break outer; }
-      D[n] = { tipo: tipoDa(n), x: px, y: py, w: 3, h: 2 }; sel = n; inp.value = ""; ridisegna();
+      const s = sh.querySelector("#pNuova"), tipo = s.value; if (!tipo) { toast("Scegli che stanza aggiungere"); return; }
+      const radice = NOME_TIPO[tipo] || TIPI[tipo]; let n = radice, k = 2;
+      while (D[n] || stanze().includes(n)) n = `${radice} ${k++}`;
+      const w = 3, h = 2, libero = (x, y) => Object.values(D).every(q => x + w <= q.x || q.x + q.w <= x || y + h <= q.y || q.y + q.h <= y);
+      /* Prima cerca un buco dentro la larghezza della casa (così la nuova stanza va sotto, non di lato), poi ovunque. */
+      const larga = Math.max(GRIGLIA.w, ...Object.values(D).map(q => q.x + q.w)); let pos = null;
+      for (const lim of [larga, MAXW]) for (let y = 0; !pos && y < MAXH; y++) for (let x = 0; !pos && x <= lim - w; x++) if (libero(x, y)) pos = { x, y };
+      D[n] = { tipo, w, h, ...(pos || { x: 0, y: H }) }; sel = n; s.value = ""; ridisegna();
     };
     sh.querySelector("#pSalva").onclick = async () => {
+      if (sovrapposte().size) { toast("Ci sono stanze sovrapposte: sistemale prima di salvare"); return; }
       try {
         const nomi = Object.keys(D).filter(r => r !== "Tutta la casa");
         await db.doc("config/casa").update({ pianta: D, stanze: nomi });
