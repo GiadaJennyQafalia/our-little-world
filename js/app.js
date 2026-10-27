@@ -86,7 +86,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.27.0";
+const VERSIONE_APP = "3.28.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -1013,7 +1013,7 @@ function vPremiLista(now) {
   <section class="sec">
     <div class="sec-head"><h3>I premi di ${esc(nome(me))}</h3><span class="chip gold num">${fmt(monete)} monete</span></div>
     ${miei.length ? `<div class="list">${miei.map(pr => `<div class="reward fr-stone"><span style="min-width:0"><span class="rn">${esc(pr.nome)}</span><br><span class="muted small num">${fmt(pr.costo)} monete${monete < pr.costo ? ` · ne mancano ${fmt(pr.costo - monete)}` : ""}</span></span>
-      <span class="row-actions" style="flex:none"><button class="btn sm ${monete >= pr.costo ? "prime" : ""}" data-act="riscatta" data-id="${pr.id}" ${monete >= pr.costo ? "" : "disabled"}>Riscatta</button><button class="dots" data-act="delpremio" data-id="${pr.id}" aria-label="Elimina ${esc(pr.nome)}">⋯</button></span></div>`).join("")}</div>`
+      <span class="row-actions" style="flex:none"><button class="btn sm ${monete >= pr.costo ? "prime" : ""}" data-act="riscatta" data-id="${pr.id}" ${monete >= pr.costo ? "" : "disabled"}>Riscatta</button><button class="dots" data-act="delpremio" data-id="${pr.id}" aria-label="Modifica o elimina ${esc(pr.nome)}">⋯</button></span></div>`).join("")}</div>`
       : `<div class="empty fr-dash small">Nessun premio ancora. Un premio piccolo costa 150 monete, uno medio 450, uno grande 900 (circa un mese di faccende).</div>`}
     <button class="btn" data-act="nuovopremio">Nuovo premio</button>
   </section>
@@ -1918,33 +1918,100 @@ function apriSemplice(titolo, campi, onSave, nota) {
     };
   });
 }
-/* Premi pronti: un catalogo di idee da cui ognuno aggiunge ai suoi premi quelle che vuole (nome e prezzo si possono cambiare). */
-const PREMI_PRONTI = [
+/* Premi pronti: un elenco di idee condiviso dalla casa (config/casa.ideePremi), modificabile dall'app.
+   Finché nessuno lo cambia vale l'elenco di partenza qui sotto. Ognuno aggiunge ai suoi premi le idee che vuole. */
+const IDEE_PARTENZA = [
   ["Film a scelta", 150], ["Colazione a letto", 150], ["Serata giochi da tavolo", 150], ["Mazzo di fiori", 150],
   ["Torta o dolce fatto in casa", 450], ["Massaggio", 450], ["Pizza a domicilio", 450], ["Libro o fumetto a scelta", 450],
   ["Cena a scelta: ", 900], ["Uscita a scelta: gita, mostra o passeggiata", 900]
-];
+].map(([nome, costo]) => ({ nome, costo }));
+const ideePremi = () => (S.config && Array.isArray(S.config.ideePremi) ? S.config.ideePremi : IDEE_PARTENZA);
+const salvaIdee = lista => db.doc("config/casa").update({ ideePremi: lista });
+/* Campo prezzo: le tre taglie oppure un prezzo libero. */
+const TAGLIE = [[150, "Piccolo · 150"], [450, "Medio · 450"], [900, "Grande · 900"]];
+const campoPrezzo = costo => {
+  const taglia = TAGLIE.some(([c]) => c === +costo);
+  return `<div class="field"><span class="lab">Costo in monete</span>${radio("costo", TAGLIE, taglia ? +costo : null)}<label class="small muted" for="x-libero">oppure un prezzo libero</label><input type="number" inputmode="numeric" min="1" id="x-libero" value="${taglia || !costo ? "" : +costo}" style="max-width:140px"></div>`;
+};
+const leggiPrezzo = sh => { const l = Math.round(+sh.querySelector("#x-libero").value || 0); return l > 0 ? l : +val(sh, "costo") || 0; };
+function collegaPrezzo(sh) {
+  sh.querySelector("#x-libero").addEventListener("input", () => sh.querySelectorAll('[name="costo"]').forEach(r => { r.checked = false; }));
+  sh.querySelectorAll('[name="costo"]').forEach(r => r.addEventListener("change", () => { sh.querySelector("#x-libero").value = ""; }));
+}
 function nuovoPremio() {
-  const miei = new Set(S.premi.filter(p => p.giocatore === me).map(p => p.nome));
+  const miei = new Set(S.premi.filter(p => p.giocatore === me).map(p => p.nome)), idee = ideePremi();
   apriSheet(`<h2>Nuovo premio</h2>
-    <div class="field"><span class="lab">Idee pronte</span><div class="idee">${PREMI_PRONTI.map(([n, c], i) => `<button type="button" data-i="${i}" ${miei.has(n) ? "disabled" : ""}>${esc(n.replace(/: $/, ""))} · <span class="num">${c}</span></button>`).join("")}</div><span class="muted small">Tocca un'idea per riempire il modulo, poi cambia nome o prezzo se vuoi. Per la cena scrivi quale.</span></div>
+    <div class="field"><span class="lab">Idee pronte</span>${idee.length ? `<div class="idee">${idee.map((x, i) => `<button type="button" data-i="${i}" ${miei.has(x.nome) ? "disabled" : ""}>${esc(x.nome.replace(/:\s*$/, ""))} · <span class="num">${x.costo}</span></button>`).join("")}</div>` : '<span class="muted small">Nessuna idea in elenco.</span>'}
+      <span class="muted small">Tocca un'idea per riempire il modulo, poi cambia nome o prezzo se vuoi. <button type="button" class="linkbtn" id="xIdee">Modifica le idee</button></span></div>
     <div class="field"><label for="x-nome">Premio</label><input type="text" id="x-nome" name="nome" maxlength="60"></div>
-    <div class="field"><span class="lab">Costo in monete</span>${radio("costo", [[150, "Piccolo · 150"], [450, "Medio · 450"], [900, "Grande · 900"]], 450)}</div>
+    ${campoPrezzo(450)}
     <p class="err" id="xErr" hidden></p>
     <div class="sheet-actions"><button class="btn ghost" data-close>Annulla</button><button class="btn prime" id="xOk">Salva</button></div>`, sh => {
-    sh.querySelector(".idee").onclick = e => {
-      const b = e.target.closest("button[data-i]"); if (!b) return; const [n, c] = PREMI_PRONTI[+b.dataset.i];
-      sh.querySelectorAll(".idee button").forEach(x => x.setAttribute("aria-pressed", x === b));
-      const inp = sh.querySelector("#x-nome"); inp.value = n; const r = sh.querySelector(`[name="costo"][value="${c}"]`); if (r) r.checked = true;
-      if (/: $/.test(n)) { inp.focus(); inp.setSelectionRange(n.length, n.length); }
+    collegaPrezzo(sh);
+    sh.querySelector("#xIdee").onclick = () => apriIdee();
+    const box = sh.querySelector(".idee");
+    if (box) box.onclick = e => {
+      const b = e.target.closest("button[data-i]"); if (!b) return; const x = idee[+b.dataset.i];
+      sh.querySelectorAll(".idee button").forEach(y => y.setAttribute("aria-pressed", y === b));
+      const inp = sh.querySelector("#x-nome"); inp.value = x.nome;
+      const r = sh.querySelector(`[name="costo"][value="${x.costo}"]`); sh.querySelectorAll('[name="costo"]').forEach(y => { y.checked = y === r; }); sh.querySelector("#x-libero").value = r ? "" : x.costo;
+      if (/:\s*$/.test(x.nome)) { inp.focus(); inp.setSelectionRange(x.nome.length, x.nome.length); }
     };
     sh.querySelector("#xOk").onclick = async () => {
-      const nm = sh.querySelector("#x-nome").value.trim().replace(/:\s*$/, ""), c = +val(sh, "costo");
+      const nm = sh.querySelector("#x-nome").value.trim().replace(/:\s*$/, ""), c = leggiPrezzo(sh);
       const err = msg => { const e = sh.querySelector("#xErr"); e.textContent = msg; e.hidden = false; };
-      if (!nm) return err("Scrivi il nome del premio.");
+      if (!nm) return err("Scrivi il nome del premio."); if (!c) return err("Scegli un prezzo.");
       try { await db.collection("premi").add({ nome: nm, costo: c, giocatore: me, ts: Date.now() }); chiudiSheet(); toast("Premio aggiunto"); } catch (e) { errore(e); }
     };
   });
+}
+/* Menu ⋯ di un premio: modifica nome e prezzo, oppure elimina. */
+function menuPremio(p) {
+  apriSheet(`<h2>${esc(p.nome)}</h2>
+    <div class="field"><label for="x-nome">Premio</label><input type="text" id="x-nome" maxlength="60" value="${esc(p.nome)}"></div>
+    ${campoPrezzo(p.costo)}
+    <p class="err" id="xErr" hidden></p>
+    <div class="sheet-actions"><button class="btn ghost danger" id="xDel">Elimina</button><button class="btn ghost" data-close>Annulla</button><button class="btn prime" id="xOk">Salva</button></div>`, sh => {
+    collegaPrezzo(sh);
+    sh.querySelector("#xDel").onclick = () => conferma("Eliminare il premio?", esc(p.nome), "Elimina", () => db.doc("premi/" + p.id).delete());
+    sh.querySelector("#xOk").onclick = async () => {
+      const nm = sh.querySelector("#x-nome").value.trim(), c = leggiPrezzo(sh), e = sh.querySelector("#xErr");
+      if (!nm || !c) { e.textContent = !nm ? "Scrivi il nome del premio." : "Scegli un prezzo."; e.hidden = false; return; }
+      try { await db.doc("premi/" + p.id).update({ nome: nm, costo: c }); chiudiSheet(); toast("Premio aggiornato"); } catch (er) { errore(er); }
+    };
+  });
+}
+/* Elenco delle idee, condiviso: aggiungi, cambia, togli. */
+function apriIdee() {
+  const disegna = () => {
+    const idee = ideePremi();
+    apriSheet(`<h2>Idee per i premi</h2>
+      <p class="muted small" style="margin:0">L'elenco è lo stesso per te e per ${esc(nome(altroEroe()) || "l'altro eroe")}. Cambiarlo non tocca i premi già nelle vostre liste.</p>
+      <div class="list">${idee.map((x, i) => `<div class="reward fr-stone"><span style="min-width:0"><span class="rn">${esc(x.nome.replace(/:\s*$/, ""))}</span><br><span class="muted small num">${fmt(x.costo)} monete</span></span><span class="row-actions" style="flex:none"><button class="btn sm" data-ed="${i}">Cambia</button><button class="btn sm ghost" data-del="${i}" aria-label="Togli ${esc(x.nome)}">Togli</button></span></div>`).join("") || '<div class="empty fr-dash small">Nessuna idea.</div>'}</div>
+      <div class="sheet-actions"><button class="btn ghost" id="iReset">Ripristina l'elenco iniziale</button><button class="btn" id="iAdd">Aggiungi idea</button><button class="btn ghost" data-close>Chiudi</button></div>`, sh => {
+      sh.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { const l = [...ideePremi()]; l.splice(+b.dataset.del, 1); salvaIdee(l).then(disegna, errore); });
+      sh.querySelectorAll("[data-ed]").forEach(b => b.onclick = () => formIdea(+b.dataset.ed));
+      sh.querySelector("#iAdd").onclick = () => formIdea(-1);
+      sh.querySelector("#iReset").onclick = () => conferma("Ripristinare l'elenco iniziale?", "Le idee tornano quelle di partenza.", "Ripristina", () => salvaIdee(IDEE_PARTENZA).then(() => setTimeout(apriIdee, 50)));
+    });
+  };
+  const formIdea = i => {
+    const x = i >= 0 ? ideePremi()[i] : { nome: "", costo: 450 };
+    apriSheet(`<h2>${i >= 0 ? "Cambia idea" : "Nuova idea"}</h2>
+      <div class="field"><label for="x-nome">Idea</label><input type="text" id="x-nome" maxlength="60" value="${esc(x.nome)}"></div>
+      ${campoPrezzo(x.costo)}<p class="err" id="xErr" hidden></p>
+      <div class="sheet-actions"><button class="btn ghost" id="xBack">Indietro</button><button class="btn prime" id="xOk">Salva</button></div>`, sh => {
+      collegaPrezzo(sh);
+      sh.querySelector("#xBack").onclick = () => disegna();
+      sh.querySelector("#xOk").onclick = async () => {
+        const nm = sh.querySelector("#x-nome").value.trim(), c = leggiPrezzo(sh), e = sh.querySelector("#xErr");
+        if (!nm || !c) { e.textContent = !nm ? "Scrivi l'idea." : "Scegli un prezzo."; e.hidden = false; return; }
+        const l = [...ideePremi()]; if (i >= 0) l[i] = { nome: nm, costo: c }; else l.push({ nome: nm, costo: c });
+        try { await salvaIdee(l); disegna(); toast(i >= 0 ? "Idea cambiata" : "Idea aggiunta"); } catch (er) { errore(er); }
+      };
+    });
+  };
+  disegna();
 }
 function conferma(titolo, testo, etichetta, azione) {
   apriSheet(`<h2>${titolo}</h2><p style="margin:0">${testo}</p><div class="sheet-actions"><button class="btn ghost" data-close>Annulla</button><button class="btn prime" id="kOk">${etichetta}</button></div>`, sh => {
@@ -1993,7 +2060,7 @@ document.addEventListener("click", e => {
     case "armadio": S.armadioAperto = true; render(); { const el = document.getElementById("armadio"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); } break;
     case "annulla": { const c = trova(S.comp, id); if (c) conferma("Annullare il completamento?", `${esc(c.nome)}: i ${c.punti} punti vengono tolti a ${esc((c.giocatori || []).map(nome).join(" e "))}.`, "Annulla completamento", () => annulla(id)); break; }
     case "nuovopremio": nuovoPremio(); break;
-    case "delpremio": { const p = trova(S.premi, id); if (p) conferma("Eliminare il premio?", esc(p.nome), "Elimina", () => db.doc("premi/" + id).delete()); break; }
+    case "delpremio": { const p = trova(S.premi, id); if (p) menuPremio(p); break; }
     case "riscatta": { const p = trova(S.premi, id); if (p) conferma("Riscattare il premio?", `${esc(p.nome)} costa ${fmt(p.costo)} monete. A ${esc(nome(me))} restano ${fmt(moneteDi(me) - p.costo)} monete.`, "Riscatta", () => db.collection("riscatti").add({ premioId: p.id, nome: p.nome, costo: p.costo, giocatore: me, ts: Date.now(), consegnato: false }).then(() => toast("Premio riscattato"))); break; }
     case "consegnato": db.doc("riscatti/" + id).update({ consegnato: true }).catch(errore); break;
     case "premiTab": S.premiTab = b.dataset.t; render(); break;
