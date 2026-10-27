@@ -86,7 +86,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.26.0";
+const VERSIONE_APP = "3.27.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -663,7 +663,7 @@ function vetrina(eroe) {
   if (!eroe.pg || !window.OLW_SPRITE) return "";
   if (!SP().catalogo()) { if (!S.caricaLPC) { S.caricaLPC = true; SP().carica().then(() => render()).catch(() => {}); } return `<section class="vetrina fr-stone"><p class="muted small" style="margin:0">Preparo il personaggio…</p></section>`; }
   const pg = eroe.pg, righe = [];
-  for (const slot of ORDINE_SLOT) { const x = pg[slot]; if (!x || !x.id) continue; const v = pezzoDi(slot, x.id); if (!v) continue; righe.push(`<div class="vrow${PREZZO[slot] ? " spec" : ""}"><span class="muted">${SLOT_NOME[slot]}</span><span>${puntoColore(slot, v, x.col)}${esc(v.nome)}${nomeColore(x.col) && x.col !== x.id ? ` <span class="muted small">· ${esc(nomeColore(x.col))}</span>` : ""}</span></div>`); }
+  for (const slot of ORDINE_SLOT) { const x = pg[slot]; if (!x || !x.id) continue; const v = pezzoDi(slot, x.id); if (!v) continue; righe.push(`<div class="vrow${prezzoDi(slot, x.id) ? " spec" : ""}"><span class="muted">${SLOT_NOME[slot]}</span><span>${puntoColore(slot, v, x.col)}${esc(v.nome)}${nomeColore(x.col) && x.col !== x.id ? ` <span class="muted small">· ${esc(nomeColore(x.col))}</span>` : ""}</span></div>`); }
   const A = SP().ANIMALI, pet = eroe.pet && A[eroe.pet.specie] ? eroe.pet : null;
   if (pet) righe.push(`<div class="vrow spec"><span class="muted">Animale</span><span>${esc(A[pet.specie].nome)}${pet.nome ? ` <span class="muted small">· ${esc(pet.nome)}</span>` : ""}</span></div>`);
   return `<section class="vetrina fr-stone">
@@ -685,8 +685,8 @@ function avviaVetrina() {
    quelli indossati sono segnati. Toccando un oggetto lo si indossa o lo si toglie. */
 function oggettiArmadio(g) {
   const A = SP().ANIMALI, pg = g.pg, sbl = g.sbloccati || [], mem = g.memoria || {}, visti = new Set(), out = [];
-  for (const sl of ORDINE_SLOT) { const x = pg[sl]; if (PREZZO[sl] && x && x.id && pezzoDi(sl, x.id)) { visti.add(sl + "/" + x.id); out.push({ t: "p", sl, id: x.id, col: x.col, ind: true }); } }
-  for (const k of sbl) { const [sl, pid] = k.split("/"); if (sl === "pet" || !PREZZO[sl] || visti.has(k) || !LPC().slot[sl] || !pezzoDi(sl, pid)) continue; visti.add(k); out.push({ t: "p", sl, id: pid, col: mem[k] || null, ind: false }); }
+  for (const sl of ORDINE_SLOT) { const x = pg[sl]; if (x && x.id && pezzoDi(sl, x.id) && prezzoDi(sl, x.id)) { visti.add(sl + "/" + x.id); out.push({ t: "p", sl, id: x.id, col: x.col, ind: true }); } }
+  for (const k of sbl) { const [sl, pid] = k.split("/"); if (sl === "pet" || visti.has(k) || !LPC().slot[sl] || !pezzoDi(sl, pid) || !prezzoDi(sl, pid)) continue; visti.add(k); out.push({ t: "p", sl, id: pid, col: mem[k] || null, ind: false }); }
   out.sort((a, b) => ORDINE_SLOT.indexOf(a.sl) - ORDINE_SLOT.indexOf(b.sl));
   const specie = new Set();
   if (g.pet && A[g.pet.specie]) { specie.add(g.pet.specie); out.push({ t: "pet", id: g.pet.specie, col: g.pet.col | 0, ind: true }); }
@@ -808,7 +808,12 @@ function cronologia(now) {
 }
 
 /* ---------- Bottega ---------- */
-const REPARTI = [["abiti", "Abiti", ["mantello", "cappello"]], ["accessori", "Accessori", ["accessorio", "collo", "vita", "braccia", "schiena", "barba"]], ["fantasia", "Fantasia", ["orecchie", "corna", "coda", "ali"]], ["armi", "Armi e scudi", ["arma", "scudo"]], ["animali", "Animali", []], ["bonus", "Bonus", []]];
+/* Reparti: [chiave, nome, slot, gruppo]. Con un gruppo il reparto mostra solo i pezzi di quel gruppo (in qualsiasi slot);
+   senza gruppo mostra i pezzi a pagamento degli slot elencati che non appartengono a un gruppo. */
+const TUTTI_SLOT = ["capelli", "busto", "gambe", "scarpe", "mantello", "cappello", "accessorio", "collo", "vita", "braccia", "schiena"];
+const REPARTI = [["abiti", "Abiti", ["mantello", "cappello"]], ["speciali", "Abiti speciali", TUTTI_SLOT, "abito"], ["armature", "Armature", TUTTI_SLOT, "armatura"],
+  ["acconciature", "Acconciature", ["capelli"], "acconciatura"], ["gioielli", "Gioielli", TUTTI_SLOT, "gioiello"], ["accessori", "Accessori", ["accessorio", "collo", "vita", "braccia", "schiena", "barba"]],
+  ["fantasia", "Fantasia", ["orecchie", "corna", "coda", "ali"]], ["armi", "Armi e scudi", ["arma", "scudo"]], ["animali", "Animali", []], ["bonus", "Bonus", []]];
 /* ---------- Bonus di gioco ----------
    Si comprano in Bottega e restano in giocatori/{id}.bonus = { passa, rinvio, cambio, pozione } finché non si usano.
    Le monete che passano da un eroe all'altro sono righe di "riscatti" (costo positivo = spesa, negativo = guadagno),
@@ -878,7 +883,7 @@ function vBottega() {
     carte = Object.entries(A).map(([k, a]) => { const ha = (g.sbloccati || []).includes("pet/" + k), ind = !!(g.pet && g.pet.specie === k);
       return { ha, html: `<div class="bt-card fr-stone"><canvas class="tess-pet" data-specie="${k}" data-col="0" aria-hidden="true"></canvas><b>${esc(a.nome)}</b><span class="muted small">Animale</span>${stato(ind, ha, PREZZO.animale, "pet", "", k, regaloPet(g))}</div>` }; });
   } else {
-    carte = rep[2].flatMap(sl => LPC().slot[sl].filter(v => SP().compatibile(v, corpo)).map(v => {
+    carte = rep[2].flatMap(sl => (LPC().slot[sl] || []).filter(v => SP().compatibile(v, corpo) && (rep[3] ? v.gruppo === rep[3] : !v.gruppo && prezzoDi(sl, v.id))).map(v => {
       const ha = possiedePezzo(g, sl, v.id), ind = !!(g.pg[sl] && g.pg[sl].id === v.id);
       return { ha, html: `<div class="bt-card fr-stone"><canvas class="tess-cv" data-sl="${sl}" data-id="${esc(v.id)}" data-col="" aria-hidden="true"></canvas><b>${esc(v.nome)}</b><span class="muted small">${SLOT_NOME[sl]}</span>${stato(ind, ha, prezzoDi(sl, v.id), "p", sl, v.id, false)}</div>` };
     }));
@@ -1252,7 +1257,7 @@ function apriProfilo(id, obbligatorio) {
     const haPet = () => (g.sbloccati || []).some(k => k.startsWith("pet/"));
     let gratis = null; /* animale scelto in regalo in questa sessione: finché non salvi puoi cambiarlo */
     const regalo = () => livelloDa(xpAttuale()).lv >= LV_ANIMALE && !haPet();
-    const possiede = (slot, i) => !PREZZO[slot] || ((KIT[D.pg.classe] || {})[slot] || {}).id === i || D.sbloccati.includes(slot + "/" + i);
+    const possiede = (slot, i) => !prezzoDi(slot, i) || ((KIT[D.pg.classe] || {})[slot] || {}).id === i || D.sbloccati.includes(slot + "/" + i);
     const TAB = [["corpo", "Corpo"], ["capelli", "Capelli"], ["vestiti", "Vestiti"], ["extra", "Extra"], ["oggetti", "Oggetti"], ["animali", "Animali"]];
     sh.innerHTML = `<h2>${id ? "Il tuo eroe" : "Nuovo eroe"}</h2>
       <div class="field"><label for="cNome">Nome</label><input type="text" id="cNome" maxlength="24" value="${esc(D.nome)}"></div>
