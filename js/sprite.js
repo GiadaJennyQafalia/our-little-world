@@ -69,10 +69,10 @@
   /* Elenco dei livelli da disegnare, ordinati dal fondo alla cima: { f, z, mats } */
   function livelli(pg, solo) {
     const corpo = pg.corpo === "male" ? "male" : "female", L = [];
-    const aggiungi = (voce, mats, col) => {
+    const aggiungi = (voce, mats, col, slot) => {
       if (!compatibile(voce, corpo)) return;
       const va = voce.varianti ? (voce.varianti.includes(col) ? col : voce.varianti[0]) : null;
-      for (const l of voce.corpi[corpo].walk) L.push({ f: va ? l.f.replace("{v}", va) : l.f, z: l.z, mats: va ? [] : mats });
+      for (const l of voce.corpi[corpo].walk) L.push({ f: va ? l.f.replace("{v}", va) : l.f, z: l.z, mats: va ? [] : mats, slot });
     };
     const pelle = pg.pelle || "light", occhi = pg.occhi || "blue";
     const capCol = colDi(pg.capelli) || "blonde";
@@ -88,7 +88,7 @@
     const cap = fa("cappello", pg), coperta = cap && COPRE_CAPELLI.has(cap.id);
     for (const slot of Object.keys(CAT.slot)) {
       const v = fa(slot, pg); if (!v || (coperta && slot === "capelli")) continue;
-      aggiungi(v, mat(v, colDi(pg[slot])), colDi(pg[slot]));
+      aggiungi(v, mat(v, colDi(pg[slot])), colDi(pg[slot]), slot);
     }
     return L.map((l, i) => ({ ...l, i })).sort((a, b) => a.z - b.z || a.i - b.i);
   }
@@ -98,7 +98,26 @@
     await carica();
     const L = livelli(pg, solo), fogli = await Promise.all(L.map(l => colorata(l.f, l.mats).catch(() => null)));
     const c = document.createElement("canvas"); c.width = F; c.height = F; const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
-    fogli.forEach(s => { if (s) x.drawImage(s, col * F, riga * F, F, F, 0, 0, F, F); });
+    /* Con un cappello i capelli si tagliano sopra la tesa: in ogni colonna resta solo quello che pende sotto il cappello,
+       così una pettinatura voluminosa non spunta sopra o ai lati della punta. */
+    const hi = L.map((l, i) => l.slot === "cappello" && fogli[i] ? i : -1).filter(i => i >= 0);
+    let fondo = null;
+    if (hi.length && L.some(l => l.slot === "capelli")) {
+      const hc = document.createElement("canvas"); hc.width = hc.height = F; const hx = hc.getContext("2d");
+      hi.forEach(i => hx.drawImage(fogli[i], col * F, riga * F, F, F, 0, 0, F, F));
+      const d = hx.getImageData(0, 0, F, F).data; fondo = new Array(F).fill(-1);
+      for (let xx = 0; xx < F; xx++) for (let y = 0; y < F; y++) if (d[(y * F + xx) * 4 + 3] > 20) fondo[xx] = y;
+      const ok = fondo.filter(v => v >= 0); if (!ok.length) fondo = null; else { const m = Math.min(...ok); fondo = fondo.map(v => v >= 0 ? v : m); }
+    }
+    fogli.forEach((s, i) => {
+      if (!s) return;
+      if (fondo && L[i].slot === "capelli") {
+        const t = document.createElement("canvas"); t.width = t.height = F; const tx = t.getContext("2d");
+        tx.drawImage(s, col * F, riga * F, F, F, 0, 0, F, F);
+        for (let xx = 0; xx < F; xx++) if (fondo[xx] > 0) tx.clearRect(xx, 0, 1, fondo[xx] + 1);
+        x.drawImage(t, 0, 0);
+      } else x.drawImage(s, col * F, riga * F, F, F, 0, 0, F, F);
+    });
     return c;
   }
 
