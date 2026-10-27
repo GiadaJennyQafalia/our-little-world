@@ -84,7 +84,7 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.18.0";
+const VERSIONE_APP = "3.19.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -194,7 +194,14 @@ function infoFaccenda(f, ult, now) {
     if (urgente) mult = Math.min(1.5, 1 + 0.1 * Math.floor(ritardo / (7 * DAY)));
   }
   const prenotata = f.prenDa && f.prenFino > now ? f.prenDa : null;
-  return { base, punti: Math.round(base * mult), mult, riposo, urgente, ritardo, scadenza, frac, prenotata, last, cat: categoria(f) };
+  const daFare = f.daFareDa || null, evidenza = urgente || !!daFare;
+  return { base, punti: Math.round(base * mult), mult, riposo, urgente, daFare, evidenza, ritardo, scadenza, frac, prenotata, last, cat: categoria(f) };
+}
+/* Ordine del gruppo "Urgenti": prima quelle segnate da fare (le più recenti in alto), poi le scadute dalla più in ritardo. */
+function ordUrgenti(a, b) {
+  if (!!a.i.daFare !== !!b.i.daFare) return a.i.daFare ? -1 : 1;
+  if (a.i.daFare) return (b.f.daFareTs || 0) - (a.f.daFareTs || 0);
+  return b.i.ritardo - a.i.ritardo;
 }
 /* ---------- Missione del giorno ---------- */
 const hashStr = s => { let h = 7; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
@@ -248,10 +255,12 @@ function statoStanze(now) {
   for (const r of stanze()) {
     let tot = 0, scad = 0, urg = 0;
     for (const f of S.faccende) {
-      if (f.attiva === false || f.tipo !== "ricorrente") continue;
+      if (f.attiva === false) continue;
       if (f.stanza !== r && f.stanza !== "Tutta la casa") continue;
       const i = infoFaccenda(f, ult, now);
-      tot += i.base; if (i.urgente) { scad += i.base; if (f.stanza === r) urg++; }
+      if (f.stanza === r && i.evidenza && !i.riposo) urg++;
+      if (f.tipo !== "ricorrente") continue;
+      tot += i.base; if (i.urgente) scad += i.base;
     }
     const pct = tot ? scad / tot : 0;
     out[r] = { pct, livello: pct <= 0.10 ? 0 : pct <= 0.25 ? 1 : pct <= 0.50 ? 2 : 3, urg };
@@ -405,7 +414,7 @@ function statoUna(r, now, st) {
   if (st[r]) return st[r];
   if (r !== "Tutta la casa") return null;
   const k = Object.keys(st), media = k.length ? k.reduce((a, x) => a + st[x].pct, 0) / k.length : 0, ult = ultimeComp();
-  const urg = S.faccende.filter(f => f.attiva !== false && f.tipo === "ricorrente" && f.stanza === "Tutta la casa" && infoFaccenda(f, ult, now).urgente).length;
+  const urg = S.faccende.filter(f => { if (f.attiva === false || f.stanza !== "Tutta la casa") return false; const i = infoFaccenda(f, ult, now); return i.evidenza && !i.riposo; }).length;
   return { pct: media, livello: media <= 0.10 ? 0 : media <= 0.25 ? 1 : media <= 0.50 ? 2 : 3, urg };
 }
 function strisciaGiorno(now) {
@@ -437,8 +446,8 @@ function vStanza(now) {
   if (!x) { S.view = "casa"; return vCasa(now); }
   const nome = nomeStanza(r), dimS = (S.config && S.config.dimora) || "castello", sk = SKIN[dimS], img = sk && sk.file[tipoStanza(r)], ult = ultimeComp();
   const tutte = S.faccende.filter(f => f.attiva !== false && f.stanza === r).map(f => ({ f, i: infoFaccenda(f, ult, now) }));
-  const urg = tutte.filter(y => y.i.urgente && !y.i.riposo).sort((a, b) => b.i.ritardo - a.i.ritardo);
-  const disp = tutte.filter(y => !y.i.urgente && !y.i.riposo).sort((a, b) => (a.i.scadenza ?? 1e15) - (b.i.scadenza ?? 1e15));
+  const urg = tutte.filter(y => y.i.evidenza && !y.i.riposo).sort(ordUrgenti);
+  const disp = tutte.filter(y => !y.i.evidenza && !y.i.riposo).sort((a, b) => (a.i.scadenza ?? 1e15) - (b.i.scadenza ?? 1e15));
   const rip = tutte.filter(y => y.i.riposo).sort((a, b) => a.i.riposo - b.i.riposo);
   const pulita = Math.round((1 - x.pct) * 100), col = ["var(--candle)", "var(--moss)", "var(--arcane)", "var(--ember)"][x.livello];
   return `
@@ -549,7 +558,7 @@ function cartaMissione({ f, i }, now) {
   const pren = i.prenotata;
   const mia = pren && pren === me;
   const mg = missioneGiorno(now), delGiorno = mg && !mg.fatta && mg.id === f.id;
-  return `<article class="quest fr-stone ${i.cat}${i.riposo ? " rest" : ""}${i.urgente && !i.riposo ? " is-late" : ""}">
+  return `<article class="quest fr-stone ${i.cat}${i.riposo ? " rest" : ""}${i.evidenza && !i.riposo ? " is-late" : ""}${i.daFare ? " is-dafare" : ""}">
     <div class="emblem"><span class="tile">${ICON[i.cat](c.col)}</span><span class="cn">${c.nome}</span></div>
     <div class="qbody">
       <div class="qtop"><span class="qn">${esc(f.nome)}${delGiorno ? ' <span class="tagday">del giorno</span>' : ""}</span><span class="pts">${ICON.coin()}<b class="num">${i.punti}</b></span></div>
@@ -560,6 +569,7 @@ function cartaMissione({ f, i }, now) {
         <span class="t">sbatti ${pips(f.sbatti, "s", "Sbatti")}</span>
         ${i.mult > 1 ? `<span class="t bounty">taglia +${Math.round((i.mult - 1) * 100)}%</span>` : ""}
       </div>
+      ${i.daFare ? `<span class="dafare">${ICON.fiamma()}Da fare · segnata da ${esc(i.daFare === me ? "te" : nome(i.daFare))}</span>` : ""}
       ${tempoRestante(i, f, now)}
       ${pren ? `<span class="reserved">${ICON.pin("var(--arcane)")}Prenotata da ${esc(mia ? "te" : nome(pren))} fino alle ${new Date(f.prenFino).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</span>` : ""}
       <div class="qact">
@@ -577,8 +587,8 @@ function vMissioni(now) {
   let lst = tutte;
   if (S.fCat !== "tutte") lst = lst.filter(x => x.i.cat === S.fCat);
   if (S.fStanza !== "tutte") lst = lst.filter(x => x.f.stanza === S.fStanza);
-  const urg = lst.filter(x => x.i.urgente && !x.i.riposo).sort((a, b) => b.i.ritardo - a.i.ritardo);
-  const disp = lst.filter(x => !x.i.urgente && !x.i.riposo).sort((a, b) => (a.i.scadenza ?? 1e15) - (b.i.scadenza ?? 1e15));
+  const urg = lst.filter(x => x.i.evidenza && !x.i.riposo).sort(ordUrgenti);
+  const disp = lst.filter(x => !x.i.evidenza && !x.i.riposo).sort((a, b) => (a.i.scadenza ?? 1e15) - (b.i.scadenza ?? 1e15));
   const rip = lst.filter(x => x.i.riposo).sort((a, b) => a.i.riposo - b.i.riposo);
   const gruppo = (t, a, vuoto) => `<section class="sec"><div class="sec-head"><h3>${t}</h3><span class="muted small num">${a.length}</span></div>${a.length ? `<div class="list">${a.map(x => cartaMissione(x, now)).join("")}</div>` : `<div class="empty fr-dash small">${vuoto}</div>`}</section>`;
   const catBtns = [["tutte", "Tutte", ""], ...Object.entries(CAT).map(([k, c]) => [k, c.plur, ICON[k](c.col)])];
@@ -1328,11 +1338,12 @@ async function completa(f, chi) {
   const mg = missioneGiorno(now), bonus = !!(mg && !mg.fatta && mg.id === f.id);
   const punti = bonus ? Math.round(i.punti * (1 + BONUS_GIORNO)) : i.punti;
   try {
-    const ref = await db.collection("completamenti").add({ faccendaId: f.id, nome: f.nome, stanza: f.stanza, minuti: f.minuti, giocatori: chi, punti, ts: now, annullato: false, extra: false, prevUltima: f.ultima || 0, bonus });
+    const ref = await db.collection("completamenti").add({ faccendaId: f.id, nome: f.nome, stanza: f.stanza, minuti: f.minuti, giocatori: chi, punti, ts: now, annullato: false, extra: false, prevUltima: f.ultima || 0, bonus, prevDaFare: f.daFareDa ? { da: f.daFareDa, ts: f.daFareTs || 0 } : null });
     if (bonus) await db.doc("config/casa").update({ missioneGiorno: { ...S.config.missioneGiorno, fatta: true, fattaDa: chi } });
     const upd = { ultima: now };
     if (f.tipo === "occasionale") upd.attiva = false;
     if (f.prenDa) { upd.prenDa = null; upd.prenFino = 0; }
+    if (f.daFareDa) { upd.daFareDa = null; upd.daFareTs = 0; }
     await db.doc("faccende/" + f.id).update(upd);
     if (bonus) festa(`Missione del giorno compiuta! +${punti}`);
     toast(`+${punti} · ${f.nome}`, { label: "Annulla", fn: () => annulla(ref.id) });
@@ -1348,6 +1359,7 @@ async function annulla(cid) {
       const upd = {};
       if (f.ultima === c.ts) upd.ultima = c.prevUltima || 0;
       if (f.tipo === "occasionale") upd.attiva = true;
+      if (c.prevDaFare && !f.daFareDa) { upd.daFareDa = c.prevDaFare.da; upd.daFareTs = c.prevDaFare.ts; }
       if (Object.keys(upd).length) await db.doc("faccende/" + f.id).update(upd);
     }
     const mg = S.config && S.config.missioneGiorno;
@@ -1376,11 +1388,17 @@ function apriMenu(f) {
   const ids = Object.keys(S.giocatori);
   apriSheet(`<h2>${esc(f.nome)}</h2>
     <div class="list">
+      <button class="btn" id="mDaFare">${f.daFareDa ? "Togli da fare" : "Segna da fare"}</button>
       ${ids.length > 1 ? '<button class="btn" id="mIns">Fatta insieme a un altro eroe</button>' : ""}
       <button class="btn" id="mMod">Modifica faccenda</button>
       <button class="btn ghost" data-close>Chiudi</button>
     </div>`, sh => {
     const ins = sh.querySelector("#mIns"); if (ins) ins.onclick = () => apriInsieme(f);
+    sh.querySelector("#mDaFare").onclick = () => {
+      const toglie = !!f.daFareDa;
+      db.doc("faccende/" + f.id).update(toglie ? { daFareDa: null, daFareTs: 0 } : { daFareDa: me, daFareTs: Date.now() })
+        .then(() => { chiudiSheet(); toast(toglie ? "Non è più da fare" : "Segnata da fare"); }, errore);
+    };
     sh.querySelector("#mMod").onclick = () => formFaccenda(f);
   });
 }
