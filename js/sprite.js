@@ -60,6 +60,7 @@
   }
 
   /* ---------- Pezzi ---------- */
+  const COPRE_CAPELLI = new Set(["hood", "barbuta", "bascinet", "greathelm", "armet", "close", "sugarloaf", "nasal", "norman", "spangen", "pointed", "kettle", "morion", "legion_h", "viking", "horned"]);
   const pezzo = (slot, id) => id && CAT.slot[slot] && CAT.slot[slot].find(v => v.id === id);
   const colDi = x => (x && typeof x === "object" ? x.col : null);
   const idDi = x => (x && typeof x === "object" ? x.id : x);
@@ -83,8 +84,10 @@
       if (fc && pg.faccia !== "neutral") aggiungi(fc, [["body", pelle], ["eye", occhi]]);
     }
     const mat = (voce, col) => !voce || !voce.materiale ? [] : [[voce.materiale, col || (voce.materiale === "body" ? pelle : voce.materiale === "hair" ? capCol : null)]].filter(m => m[1]);
+    /* Cappucci ed elmi chiusi coprono tutta la testa: i capelli sotto non si disegnano, altrimenti spuntano dai bordi. */
+    const cap = fa("cappello", pg), coperta = cap && COPRE_CAPELLI.has(cap.id);
     for (const slot of Object.keys(CAT.slot)) {
-      const v = fa(slot, pg); if (!v) continue;
+      const v = fa(slot, pg); if (!v || (coperta && slot === "capelli")) continue;
       aggiungi(v, mat(v, colDi(pg[slot])), colDi(pg[slot]));
     }
     return L.map((l, i) => ({ ...l, i })).sort((a, b) => a.z - b.z || a.i - b.i);
