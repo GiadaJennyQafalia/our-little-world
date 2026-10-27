@@ -84,7 +84,7 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.20.0";
+const VERSIONE_APP = "3.21.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -529,6 +529,7 @@ function vCasa(now) {
     ${rs.length ? `<div class="rooms">${rs.map(r => `
       <button class="room porta st${st[r].livello}" data-act="stanza" data-r="${esc(r)}">
         <span class="pd">
+          ${st[r].livello ? '<i class="sporco" aria-hidden="true"></i>' : ""}
           <span class="rn"><b>${esc(r)}</b><small>${STATI[st[r].livello]}</small></span>
           <span class="gemme" role="img" aria-label="${STATI[st[r].livello]}: ${gemmeAccese(st[r])} gemme su 5">${[0, 1, 2, 3, 4].map(i => `<i class="${i < gemmeAccese(st[r]) ? "on" : ""}"></i>`).join("")}</span>
         </span>
