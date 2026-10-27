@@ -770,3 +770,12 @@ button.teca-ogg { cursor: pointer; }
 .mu-elenco-titoli > div { display: grid; gap: 3px; padding: 6px 2px 0; }
 .dimore .dim-chiusa { display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; border-radius: 10px; border: 1px dashed var(--seam, #4a3f58); color: var(--ash, #8d8499); }
 .dimore .dim-chiusa small { font-size: .68rem; }
+
+/* ---------- Vista d'insieme composta dalla pianta ---------- */
+.castle.vista { height: auto; background: var(--muro) repeat 0 0 / var(--muro-w) auto, #241c2e; overflow: hidden; }
+.castle.vista > .v-tetto { position: absolute; left: 0; top: 0; width: 100%; object-fit: fill; z-index: 0; image-rendering: pixelated; }
+.castle.vista > .v-base { position: absolute; left: 0; bottom: 0; width: 100%; object-fit: fill; z-index: 0; image-rendering: pixelated; }
+.vc { position: absolute; z-index: 1; overflow: hidden; background: #0b0910; box-shadow: 0 0 0 3px #0b0910, 0 0 0 5px #3a3046; }
+.vc > img { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.vc.interno > img { object-position: 50% 58%; transform: scale(1.35); }
+.castle.vista .rm { z-index: 2; }
