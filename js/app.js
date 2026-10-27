@@ -83,8 +83,10 @@ function stanzaDelPosto(tipo, pi) {
   return Object.keys(pi).find(r => r !== "Tutta la casa" && pi[r].tipo === tipo) || null;
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
+/* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
+const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.24.0";
+const VERSIONE_APP = "3.25.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -973,7 +975,7 @@ async function impostaLivello(p, l, silenzioso) {
   if (sc > 0) { await ref.update({ scorta: sc - 1, livello: "pieno" }); if (!silenzioso) toast(`${p.tipo}: aperta una confezione nuova, ne restano ${sc - 1}`); return "aperta"; }
   await ref.update({ livello: "finito" });
   if (!S.spesa.some(x => x.prodottoId === p.id)) await db.collection("spesa").add({ testo: p.tipo, prodottoId: p.id, ts: Date.now() });
-  if (!silenzioso) toast(`${p.tipo} è finito: aggiunto alla lista della spesa`);
+  if (!silenzioso) { chiudiSheet(); toast(`${p.tipo} è finito: tolto dallo scaffale e aggiunto alla lista della spesa`); }
   return "spesa";
 }
 /* Azioni sui prodotti dello sgabuzzino: usate sia dalla scheda del prodotto (dentro lo sheet) sia dal resto dell'app. */
@@ -1054,13 +1056,13 @@ function disegnaAmpolle(radice) {
 const nomiScorta = n => `${n} ${n === 1 ? "confezione nuova" : "confezioni nuove"}`;
 /* ---------- Mini test settimanale dello sgabuzzino ----------
    Una volta alla settimana l'app chiede, prodotto per prodotto, quanto ne è rimasto e quante confezioni nuove ci sono. */
-const controlloDovuto = now => !!S.prodotti.length && !!S.config && now - (S.config.controlloScorte || 0) >= 7 * DAY;
+const controlloDovuto = now => S.prodotti.some(sulloScaffale) && !!S.config && now - (S.config.controlloScorte || 0) >= 7 * DAY;
 function avvisoControllo(now) {
   if (!controlloDovuto(now)) return "";
   return `<div class="notice fr-stone ctrl-avviso"><b>Mini test settimanale</b><span class="muted small">Controlla quanto è rimasto nello sgabuzzino: ci vuole un minuto.</span><button class="btn sm prime" data-act="controllo">Fai il test</button></div>`;
 }
 function apriControllo() {
-  const coda = [...S.prodotti].sort((a, b) => String(a.tipo).localeCompare(b.tipo)).map(p => ({ id: p.id, tipo: p.tipo, forma: p.forma, colore: p.colore, liv: p.livello || "pieno", sc: p.scorta || 0 }));
+  const coda = S.prodotti.filter(sulloScaffale).sort((a, b) => String(a.tipo).localeCompare(b.tipo)).map(p => ({ id: p.id, tipo: p.tipo, forma: p.forma, colore: p.colore, liv: p.livello || "pieno", sc: p.scorta || 0 }));
   if (!coda.length) { toast("Aggiungi prima qualche prodotto"); return; }
   let i = 0;
   apriSheet(`<div id="ctrlBody"></div>`, sh => {
@@ -1105,14 +1107,15 @@ function vSgab() {
   const tab = S.sgab;
   let body;
   if (tab === "scorte") {
-    const ps = [...S.prodotti].sort((a, b) => LIVELLI_PRODOTTO.indexOf(b.livello) - LIVELLI_PRODOTTO.indexOf(a.livello) || String(a.tipo).localeCompare(b.tipo));
+    const ps = S.prodotti.filter(sulloScaffale).sort((a, b) => LIVELLI_PRODOTTO.indexOf(b.livello) - LIVELLI_PRODOTTO.indexOf(a.livello) || String(a.tipo).localeCompare(b.tipo));
     const cella = p => { const sc = p.scorta || 0, minis = Math.min(sc, 3);
       return `<button class="slot" data-act="prodotto" data-id="${p.id}" aria-label="${esc(p.tipo)}: ${esc(p.livello)}, ${nomiScorta(sc)}">
         <span class="slot-amp">${ampolla(p, 5)}${sc ? `<span class="slot-minis">${Array.from({ length: minis }, () => ampolla(p, 2, "pieno", "mini")).join("")}${sc > 3 ? `<b class="num">+${sc - 3}</b>` : ""}</span>` : ""}</span>
         <span class="slot-n">${esc(p.tipo)}</span><span class="slot-l l-${LIVELLI_PRODOTTO.indexOf(p.livello)}">${esc(p.livello)}</span></button>`; };
     const mensole = []; for (let i = 0; i < ps.length; i += 3) mensole.push(ps.slice(i, i + 3));
-    const ultimo = S.config && S.config.controlloScorte;
-    body = `${avvisoControllo(Date.now())}${ps.length ? `<div class="scaffale">${mensole.map(m => `<div class="mensola">${m.map(cella).join("")}</div>`).join("")}</div><p class="muted small" style="margin:0">Tocca un'ampolla per cambiare livello, scorte e aspetto. Le ampolle piccole e chiuse sono le confezioni nuove.</p>` : `<div class="empty fr-dash">Lo sgabuzzino è vuoto. Aggiungi i prodotti che hai in casa: ogni prodotto diventa un'ampolla sulla mensola.</div>`}
+    const ultimo = S.config && S.config.controlloScorte, finiti = S.prodotti.length - ps.length;
+    body = `${avvisoControllo(Date.now())}${ps.length ? `<div class="scaffale">${mensole.map(m => `<div class="mensola">${m.map(cella).join("")}</div>`).join("")}</div><p class="muted small" style="margin:0">Tocca un'ampolla per cambiare livello, scorte e aspetto. Le ampolle piccole e chiuse sono le confezioni nuove.</p>` : finiti ? "" : `<div class="empty fr-dash">Lo sgabuzzino è vuoto. Aggiungi i prodotti che hai in casa: ogni prodotto diventa un'ampolla sulla mensola.</div>`}
+    ${finiti ? `<p class="muted small" style="margin:0">${finiti === 1 ? "Un prodotto è finito e non è più sullo scaffale" : `${finiti} prodotti sono finiti e non sono più sullo scaffale`}: ${finiti === 1 ? "è" : "sono"} nella <button class="linkbtn" data-act="sgab" data-t="spesa">lista della spesa</button> e ${finiti === 1 ? "torna" : "tornano"} quando lo compri.</p>` : ""}
     <button class="btn" data-act="nuovoprodotto">Aggiungi prodotto</button>${ps.length ? `<p class="muted small" style="margin:0">${ultimo ? "Ultimo test: " + dataBreve(ultimo) + ". " : ""}<button class="linkbtn" data-act="controllo">Fai il test ora</button></p>` : ""}`;
   } else {
     const sp = [...S.spesa].sort((a, b) => (a.ts || 0) - (b.ts || 0));
