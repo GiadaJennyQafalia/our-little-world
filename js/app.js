@@ -86,7 +86,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.25.0";
+const VERSIONE_APP = "3.26.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -189,18 +189,19 @@ function infoFaccenda(f, ult, now) {
   const riposo = lastComp && now - lastComp < 6 * HOUR ? 6 * HOUR - (now - lastComp) : 0;
   let urgente = false, ritardo = 0, scadenza = null, mult = 1, frac = null;
   if (f.tipo === "ricorrente" && f.freq) {
-    scadenza = last + f.freq * DAY;
+    scadenza = last + f.freq * DAY + (f.rinvio || 0);
     ritardo = now - scadenza;
     urgente = ritardo >= 0;
     frac = Math.max(0, Math.min(1, (scadenza - now) / (f.freq * DAY)));
     if (urgente) mult = Math.min(1.5, 1 + 0.1 * Math.floor(ritardo / (7 * DAY)));
   }
   const prenotata = f.prenDa && f.prenFino > now ? f.prenDa : null;
-  const daFare = f.daFareDa || null, evidenza = urgente || !!daFare;
-  return { base, punti: Math.round(base * mult), mult, riposo, urgente, daFare, evidenza, ritardo, scadenza, frac, prenotata, last, cat: categoria(f) };
+  const daFare = f.daFareDa || null, passata = f.passata && f.passata.a ? f.passata : null, evidenza = urgente || !!daFare || !!(passata && passata.a === me);
+  return { base, punti: Math.round(base * mult), mult, riposo, urgente, daFare, passata, evidenza, ritardo, scadenza, frac, prenotata, last, cat: categoria(f) };
 }
 /* Ordine del gruppo "Urgenti": prima quelle segnate da fare (le più recenti in alto), poi le scadute dalla più in ritardo. */
 function ordUrgenti(a, b) {
+  const pa = x => !!(x.i.passata && x.i.passata.a === me); if (pa(a) !== pa(b)) return pa(a) ? -1 : 1;
   if (!!a.i.daFare !== !!b.i.daFare) return a.i.daFare ? -1 : 1;
   if (a.i.daFare) return (b.f.daFareTs || 0) - (a.f.daFareTs || 0);
   return b.i.ritardo - a.i.ritardo;
@@ -238,12 +239,12 @@ async function assicuraMissioneGiorno(now) {
   catch (e) { console.error("missione del giorno", e); }
   scegliendo = false;
 }
-async function cambiaGiorno() {
+async function cambiaGiorno(extra) {
   const now = Date.now(), mg = missioneGiorno(now);
-  if (!mg || mg.fatta || (mg.cambi || 0) >= 1) return;
+  if (!mg || mg.fatta || ((mg.cambi || 0) >= 1 && !extra)) return;
   const id = scegliGiorno(now, mg.id);
   if (!id) { toast("Non ci sono altre missioni disponibili oggi"); return; }
-  try { await db.doc("config/casa").update({ missioneGiorno: { ...S.config.missioneGiorno, id, cambi: (mg.cambi || 0) + 1 } }); toast("Il destino ha scelto un'altra missione"); }
+  try { if (extra) await cambiaBonus(me, "cambio", -1); await db.doc("config/casa").update({ missioneGiorno: { ...S.config.missioneGiorno, id, cambi: (mg.cambi || 0) + 1 } }); toast(extra ? "Cambio extra usato: ecco un'altra missione" : "Il destino ha scelto un'altra missione"); }
   catch (e) { errore(e); }
 }
 
@@ -590,7 +591,7 @@ function cartaGiorno(now) {
       <div class="daily-act">
         <button class="btn prime" data-act="fatta" data-id="${f.id}">Compiuta!</button>
         ${pren && !mia ? `<span class="small">Prenotata da ${esc(nome(pren))}</span>` : `<button class="btn ghost-dark" data-act="prenota" data-id="${f.id}">${mia ? "Togli prenotazione" : "La faccio io"}</button>`}
-        ${(mg.cambi || 0) < 1 ? `<button class="linkbtn" data-act="cambiaGiorno">Cambia missione</button>` : ""}
+        ${(mg.cambi || 0) < 1 ? `<button class="linkbtn" data-act="cambiaGiorno">Cambia missione</button>` : `<button class="linkbtn" data-act="cambioExtra">Cambia ancora (cambio extra${bonusDi(me, "cambio") ? `, ne hai ${bonusDi(me, "cambio")}` : ` · ${BONUS.cambio.prezzo} monete`})</button>`}
       </div>
     </div>
   </section>`;
@@ -613,6 +614,8 @@ function cartaMissione({ f, i }, now) {
         ${i.mult > 1 ? `<span class="t bounty">taglia +${Math.round((i.mult - 1) * 100)}%</span>` : ""}
       </div>
       ${i.daFare ? `<span class="dafare">${ICON.fiamma()}Da fare · segnata da ${esc(i.daFare === me ? "te" : nome(i.daFare))}</span>` : ""}
+      ${i.passata ? `<span class="passata">${BONUS.passa.ic()}${i.passata.a === me ? `Passata a te da ${esc(nome(i.passata.da))}: l'esperienza a te, le monete a ${esc(nome(i.passata.da))}` : `Passata a ${esc(nome(i.passata.a))}: le monete saranno tue`}</span>` : ""}
+      ${f.rinvio ? `<span class="rinvio">${BONUS.rinvio.ic()}Rinviata di ${Math.round(f.rinvio / DAY)} ${Math.round(f.rinvio / DAY) === 1 ? "giorno" : "giorni"}</span>` : ""}
       ${tempoRestante(i, f, now)}
       ${pren ? `<span class="reserved">${ICON.pin("var(--arcane)")}Prenotata da ${esc(mia ? "te" : nome(pren))} fino alle ${new Date(f.prenFino).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</span>` : ""}
       <div class="qact">
@@ -805,7 +808,56 @@ function cronologia(now) {
 }
 
 /* ---------- Bottega ---------- */
-const REPARTI = [["abiti", "Abiti", ["mantello", "cappello"]], ["accessori", "Accessori", ["accessorio", "collo", "vita", "braccia", "schiena", "barba"]], ["fantasia", "Fantasia", ["orecchie", "corna", "coda", "ali"]], ["armi", "Armi e scudi", ["arma", "scudo"]], ["animali", "Animali", []]];
+const REPARTI = [["abiti", "Abiti", ["mantello", "cappello"]], ["accessori", "Accessori", ["accessorio", "collo", "vita", "braccia", "schiena", "barba"]], ["fantasia", "Fantasia", ["orecchie", "corna", "coda", "ali"]], ["armi", "Armi e scudi", ["arma", "scudo"]], ["animali", "Animali", []], ["bonus", "Bonus", []]];
+/* ---------- Bonus di gioco ----------
+   Si comprano in Bottega e restano in giocatori/{id}.bonus = { passa, rinvio, cambio, pozione } finché non si usano.
+   Le monete che passano da un eroe all'altro sono righe di "riscatti" (costo positivo = spesa, negativo = guadagno),
+   così restano nel conto anche quando i mesi vecchi vengono archiviati. */
+const BONUS = {
+  passa: { nome: "Passa la missione", prezzo: 250, ic: () => pix(["...a...", "....a..", "aaaaaa.", "aaaaaaa", "aaaaaa.", "....a..", "...a..."], { a: "#e8b04a" }),
+    desc: "Passi una missione Sbatti all'altro eroe: la fa lui e prende l'esperienza, le monete vanno a te. Può rifiutarla pagando 250 monete." },
+  rinvio: { nome: "Pergamena del rinvio", prezzo: 120, ic: () => pix([".aaaaa.", "abbbbba", ".bcccb.", ".bbbbb.", ".bcccb.", "abbbbba", ".aaaaa."], { a: "#8a5a2b", b: "#f1e3c2", c: "#a8865a" }),
+    desc: "Sposta di un giorno la scadenza di una faccenda ricorrente: la stanza non peggiora." },
+  cambio: { nome: "Cambio extra", prezzo: 60, ic: () => pix(["aaaaaaa", "abbbbba", "abcbcba", "abbcbba", "abcbcba", "abbbbba", "aaaaaaa"], { a: "#3b2a4f", b: "#f2ece0", c: "#3b2a4f" }),
+    desc: "Un cambio in più della missione del giorno, quando quello gratuito è già usato." },
+  pozione: { nome: "Pozione del bonus", prezzo: 150, ic: () => pix(["..aaa..", "...b...", "..bcb..", ".bcccb.", "bcdcccb", "bcccccb", ".bbbbb."], { a: "#8a5a2b", b: "#1a0807", c: "#b04ad6", d: "#f2d0ff" }),
+    desc: "+50% di monete sulla prossima missione che completi. Si attiva qui sotto e vale una volta." }
+};
+const bonusDi = (id, k) => (((S.giocatori[id] || {}).bonus || {})[k]) || 0;
+
+async function cambiaBonus(id, k, d) { const b = { ...((S.giocatori[id] || {}).bonus || {}) }; b[k] = Math.max(0, (b[k] || 0) + d); await db.doc("giocatori/" + id).update({ bonus: b }); }
+/* Compra un bonus; con "poi" lo usa subito (per esempio "Passa la missione" dal menu, quando non ne hai). */
+function compraBonus(k, poi) {
+  const B = BONUS[k], m = moneteDi(me);
+  if (m < B.prezzo) { toast(`Ti servono ${fmt(B.prezzo)} monete: ne hai ${fmt(m)}`); return; }
+  conferma(poi ? "Comprare e usare il bonus?" : "Comprare il bonus?", `${esc(B.nome)} costa ${fmt(B.prezzo)} monete. Te ne restano ${fmt(m - B.prezzo)}.`, poi ? "Compra e usa" : "Compra", async () => {
+    await db.collection("riscatti").add({ nome: "Bonus: " + B.nome, costo: B.prezzo, giocatore: me, ts: Date.now(), consegnato: true, negozio: true });
+    await cambiaBonus(me, k, 1);
+    if (poi) await poi(); else toast("Comprato: " + B.nome);
+  });
+}
+/* Usa un bonus se ce l'hai, altrimenti propone di comprarlo e usarlo subito. */
+function conBonus(k, azione) { if (bonusDi(me, k) > 0) azione().catch(errore); else compraBonus(k, azione); }
+async function passaMissione(f) {
+  const a = altroEroe(); if (!a) return;
+  await cambiaBonus(me, "passa", -1);
+  await db.doc("faccende/" + f.id).update({ passata: { da: me, a, ts: Date.now() } });
+  toast(`${f.nome}: passata a ${nome(a)}`);
+}
+async function rinviaFaccenda(f) {
+  await cambiaBonus(me, "rinvio", -1);
+  await db.doc("faccende/" + f.id).update({ rinvio: (f.rinvio || 0) + DAY });
+  toast(`${f.nome}: scadenza spostata di un giorno`);
+}
+function rifiutaMissione(f) {
+  const prezzo = BONUS.passa.prezzo, m = moneteDi(me);
+  if (m < prezzo) { toast(`Per rifiutarla servono ${fmt(prezzo)} monete: ne hai ${fmt(m)}`); return; }
+  conferma("Rifiutare la missione?", `${esc(nome(f.passata.da))} ti ha passato ${esc(f.nome)}. Rifiutarla costa ${fmt(prezzo)} monete e la missione torna a ${esc(nome(f.passata.da))}.`, "Rifiuta", async () => {
+    await db.collection("riscatti").add({ nome: "Missione rifiutata: " + f.nome, costo: prezzo, giocatore: me, ts: Date.now(), consegnato: true, negozio: true });
+    await db.doc("faccende/" + f.id).update({ passata: null });
+    toast("Missione rifiutata: torna a " + nome(f.passata.da));
+  });
+}
 const possiedePezzo = (g, sl, pid) => (((KIT[g.pg && g.pg.classe] || {})[sl] || {}).id === pid) || (g.sbloccati || []).includes(sl + "/" + pid) || !!(g.pg && g.pg[sl] && g.pg[sl].id === pid);
 const regaloPet = g => livelloDa(xpDi(me)).lv >= LV_ANIMALE && !(g.sbloccati || []).some(k => k.startsWith("pet/"));
 function vBottega() {
@@ -817,7 +869,12 @@ function vBottega() {
     : gratis ? `<button class="btn sm prime" data-act="regaloPet" data-id="${esc(pid)}">In regalo</button>`
     : `<button class="btn sm${monete >= prezzo ? " prime" : ""}" data-act="compra" data-t="${t}" data-sl="${sl || ""}" data-id="${esc(pid)}" ${monete >= prezzo ? "" : "disabled"}>${ICON.coin()}<b class="num">${fmt(prezzo)}</b></button>${monete >= prezzo ? "" : `<span class="muted small">ne mancano ${fmt(prezzo - monete)}</span>`}`;
   let carte;
-  if (rep[0] === "animali") {
+  if (rep[0] === "bonus") {
+    carte = Object.entries(BONUS).map(([k, B]) => { const n = bonusDi(me, k), attiva = k === "pozione" && g.pozione;
+      return { ha: false, html: `<div class="bt-card fr-stone bonus-card"><span class="bonus-ic">${B.ic()}</span><b>${esc(B.nome)}</b><span class="muted small">${esc(B.desc)}</span><span class="small">${attiva ? '<span class="wd-tag">Attiva</span>' : `Ne hai <b class="num">${n}</b>`}</span>
+        ${k === "pozione" && n > 0 && !attiva ? '<button class="btn sm" data-act="usaPozione">Attiva</button>' : ""}
+        <button class="btn sm${monete >= B.prezzo ? " prime" : ""}" data-act="compraBonus" data-k="${k}" ${monete >= B.prezzo ? "" : "disabled"}>${ICON.coin()}<b class="num">${fmt(B.prezzo)}</b></button>${monete >= B.prezzo ? "" : `<span class="muted small">ne mancano ${fmt(B.prezzo - monete)}</span>`}</div>` }; });
+  } else if (rep[0] === "animali") {
     carte = Object.entries(A).map(([k, a]) => { const ha = (g.sbloccati || []).includes("pet/" + k), ind = !!(g.pet && g.pet.specie === k);
       return { ha, html: `<div class="bt-card fr-stone"><canvas class="tess-pet" data-specie="${k}" data-col="0" aria-hidden="true"></canvas><b>${esc(a.nome)}</b><span class="muted small">Animale</span>${stato(ind, ha, PREZZO.animale, "pet", "", k, regaloPet(g))}</div>` }; });
   } else {
@@ -831,7 +888,7 @@ function vBottega() {
     <div class="reparti" role="group" aria-label="Reparti">${REPARTI.map(([k, n]) => `<button data-act="reparto" data-k="${k}" aria-pressed="${k === rep[0]}">${n}</button>`).join("")}</div>
     ${regaloPet(g) && rep[0] !== "animali" ? `<div class="notice fr-stone small">Hai raggiunto il livello ${LV_ANIMALE}: nel reparto Animali il primo compagno è in regalo.</div>` : ""}
     <div class="bt-griglia">${carte.map(c => c.html).join("")}</div>
-    <p class="muted small" style="margin:0">Quello che compri va nell'armadio, nella scheda Eroe. Le monete si guadagnano con le faccende.</p>`;
+    <p class="muted small" style="margin:0">${rep[0] === "bonus" ? "I bonus si usano dal menu ⋯ delle missioni (passa, rinvia) e dalla missione del giorno (cambio extra)." : "Quello che compri va nell'armadio, nella scheda Eroe."} Le monete si guadagnano con le faccende.</p>`;
 }
 function compraOggetto(t, sl, pid) {
   const g = S.giocatori[me]; if (!g) return;
@@ -1389,14 +1446,29 @@ async function completa(f, chi) {
   const mg = missioneGiorno(now), bonus = !!(mg && !mg.fatta && mg.id === f.id);
   const punti = bonus ? Math.round(i.punti * (1 + BONUS_GIORNO)) : i.punti;
   try {
-    const ref = await db.collection("completamenti").add({ faccendaId: f.id, nome: f.nome, stanza: f.stanza, minuti: f.minuti, giocatori: chi, punti, ts: now, annullato: false, extra: false, prevUltima: f.ultima || 0, bonus, prevDaFare: f.daFareDa ? { da: f.daFareDa, ts: f.daFareTs || 0 } : null });
+    /* Bonus: missione passata (le monete vanno a chi l'ha passata) e pozione (+50% di monete a chi l'ha attiva). */
+    const trasf = [], pas = f.passata && f.passata.a && chi.includes(f.passata.a) && !chi.includes(f.passata.da) ? f.passata : null;
+    if (pas) {
+      trasf.push((await db.collection("riscatti").add({ nome: `Monete a ${nome(pas.da)}: ${f.nome}`, costo: punti, giocatore: pas.a, ts: now, consegnato: true, negozio: true, trasferimento: true })).id);
+      trasf.push((await db.collection("riscatti").add({ nome: `Missione passata a ${nome(pas.a)}: ${f.nome}`, costo: -punti, giocatore: pas.da, ts: now, consegnato: true, negozio: true, trasferimento: true })).id);
+    }
+    const pozioni = [];
+    for (const g of chi) if (S.giocatori[g] && S.giocatori[g].pozione) {
+      const extra = Math.round(punti * 0.5), dest = pas && g === pas.a ? pas.da : g;
+      trasf.push((await db.collection("riscatti").add({ nome: "Pozione del bonus: " + f.nome, costo: -extra, giocatore: dest, ts: now, consegnato: true, negozio: true, trasferimento: true })).id);
+      await db.doc("giocatori/" + g).update({ pozione: false }); pozioni.push(g);
+    }
+    const ref = await db.collection("completamenti").add({ faccendaId: f.id, nome: f.nome, stanza: f.stanza, minuti: f.minuti, giocatori: chi, punti, ts: now, annullato: false, extra: false, prevUltima: f.ultima || 0, bonus, prevDaFare: f.daFareDa ? { da: f.daFareDa, ts: f.daFareTs || 0 } : null, trasf, pozioni, prevPassata: f.passata || null, prevRinvio: f.rinvio || 0 });
     if (bonus) await db.doc("config/casa").update({ missioneGiorno: { ...S.config.missioneGiorno, fatta: true, fattaDa: chi } });
     const upd = { ultima: now };
     if (f.tipo === "occasionale") upd.attiva = false;
     if (f.prenDa) { upd.prenDa = null; upd.prenFino = 0; }
     if (f.daFareDa) { upd.daFareDa = null; upd.daFareTs = 0; }
+    if (f.passata) upd.passata = null;
+    if (f.rinvio) upd.rinvio = 0;
     await db.doc("faccende/" + f.id).update(upd);
     if (bonus) festa(`Missione del giorno compiuta! +${punti}`);
+    if (pas) toast(`${nome(pas.a)} prende l'esperienza, ${nome(pas.da)} le monete`);
     toast(`+${punti} · ${f.nome}`, { label: "Annulla", fn: () => annulla(ref.id) });
   } catch (e) { errore(e); }
 }
@@ -1405,12 +1477,16 @@ async function annulla(cid) {
     const cs = await db.doc("completamenti/" + cid).get(); if (!cs.exists) return;
     const c = cs.data(); if (c.annullato) return;
     await db.doc("completamenti/" + cid).update({ annullato: true });
+    for (const r of c.trasf || []) await db.doc("riscatti/" + r).delete().catch(() => {});
+    for (const g of c.pozioni || []) await db.doc("giocatori/" + g).update({ pozione: true }).catch(() => {});
     const f = S.faccende.find(x => x.id === c.faccendaId);
     if (f && !c.extra) {
       const upd = {};
       if (f.ultima === c.ts) upd.ultima = c.prevUltima || 0;
       if (f.tipo === "occasionale") upd.attiva = true;
       if (c.prevDaFare && !f.daFareDa) { upd.daFareDa = c.prevDaFare.da; upd.daFareTs = c.prevDaFare.ts; }
+      if (c.prevPassata && !f.passata) upd.passata = c.prevPassata;
+      if (c.prevRinvio && !f.rinvio) upd.rinvio = c.prevRinvio;
       if (Object.keys(upd).length) await db.doc("faccende/" + f.id).update(upd);
     }
     const mg = S.config && S.config.missioneGiorno;
@@ -1435,16 +1511,31 @@ function apriInsieme(f) {
   });
 }
 
+/* Voci dei bonus nel menu ⋯ di una missione. */
+function azioniBonus(f) {
+  const a = altroEroe(), out = [], p = f.passata && f.passata.a ? f.passata : null, cnt = k => bonusDi(me, k) ? ` · ne hai ${bonusDi(me, k)}` : ` · ${BONUS[k].prezzo} monete`;
+  if (p && p.a === me) out.push(`<button class="btn" id="mRifiuta">Rifiuta la missione · ${BONUS.passa.prezzo} monete</button>`);
+  else if (p && p.da === me) out.push(`<button class="btn" id="mRiprendi">Riprendi la missione (il bonus non torna)</button>`);
+  else if (a && categoria(f) === "sbatti") out.push(`<button class="btn" id="mPassa">Passa a ${esc(nome(a))}${cnt("passa")}</button>`);
+  if (f.tipo === "ricorrente" && f.freq) out.push(`<button class="btn" id="mRinvia">Rinvia di un giorno${cnt("rinvio")}</button>`);
+  return out.join("");
+}
 function apriMenu(f) {
   const ids = Object.keys(S.giocatori);
   apriSheet(`<h2>${esc(f.nome)}</h2>
     <div class="list">
       <button class="btn" id="mDaFare">${f.daFareDa ? "Togli da fare" : "Segna da fare"}</button>
+      ${azioniBonus(f)}
       ${ids.length > 1 ? '<button class="btn" id="mIns">Fatta insieme a un altro eroe</button>' : ""}
       <button class="btn" id="mMod">Modifica faccenda</button>
       <button class="btn ghost" data-close>Chiudi</button>
     </div>`, sh => {
     const ins = sh.querySelector("#mIns"); if (ins) ins.onclick = () => apriInsieme(f);
+    const bb = (sel, fn) => { const el = sh.querySelector(sel); if (el) el.onclick = () => { chiudiSheet(); fn(); }; };
+    bb("#mPassa", () => conBonus("passa", () => passaMissione(f)));
+    bb("#mRinvia", () => conBonus("rinvio", () => rinviaFaccenda(f)));
+    bb("#mRifiuta", () => rifiutaMissione(f));
+    bb("#mRiprendi", () => db.doc("faccende/" + f.id).update({ passata: null }).then(() => toast("Missione ripresa"), errore));
     sh.querySelector("#mDaFare").onclick = () => {
       const toglie = !!f.daFareDa;
       db.doc("faccende/" + f.id).update(toglie ? { daFareDa: null, daFareTs: 0 } : { daFareDa: me, daFareTs: Date.now() })
@@ -1822,6 +1913,34 @@ function apriSemplice(titolo, campi, onSave, nota) {
     };
   });
 }
+/* Premi pronti: un catalogo di idee da cui ognuno aggiunge ai suoi premi quelle che vuole (nome e prezzo si possono cambiare). */
+const PREMI_PRONTI = [
+  ["Film a scelta", 150], ["Colazione a letto", 150], ["Serata giochi da tavolo", 150], ["Mazzo di fiori", 150],
+  ["Torta o dolce fatto in casa", 450], ["Massaggio", 450], ["Pizza a domicilio", 450], ["Libro o fumetto a scelta", 450],
+  ["Cena a scelta: ", 900], ["Uscita a scelta: gita, mostra o passeggiata", 900]
+];
+function nuovoPremio() {
+  const miei = new Set(S.premi.filter(p => p.giocatore === me).map(p => p.nome));
+  apriSheet(`<h2>Nuovo premio</h2>
+    <div class="field"><span class="lab">Idee pronte</span><div class="idee">${PREMI_PRONTI.map(([n, c], i) => `<button type="button" data-i="${i}" ${miei.has(n) ? "disabled" : ""}>${esc(n.replace(/: $/, ""))} · <span class="num">${c}</span></button>`).join("")}</div><span class="muted small">Tocca un'idea per riempire il modulo, poi cambia nome o prezzo se vuoi. Per la cena scrivi quale.</span></div>
+    <div class="field"><label for="x-nome">Premio</label><input type="text" id="x-nome" name="nome" maxlength="60"></div>
+    <div class="field"><span class="lab">Costo in monete</span>${radio("costo", [[150, "Piccolo · 150"], [450, "Medio · 450"], [900, "Grande · 900"]], 450)}</div>
+    <p class="err" id="xErr" hidden></p>
+    <div class="sheet-actions"><button class="btn ghost" data-close>Annulla</button><button class="btn prime" id="xOk">Salva</button></div>`, sh => {
+    sh.querySelector(".idee").onclick = e => {
+      const b = e.target.closest("button[data-i]"); if (!b) return; const [n, c] = PREMI_PRONTI[+b.dataset.i];
+      sh.querySelectorAll(".idee button").forEach(x => x.setAttribute("aria-pressed", x === b));
+      const inp = sh.querySelector("#x-nome"); inp.value = n; const r = sh.querySelector(`[name="costo"][value="${c}"]`); if (r) r.checked = true;
+      if (/: $/.test(n)) { inp.focus(); inp.setSelectionRange(n.length, n.length); }
+    };
+    sh.querySelector("#xOk").onclick = async () => {
+      const nm = sh.querySelector("#x-nome").value.trim().replace(/:\s*$/, ""), c = +val(sh, "costo");
+      const err = msg => { const e = sh.querySelector("#xErr"); e.textContent = msg; e.hidden = false; };
+      if (!nm) return err("Scrivi il nome del premio.");
+      try { await db.collection("premi").add({ nome: nm, costo: c, giocatore: me, ts: Date.now() }); chiudiSheet(); toast("Premio aggiunto"); } catch (e) { errore(e); }
+    };
+  });
+}
 function conferma(titolo, testo, etichetta, azione) {
   apriSheet(`<h2>${titolo}</h2><p style="margin:0">${testo}</p><div class="sheet-actions"><button class="btn ghost" data-close>Annulla</button><button class="btn prime" id="kOk">${etichetta}</button></div>`, sh => {
     sh.querySelector("#kOk").onclick = async () => { try { await azione(); chiudiSheet(); } catch (e) { errore(e); } };
@@ -1848,6 +1967,9 @@ document.addEventListener("click", e => {
     case "fcat": S.fCat = b.dataset.k; render(); break;
     case "fstanza": S.fStanza = b.dataset.r; render(); break;
     case "cambiaGiorno": cambiaGiorno(); break;
+    case "cambioExtra": conBonus("cambio", () => cambiaGiorno(true)); break;
+    case "compraBonus": compraBonus(b.dataset.k); break;
+    case "usaPozione": cambiaBonus(me, "pozione", -1).then(() => db.doc("giocatori/" + me).update({ pozione: true })).then(() => toast("Pozione attiva: +50% di monete sulla prossima missione"), errore); break;
     case "fatta": { const f = trova(S.faccende, id); if (f) { b.disabled = true; completa(f, [me]); } break; }
     case "prenota": {
       const f = trova(S.faccende, id); if (!f) break;
@@ -1865,7 +1987,7 @@ document.addEventListener("click", e => {
     case "gira": S.vetRiga = [2, 1, 0, 3][([2, 1, 0, 3].indexOf(S.vetRiga == null ? 2 : S.vetRiga) + 1) % 4]; render(); break;
     case "armadio": S.armadioAperto = true; render(); { const el = document.getElementById("armadio"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); } break;
     case "annulla": { const c = trova(S.comp, id); if (c) conferma("Annullare il completamento?", `${esc(c.nome)}: i ${c.punti} punti vengono tolti a ${esc((c.giocatori || []).map(nome).join(" e "))}.`, "Annulla completamento", () => annulla(id)); break; }
-    case "nuovopremio": apriSemplice("Nuovo premio", [{ name: "nome", label: "Premio" }, { name: "costo", label: "Costo in monete", radio: [[150, "Piccolo · 150"], [450, "Medio · 450"], [900, "Grande · 900"]], value: 450 }], v => v.nome ? db.collection("premi").add({ nome: v.nome, costo: +v.costo, giocatore: me, ts: Date.now() }).then(() => toast("Premio aggiunto")) : "Scrivi il nome del premio.", "Un massaggio, una serata relax, un oggetto che desideri da tempo. Resta in lista anche dopo il riscatto."); break;
+    case "nuovopremio": nuovoPremio(); break;
     case "delpremio": { const p = trova(S.premi, id); if (p) conferma("Eliminare il premio?", esc(p.nome), "Elimina", () => db.doc("premi/" + id).delete()); break; }
     case "riscatta": { const p = trova(S.premi, id); if (p) conferma("Riscattare il premio?", `${esc(p.nome)} costa ${fmt(p.costo)} monete. A ${esc(nome(me))} restano ${fmt(moneteDi(me) - p.costo)} monete.`, "Riscatta", () => db.collection("riscatti").add({ premioId: p.id, nome: p.nome, costo: p.costo, giocatore: me, ts: Date.now(), consegnato: false }).then(() => toast("Premio riscattato"))); break; }
     case "consegnato": db.doc("riscatti/" + id).update({ consegnato: true }).catch(errore); break;
