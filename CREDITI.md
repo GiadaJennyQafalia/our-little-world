@@ -134,6 +134,8 @@ Il codice dell'app è un'altra cosa e non è coperto da queste licenze.
 | `neck/scarf` | Nila122, JaidynReiman, Johannes Sjölund (wulax), Stephen Challener (Redshrike) | OGA-SA 3.0, CC-BY-SA 3.0, GPL 2.0, GPL 3.0 | <https://opengameart.org/content/more-lpc-clothes-and-hair> |
 | `neck/tie/bowtie` | JaidynReiman, bluecarrot16, Thane Brimhall (pennomi), laetissima, Makrohn | CC-BY-SA 3.0, GPL 3.0 | <https://opengameart.org/content/lpc-2-characters> <https://opengameart.org/content/lpc-gentleman> |
 | `pets/gatto, pets/cane` | bluecarrot16 | CC-BY 3.0, CC-BY-SA 3.0, GPL 3.0, GPL 2.0, OGA-BY 3.0 | <https://opengameart.org/content/lpc-cats-and-dogs> |
+| `pets/corvo` | bluecarrot16 (commissionato da castelonia) | CC-BY 4.0, CC-BY 3.0, CC-BY-SA 4.0, CC-BY-SA 3.0, GPL 3.0, GPL 2.0, OGA-BY 3.0 | <https://opengameart.org/content/lpc-birds> |
+| `pets/pipistrello` | bagzie | OGA-BY 3.0 | <https://opengameart.org/content/lpc-monsters> |
 | `quiver` | Johannes Sjölund (wulax) | OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0 | <https://opengameart.org/content/lpc-medieval-fantasy-character-sprites> |
 | `shield/crusader` | bluecarrot16, Sander Frenken (castelonia) | OGA-BY 3.0 | <https://opengameart.org/content/lpc-shields> |
 | `shield/plus` | bluecarrot16, Sander Frenken (castelonia) | OGA-BY 3.0 | <https://opengameart.org/content/lpc-shields> |
@@ -183,3 +185,5 @@ Il codice dell'app è un'altra cosa e non è coperto da queste licenze.
 | `weapon/sword/dagger` | bluecarrot16, Johannes Sjölund (wulax), Matthew Krohn (makrohn) | OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0 | <https://opengameart.org/content/lpc-medieval-fantasy-character-sprites> <https://opengameart.org/content/lpc-extended-weapon-animations> |
 | `weapon/sword/longsword` | Johannes Sjölund (wulax), bluecarrot16 | OGA-BY 3.0, CC-BY-SA 3.0 | <https://opengameart.org/content/lpc-medieval-fantasy-character-sprites> <https://opengameart.org/content/lpc-extended-weapon-animations> |
 | `weapon/sword/rapier` | Johannes Sjölund (wulax), bluecarrot16 | OGA-BY 3.0, CC-BY-SA 3.0 | <https://opengameart.org/content/lpc-medieval-fantasy-character-sprites> <https://opengameart.org/content/lpc-extended-weapon-animations> |
+
+La scimmia (`assets/pets/scimmia.png`) è disegnata da codice per questa app (`tools/scimmia.py`). Le varianti di colore di corvo e pipistrello sono ricolorazioni degli originali (`tools/volanti.py`).

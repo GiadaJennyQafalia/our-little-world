@@ -84,7 +84,7 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.21.0";
+const VERSIONE_APP = "3.22.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -1199,13 +1199,13 @@ function apriProfilo(id, obbligatorio) {
       const chips = lista.map(v => { const ok = possiede(slot, v.id); return `<button type="button" class="opt${v.id === cur ? " on" : ""}${ok ? "" : " lock"}" data-slot="${slot}" data-id="${v.id}">${esc(v.nome)}${ok ? "" : ` <span class="prz">${ICON.coin()}<b class="num">${PREZZO[slot]}</b></span>`}</button>`; }).join("");
       return `<div class="field"><span class="lab">${titolo}</span><div class="opts">${nessuno ? `<button type="button" class="opt${cur ? "" : " on"}" data-slot="${slot}" data-id="">Nessuno</button>` : ""}${chips}</div>${colori(slot)}</div>`;
     };
-    const HEX_PET = { bianco: "#f2f0ee", dorato: "#e0b24a", rosso: "#b5532f", nero: "#2b2b33", marrone: "#8a5430" };
+    const HEX_PET = { bianco: "#f2f0ee", dorato: "#e0b24a", rosso: "#b5532f", nero: "#2b2b33", marrone: "#8a5430", grigio: "#8f8a86", blu: "#2f4a7a", viola: "#6b4c8f", argento: "#cfcbd6" };
     const pannelloAnimali = () => {
       const A = SP().ANIMALI, cur = D.pet && D.pet.specie;
       const chips = Object.entries(A).map(([k, a]) => { const ok = D.sbloccati.includes("pet/" + k); return `<button type="button" class="opt${k === cur ? " on" : ""}${ok ? "" : " lock"}" data-pet="${k}">${a.nome}${ok ? "" : regalo() ? ` <span class="prz"><b>In regalo</b></span>` : ` <span class="prz">${ICON.coin()}<b class="num">${PREZZO.animale}</b></span>`}</button>`; }).join("");
       const mancano = Math.max(0, XP_SOGLIE[LV_ANIMALE - 1] - xpAttuale());
       const nota = regalo() ? `Hai raggiunto il livello ${LV_ANIMALE}: il tuo primo animale è un regalo, scegli quello che preferisci.` : !haPet() ? `Al livello ${LV_ANIMALE} scegli il tuo primo animale in regalo${mancano ? ` (ti mancano ${fmt(mancano)} XP)` : ""}. Intanto puoi comprarlo con le monete.` : "";
-      const cols = cur ? `<div class="field"><span class="lab">Colore del pelo</span><div class="sws">${A[cur].colori.map((c, i) => `<button type="button" class="sw${(D.pet.col | 0) === i ? " on" : ""}" data-petcol="${i}" style="background:${HEX_PET[c]}" title="${c}" aria-label="${c}"></button>`).join("")}</div></div><div class="field"><label for="cPetNome">Nome dell'animale</label><input type="text" id="cPetNome" maxlength="20" value="${esc(D.pet.nome || "")}"></div>` : "";
+      const cols = cur ? `<div class="field"><span class="lab">${cur === "corvo" ? "Colore delle piume" : cur === "pipistrello" ? "Colore" : "Colore del pelo"}</span><div class="sws">${A[cur].colori.map((c, i) => `<button type="button" class="sw${(D.pet.col | 0) === i ? " on" : ""}" data-petcol="${i}" style="background:${HEX_PET[c]}" title="${c}" aria-label="${c}"></button>`).join("")}</div></div><div class="field"><label for="cPetNome">Nome dell'animale</label><input type="text" id="cPetNome" maxlength="20" value="${esc(D.pet.nome || "")}"></div>` : "";
       return `<div class="field"><span class="lab">Compagno di avventure</span><div class="opts"><button type="button" class="opt${cur ? "" : " on"}" data-pet="">Nessuno</button>${chips}</div></div>${cols}<p class="muted small" style="margin:0">${nota ? nota + " " : ""}Ne hai ${fmt(monete())} monete. L'animale ti accompagna e compare nella tua scheda e nel castello.</p>`;
     };
     const pannello = () => {

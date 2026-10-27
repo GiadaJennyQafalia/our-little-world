@@ -139,7 +139,11 @@
      Fogli 512×160 di celle 32×32: 4 colori da 4 colonne; righe 0 = destra, 1 = su, 2 = giù, 3 = sinistra. Colonne 0–2 = passi, 3 = sdraiato. */
   const ANIMALI = {
     gatto: { nome: "Gatto", file: "assets/pets/gatto.png", colori: ["bianco", "dorato", "rosso", "nero"] },
-    cane: { nome: "Cane", file: "assets/pets/cane.png", colori: ["bianco", "marrone", "dorato", "nero"] }
+    cane: { nome: "Cane", file: "assets/pets/cane.png", colori: ["bianco", "marrone", "dorato", "nero"] },
+    scimmia: { nome: "Scimmia", file: "assets/pets/scimmia.png", colori: ["marrone", "dorato", "grigio", "nero"] },
+    /* Volanti: colonne 0–2 = battito d'ali, 3 = posato a terra. Volano accanto alla spalla dell'eroe e atterrano quando si ferma. */
+    corvo: { nome: "Corvo", file: "assets/pets/corvo.png", colori: ["nero", "blu", "grigio", "bianco"], vola: true },
+    pipistrello: { nome: "Pipistrello", file: "assets/pets/pipistrello.png", colori: ["viola", "nero", "marrone", "argento"], vola: true }
   };
   const fogli = new Map();
   const foglio = f => { if (!fogli.has(f)) fogli.set(f, new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error("manca " + f)); i.src = f; })); return fogli.get(f); };
@@ -224,10 +228,16 @@
           const inMoto = Math.abs(meta - st.px) > 2 && !rid, r = st.px < meta - 2 ? 0 : st.px > meta + 2 ? 3 : (verso > 0 ? 0 : 3);
           if (moto) st.pverso = verso;
           if (o.imgPet) {
-            const c0 = Math.max(0, Math.min(3, (a.pet.col | 0))) * 4, cc = inMoto ? [0, 1, 2, 1][Math.floor(t / 160) % 4] : 3, kp = r + "_" + cc;
+            const vola = o.A && o.A.vola && (st.vol || 0) > 0.15, c0 = Math.max(0, Math.min(3, (a.pet.col | 0))) * 4, cc = inMoto || vola ? [0, 1, 2, 1][Math.floor(t / (vola ? 110 : 160)) % 4] : 3, kp = r + "_" + cc;
             if (o.ultimoP !== kp) { const x = o.pcv.getContext("2d"); x.imageSmoothingEnabled = false; x.clearRect(0, 0, 32, 32); x.drawImage(o.imgPet, (c0 + cc) * 32, r * 32, 32, 32, 0, 0, 32, 32); o.ultimoP = kp; }
           }
-          o.pcv.style.left = pc(st.px - 16 * a.scala, w); o.pcv.style.top = pc(yE + 4 - PIEDI_PET * a.scala, h); o.pcv.style.zIndex = Math.round(yE) + 1;
+          /* Gli animali che volano salgono all'altezza della spalla quando l'eroe cammina e scendono a terra quando si ferma. */
+          let su = 0;
+          if (o.A && o.A.vola) {
+            const meta = inMoto || moto ? 1 : 0; st.vol = (st.vol || 0) + (meta - (st.vol || 0)) * Math.min(1, dt * 3);
+            su = st.vol * (30 + Math.sin(t / 260) * 2.5) * a.scala;
+          }
+          o.pcv.style.left = pc(st.px - 16 * a.scala, w); o.pcv.style.top = pc(yE + 4 - PIEDI_PET * a.scala - su, h); o.pcv.style.zIndex = Math.round(yE) + (su > 1 ? 3 : 1);
         }
       }
       giroAbitanti = requestAnimationFrame(passo);
