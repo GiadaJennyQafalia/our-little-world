@@ -4,7 +4,7 @@ const DAY = 864e5, HOUR = 36e5;
 const WEB = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="#a89cb3" stroke-width="1.1"><path d="M0 0L100 70M0 0L70 100M0 0L30 100M0 0L100 30"/><path d="M0 22Q18 18 22 0M0 44Q30 38 44 0M0 66Q45 56 66 0M0 88Q60 74 88 0"/></svg>');
 document.documentElement.style.setProperty("--web", `url("${WEB}")`);
 
-const DIMORE = { castello: "Il Castello", reggia: "Il Palazzo bianco", hobbit: "La Tana nella collina", torre: "La Torre del mago", rifugio: "Il Rifugio in montagna", albero: "La Casa sull'albero", faro: "Il Faro sull'isola", abbazia: "L'Abbazia nel bosco", nave: "La Nave volante" };
+const DIMORE = { castello: "La Rocca di Pietranotte", reggia: "Il Palazzo d'Argentaluna", hobbit: "La Tana di Colleverde", torre: "La Torre dell'Ametista", rifugio: "Il Rifugio di Vettagelo", albero: "Il Nido del Grande Faggio", faro: "Il Faro di Scogliasecca", abbazia: "L'Abbazia di Muschioscuro", nave: "Il Galeone delle Nuvole" };
 /* Livello dell'eroe a cui si sblocca ogni dimora. Castello e Palazzo bianco sono disponibili da subito. */
 const LV_DIMORA = { castello: 1, reggia: 1, hobbit: 4, torre: 6, rifugio: 8, albero: 10, faro: 12, abbazia: 14, nave: 16 };
 const CLASSI = { strega: "Strega", ranger: "Ranger", alchimista: "Alchimista", cavaliere: "Cavaliere", elfo: "Elfo", druido: "Druido" };
@@ -1793,7 +1793,7 @@ function apriMenu(f) {
 /* Scelta della dimora: quelle sbloccate si scelgono, le altre mostrano il livello o "in arrivo". */
 function scelteDimora() {
   const lv = livelloDa(xpDi(me)).lv, cur = dimoraMia();
-  return `<div class="radios dimore">${Object.entries(DIMORE).map(([k, n]) => { const corto = n.replace(/^(Il|La|L') ?/, ""), ok = dimoraSbloccata(k), pronta = !!SKIN[k], liv = LV_DIMORA[k];
+  return `<div class="radios dimore">${Object.entries(DIMORE).map(([k, n]) => { const corto = n.replace(/^(Il |La |L')/, ""), ok = dimoraSbloccata(k), pronta = !!SKIN[k], liv = LV_DIMORA[k];
     return ok ? `<label><input type="radio" name="dimora" value="${k}" ${k === cur ? "checked" : ""}><span>${esc(corto)}</span></label>`
       : `<span class="dim-chiusa" title="${pronta ? "Si sblocca al livello " + liv : "In arrivo"}">${esc(corto)} <small>${lv >= liv && !pronta ? "in arrivo" : "liv. " + liv}</small></span>`; }).join("")}</div>`;
 }
