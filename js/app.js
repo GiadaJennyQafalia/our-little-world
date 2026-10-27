@@ -86,7 +86,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.29.0";
+const VERSIONE_APP = "3.30.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -489,7 +489,7 @@ function vStanza(now) {
   return `
   <button class="btn ghost sm back" data-act="indietro">← ${esc(DIMORE[dimS] || "La dimora")}</button>
   <section class="hero fr-stone st${x.livello} room-hero">
-    <div class="room-scene">${img ? `<img src="${sk.stanze}${img}.webp" alt="${esc(nome)}" decoding="async">` : ""}${velo(x.livello, img ? sk.stanze + img + ".webp" : "")}<div class="room-chars"></div></div>
+    <div class="room-scene">${img ? `<img src="${sk.stanze}${img}.webp" alt="${esc(nome)}" decoding="async">` : ""}${velo(x.livello, img ? sk.stanze + img + ".webp" : "")}<div class="room-chars">${arrediScena(r, sk && sk.file[tipoStanza(r)] === "corridoio" ? 706 : 676)}</div></div>
     <div class="hero-cap insegna compatta st${x.livello}">
       <i class="catena l"></i><i class="catena r"></i>
       <div class="ins-board">
@@ -505,6 +505,7 @@ function vStanza(now) {
       </div>
     </div>
   </section>
+  ${postiStanza(r) ? `<div class="row-actions"><button class="btn sm" data-act="arreda">Arreda la stanza</button><span class="muted small">${Object.keys(arrediCasa()[r] || {}).length} oggetti su ${postiStanza(r).t.length + postiStanza(r).p.length} posti</span></div>` : ""}
   ${r === "Tutta la casa" ? `<p class="muted small" style="margin:0">Le faccende di tutta la casa, come l'aspirapolvere, stanno nel corridoio.</p>` : ""}
   ${tutte.length ? "" : `<div class="empty fr-dash">Nessuna faccenda in questa stanza.</div>`}
   ${gruppoMissioni("Urgenti", urg, "Niente di scaduto qui.", now)}
@@ -773,6 +774,7 @@ function vEroe(now) {
   </section>
   ${vetrina(eroe)}
   ${armadioFisico(eroe)}
+  ${teca(me)}
   <div class="kv"><span class="muted">Sbloccato al livello ${L.lv}</span><span>${esc(L.sblocco)}</span></div>
   <div class="kv"><span class="muted">Minuti di pulizia negli ultimi 7 giorni</span><span class="num">${fmt(minSett)}</span></div>
   <div class="row-actions"><button class="btn sm" data-act="profilo">Modifica eroe</button><button class="btn sm ghost" data-act="chi">Cambia eroe</button></div>
@@ -815,7 +817,87 @@ function cronologia(now) {
 const TUTTI_SLOT = ["capelli", "busto", "gambe", "scarpe", "mantello", "cappello", "accessorio", "collo", "vita", "braccia", "schiena"];
 const REPARTI = [["abiti", "Abiti", ["mantello", "cappello"]], ["speciali", "Abiti speciali", TUTTI_SLOT, "abito"], ["armature", "Armature", TUTTI_SLOT, "armatura"],
   ["acconciature", "Acconciature", ["capelli"], "acconciatura"], ["gioielli", "Gioielli", TUTTI_SLOT, "gioiello"], ["accessori", "Accessori", ["accessorio", "collo", "vita", "braccia", "schiena", "barba"]],
-  ["fantasia", "Fantasia", ["orecchie", "corna", "coda", "ali"]], ["armi", "Armi e scudi", ["arma", "scudo"]], ["animali", "Animali", []], ["bonus", "Bonus", []]];
+  ["fantasia", "Fantasia", ["orecchie", "corna", "coda", "ali"]], ["armi", "Armi e scudi", ["arma", "scudo"]], ["arredi", "Arredi", []], ["animali", "Animali", []], ["bonus", "Bonus", []]];
+/* ---------- Arredi ----------
+   Reliquie, oggetti di casa e hobby, strumenti (a terra) e dipinti o arazzi (a parete). Catalogo in assets/arredi/arredi.json.
+   Ogni eroe compra i suoi (sbloccati "arredo/<id>") e li mette nelle stanze: 3 posti a terra e fino a 2 a parete,
+   in config/casa.arredi[nomeStanza][posto] = { id, da }. Ogni oggetto sta in un solo posto; solo chi l'ha messo lo toglie. */
+const SLOT_ARREDI = {"bagno":{"t":[[190,545],[590,520],[370,640]],"p":[[230,220,"l"],[440,120,"r"]]},"camera":{"t":[[150,540],[590,530],[370,640]],"p":[[200,200,"l"],[600,140,"r"]]},"cucina":{"t":[[120,560],[600,560],[370,650]],"p":[[180,190,"l"],[560,140,"r"]]},"soggiorno":{"t":[[110,545],[620,540],[370,650]],"p":[[110,230,"l"],[440,100,"r"]]},"ingresso":{"t":[[150,560],[600,560],[370,650]],"p":[[300,140,"l"],[560,170,"r"]]},"sgabuzzino":{"t":[[120,550],[620,550],[370,650]],"p":[[110,220,"l"],[440,110,"r"]]},"corridoio":{"t":[[140,580],[600,600],[370,680]],"p":[[220,230,"l"]]},"balcone":{"t":[[140,560],[620,560],[370,650]],"p":[[620,180,"r"]]}};
+const SCALA_ARREDO = { terra: 0.65, parete: 0.55 }, ROOM_W = 720;
+const TIPO_ARREDO = { reliquia: "Reliquia", casa: "Casa e hobby", strumento: "Strumento", dipinto: "Dipinto", arazzo: "Arazzo" };
+let caricaArredi = null;
+const arrediCat = () => { if (!caricaArredi) caricaArredi = fetch("assets/arredi/arredi.json").then(r => r.json()).then(j => { S.arrediCat = j; render(); }).catch(e => { console.warn("arredi", e); caricaArredi = null; }); return S.arrediCat || []; };
+const arredo = id => arrediCat().find(a => a.id === id);
+const imgArredo = (a, cls = "") => `<img class="arr-img ${cls}" src="assets/arredi/${a.id}.png" alt="${esc(a.nome)}" width="${a.w}" height="${a.h}" loading="lazy" decoding="async">`;
+const posseduti = id => ((S.giocatori[id] || {}).sbloccati || []).filter(k => k.startsWith("arredo/")).map(k => k.slice(7));
+const arrediCasa = () => (S.config && S.config.arredi) || {};
+/* Dove si trova un oggetto: { stanza, posto } oppure null. */
+function doveArredo(id) { const A = arrediCasa(); for (const r in A) for (const k in A[r]) if (A[r][k] && A[r][k].id === id) return { stanza: r, posto: k }; return null; }
+const postiStanza = r => { const sk = SKIN[(S.config && S.config.dimora) || "castello"] || SKIN.castello; return SLOT_ARREDI[sk.file[tipoStanza(r)]] || null; };
+/* Gli arredi disegnati dentro la scena della stanza (stesse coordinate dei personaggi, 720 px di larghezza). */
+function arrediScena(r, h) {
+  const sl = postiStanza(r), A = arrediCasa()[r] || {}; if (!sl) return "";
+  const pc = (v, t) => (v / t * 100).toFixed(3) + "%";
+  return Object.entries(A).map(([k, v]) => {
+    const a = v && arredo(v.id); if (!a) return "";
+    const terra = k[0] === "t", pos = terra ? sl.t[+k.slice(1)] : sl.p[+k.slice(1)]; if (!pos) return "";
+    const sc = SCALA_ARREDO[terra ? "terra" : "parete"], w = a.w * sc, hh = a.h * sc;
+    const left = terra ? pos[0] - w / 2 : pos[0] - w / 2, top = terra ? pos[1] - hh : pos[1] - hh / 2;
+    return `<img class="arr-scena${!terra && pos[2] === "r" ? " spec" : ""}" src="assets/arredi/${a.id}.png" alt="" aria-hidden="true" style="left:${pc(left, ROOM_W)};top:${pc(top, h)};width:${pc(w, ROOM_W)};z-index:${terra ? Math.round(pos[1]) : 1}">`;
+  }).join("");
+}
+function compraArredo(id) {
+  const a = arredo(id); if (!a) return; const m = moneteDi(me);
+  if (m < a.prezzo) { toast(`Ti servono ${fmt(a.prezzo)} monete: ne hai ${fmt(m)}`); return; }
+  conferma("Comprare questo oggetto?", `${esc(a.nome)} costa ${fmt(a.prezzo)} monete. Te ne restano ${fmt(m - a.prezzo)}. Lo trovi nella teca e lo puoi mettere in una stanza.`, "Compra", async () => {
+    await db.collection("riscatti").add({ nome: "Arredo: " + a.nome, costo: a.prezzo, giocatore: me, ts: Date.now(), consegnato: true, negozio: true });
+    const sb = [...(S.giocatori[me].sbloccati || [])]; if (!sb.includes("arredo/" + id)) sb.push("arredo/" + id);
+    await db.doc("giocatori/" + me).update({ sbloccati: sb }); toast("Comprato: " + a.nome);
+  });
+}
+async function mettiArredo(r, posto, id) {
+  const A = JSON.parse(JSON.stringify(arrediCasa())), d = doveArredo(id);
+  if (d) delete A[d.stanza][d.posto];
+  if (id) { A[r] = A[r] || {}; A[r][posto] = { id, da: me }; } else if (A[r]) delete A[r][posto];
+  await db.doc("config/casa").update({ arredi: A });
+}
+/* Sheet "Arreda la stanza": i posti liberi o occupati, e cosa ci puoi mettere. */
+function apriArreda(r) {
+  const sl = postiStanza(r); if (!sl) return;
+  const A = arrediCasa()[r] || {}, miei = posseduti(me).map(arredo).filter(Boolean);
+  const nomePosto = k => k[0] === "t" ? `A terra ${+k.slice(1) + 1}` : (sl.p[+k.slice(1)][2] === "l" ? "Parete sinistra" : "Parete destra");
+  const posti = [...sl.t.map((_, i) => "t" + i), ...sl.p.map((_, i) => "p" + i)];
+  apriSheet(`<h2>Arreda: ${esc(nomeStanza(r))}</h2>
+    <p class="muted small" style="margin:0">Tre posti a terra per mobili, reliquie e strumenti${sl.p.length ? `, ${sl.p.length === 1 ? "uno" : sl.p.length} a parete per dipinti e arazzi` : ""}. Ognuno mette e toglie i suoi oggetti.</p>
+    <div class="list">${posti.map(k => { const v = A[k], a = v && arredo(v.id), mio = v && v.da === me;
+      return `<div class="arr-posto fr-stone"><span class="arr-th">${a ? imgArredo(a) : '<span class="arr-vuoto">vuoto</span>'}</span><span class="stack" style="flex:1;min-width:0"><b>${nomePosto(k)}</b><span class="muted small">${a ? esc(a.nome) + (mio ? "" : " · di " + esc(nome(v.da))) : "Libero"}</span></span>
+        ${a && !mio ? "" : `<button class="btn sm" data-posto="${k}">${a ? "Cambia" : "Metti"}</button>`}${mio ? `<button class="btn sm ghost" data-togli="${k}">Togli</button>` : ""}</div>`; }).join("")}</div>
+    ${miei.length ? "" : '<p class="muted small" style="margin:0">Non hai ancora oggetti: si comprano in Bottega, reparto Arredi.</p>'}
+    <div class="sheet-actions"><button class="btn ghost" data-act="vaiArredi">Vai in Bottega</button><button class="btn ghost" data-close>Chiudi</button></div>`, sh => {
+    sh.querySelectorAll("[data-togli]").forEach(b => b.onclick = () => mettiArredo(r, b.dataset.togli, null).then(() => apriArreda(r), errore));
+    sh.querySelectorAll("[data-posto]").forEach(b => b.onclick = () => scegliArredo(r, b.dataset.posto));
+  });
+}
+function scegliArredo(r, posto) {
+  const sl = postiStanza(r), terra = posto[0] === "t", adatti = posseduti(me).map(arredo).filter(a => a && (a.posto === "terra") === terra);
+  apriSheet(`<h2>${terra ? "Cosa metti a terra?" : "Cosa appendi?"}</h2>
+    ${adatti.length ? `<div class="teca-griglia">${adatti.map(a => { const d = doveArredo(a.id); return `<button class="teca-ogg" data-id="${a.id}">${imgArredo(a)}<b>${esc(a.nome)}</b><span class="muted small">${d ? (d.stanza === r && d.posto === posto ? "è già qui" : "ora in " + esc(nomeStanza(d.stanza))) : "nella teca"}</span></button>`; }).join("")}</div>`
+      : `<p class="muted small">Non hai ${terra ? "oggetti da terra" : "dipinti o arazzi"}. Si comprano in Bottega, reparto Arredi.</p>`}
+    <div class="sheet-actions"><button class="btn ghost" id="aBack">Indietro</button></div>`, sh => {
+    sh.querySelector("#aBack").onclick = () => apriArreda(r);
+    sh.querySelectorAll("[data-id]").forEach(b => b.onclick = () => mettiArredo(r, posto, b.dataset.id).then(() => { toast("Sistemato in " + nomeStanza(r)); apriArreda(r); }, errore));
+  });
+}
+/* La teca nella scheda Eroe: la collezione degli oggetti comprati, con dove si trovano. */
+function teca(id) {
+  const cat = arrediCat(); if (!cat.length) return "";
+  const miei = posseduti(id).map(arredo).filter(Boolean);
+  return `<section class="sec"><div class="sec-head"><h3>La teca</h3><span class="muted small num">${miei.length} / ${cat.length}</span></div>
+    ${miei.length ? `<div class="teca fr-stone"><div class="teca-griglia">${miei.map(a => { const d = doveArredo(a.id); return `<div class="teca-ogg">${imgArredo(a)}<b>${esc(a.nome)}</b><span class="muted small">${d ? "in " + esc(nomeStanza(d.stanza)) : "nella teca"}</span></div>`; }).join("")}</div></div>`
+      : `<div class="empty fr-dash small">La teca è vuota. Reliquie, strumenti, dipinti e oggetti di casa si comprano in Bottega, reparto Arredi, e si sistemano nelle stanze dal pulsante "Arreda".</div>`}
+  </section>`;
+}
+
 /* ---------- Bonus di gioco ----------
    Si comprano in Bottega e restano in giocatori/{id}.bonus = { passa, rinvio, cambio, pozione } finché non si usano.
    Le monete che passano da un eroe all'altro sono righe di "riscatti" (costo positivo = spesa, negativo = guadagno),
@@ -876,7 +958,13 @@ function vBottega() {
     : gratis ? `<button class="btn sm prime" data-act="regaloPet" data-id="${esc(pid)}">In regalo</button>`
     : `<button class="btn sm${monete >= prezzo ? " prime" : ""}" data-act="compra" data-t="${t}" data-sl="${sl || ""}" data-id="${esc(pid)}" ${monete >= prezzo ? "" : "disabled"}>${ICON.coin()}<b class="num">${fmt(prezzo)}</b></button>${monete >= prezzo ? "" : `<span class="muted small">ne mancano ${fmt(prezzo - monete)}</span>`}`;
   let carte;
-  if (rep[0] === "bonus") {
+  if (rep[0] === "arredi") {
+    const filtro = S.arrTipo || "tutti", tipi = [["tutti", "Tutti"], ["reliquia", "Reliquie"], ["casa", "Casa e hobby"], ["strumento", "Strumenti"], ["parete", "Dipinti e arazzi"]];
+    const lista = arrediCat().filter(a => filtro === "tutti" || (filtro === "parete" ? a.posto === "parete" : a.tipo === filtro));
+    carte = lista.map(a => { const ha = posseduti(me).includes(a.id), d = ha && doveArredo(a.id);
+      return { ha, html: `<div class="bt-card fr-stone arr-card">${imgArredo(a)}<b>${esc(a.nome)}</b><span class="muted small">${TIPO_ARREDO[a.tipo]}</span>${ha ? `<span class="muted small">${d ? "In " + esc(nomeStanza(d.stanza)) : "Nella tua teca"}</span>` : `<button class="btn sm${monete >= a.prezzo ? " prime" : ""}" data-act="compraArredo" data-id="${a.id}" ${monete >= a.prezzo ? "" : "disabled"}>${ICON.coin()}<b class="num">${fmt(a.prezzo)}</b></button>${monete >= a.prezzo ? "" : `<span class="muted small">ne mancano ${fmt(a.prezzo - monete)}</span>`}`}</div>` }; });
+    carte.unshift({ ha: false, html: `<div class="filters arr-filtri" role="group" aria-label="Tipo di arredo">${tipi.map(([k, l]) => `<button data-act="arrTipo" data-k="${k}" aria-pressed="${filtro === k}">${l}</button>`).join("")}</div>` });
+  } else if (rep[0] === "bonus") {
     carte = Object.entries(BONUS).map(([k, B]) => { const n = bonusDi(me, k), attiva = k === "pozione" && g.pozione;
       return { ha: false, html: `<div class="bt-card fr-stone bonus-card"><span class="bonus-ic">${B.ic()}</span><b>${esc(B.nome)}</b><span class="muted small">${esc(B.desc)}</span><span class="small">${attiva ? '<span class="wd-tag">Attiva</span>' : `Ne hai <b class="num">${n}</b>`}</span>
         ${k === "pozione" && n > 0 && !attiva ? '<button class="btn sm" data-act="usaPozione">Attiva</button>' : ""}
@@ -890,12 +978,12 @@ function vBottega() {
       return { ha, html: `<div class="bt-card fr-stone"><canvas class="tess-cv" data-sl="${sl}" data-id="${esc(v.id)}" data-col="" aria-hidden="true"></canvas><b>${esc(v.nome)}</b><span class="muted small">${SLOT_NOME[sl]}</span>${stato(ind, ha, prezzoDi(sl, v.id), "p", sl, v.id, false)}</div>` };
     }));
   }
-  carte.sort((a, b) => a.ha - b.ha);
+  if (rep[0] !== "arredi") carte.sort((a, b) => a.ha - b.ha);
   return `<div class="banco" aria-label="Bottega"><div class="tenda"></div><div class="banco-in"><span class="insegna">Bottega</span><span class="chip gold num">${fmt(monete)} monete</span></div></div>
     <div class="reparti" role="group" aria-label="Reparti">${REPARTI.map(([k, n]) => `<button data-act="reparto" data-k="${k}" aria-pressed="${k === rep[0]}">${n}</button>`).join("")}</div>
     ${regaloPet(g) && rep[0] !== "animali" ? `<div class="notice fr-stone small">Hai raggiunto il livello ${LV_ANIMALE}: nel reparto Animali il primo compagno è in regalo.</div>` : ""}
     <div class="bt-griglia">${carte.map(c => c.html).join("")}</div>
-    <p class="muted small" style="margin:0">${rep[0] === "bonus" ? "I bonus si usano dal menu ⋯ delle missioni (passa, rinvia) e dalla missione del giorno (cambio extra)." : "Quello che compri va nell'armadio, nella scheda Eroe."} Le monete si guadagnano con le faccende.</p>`;
+    <p class="muted small" style="margin:0">${rep[0] === "arredi" ? "Gli arredi vanno nella teca, nella scheda Eroe; li sistemi nelle stanze con il pulsante Arreda." : rep[0] === "bonus" ? "I bonus si usano dal menu ⋯ delle missioni (passa, rinvia) e dalla missione del giorno (cambio extra)." : "Quello che compri va nell'armadio, nella scheda Eroe."} Le monete si guadagnano con le faccende.</p>`;
 }
 function compraOggetto(t, sl, pid) {
   const g = S.giocatori[me]; if (!g) return;
@@ -1944,7 +2032,7 @@ function apriCrediti() {
     apriSheet(`<h2>Crediti</h2>
       <p class="muted small" style="margin:0">I personaggi sono composti con gli sprite del <b>Liberated Pixel Cup</b> e dell'<i>Universal LPC Spritesheet Character Generator</i>, opera di tanti artisti. Le immagini restano sotto le loro licenze: ${esc(lic.join(", "))}.</p>
       <div class="panel fr-stone small" style="line-height:1.6">${autori.map(esc).join(" · ")}</div>
-      <p class="muted small" style="margin:0">Elenco completo con le fonti: <a href="https://github.com/GiadaJennyQafalia/our-little-world/blob/main/CREDITI.md" target="_blank" rel="noopener">CREDITI.md</a>. Le card delle classi sono illustrazioni generate con l'AI.</p>
+      <p class="muted small" style="margin:0">Elenco completo con le fonti: <a href="https://github.com/GiadaJennyQafalia/our-little-world/blob/main/CREDITI.md" target="_blank" rel="noopener">CREDITI.md</a>. Le card delle classi, le porte e gli arredi sono illustrazioni generate con l'AI.</p>
       <div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button></div>`);
   }).catch(() => toast("Non riesco a caricare i crediti"));
 }
@@ -2084,6 +2172,10 @@ document.addEventListener("click", e => {
     case "cambiaGiorno": cambiaGiorno(); break;
     case "cambioExtra": conBonus("cambio", () => cambiaGiorno(true)); break;
     case "compraBonus": compraBonus(b.dataset.k); break;
+    case "compraArredo": compraArredo(id); break;
+    case "arrTipo": S.arrTipo = b.dataset.k; render(); break;
+    case "arreda": apriArreda(S.stanzaSel); break;
+    case "vaiArredi": chiudiSheet(); S.view = "premi"; S.premiTab = "bottega"; S.reparto = "arredi"; render(); window.scrollTo(0, 0); break;
     case "usaPozione": cambiaBonus(me, "pozione", -1).then(() => db.doc("giocatori/" + me).update({ pozione: true })).then(() => toast("Pozione attiva: +50% di monete sulla prossima missione"), errore); break;
     case "fatta": { const f = trova(S.faccende, id); if (f) { b.disabled = true; completa(f, [me]); } break; }
     case "prenota": {

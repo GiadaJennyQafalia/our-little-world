@@ -704,3 +704,20 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .ing-pet { position: absolute; right: 2px; bottom: 6px; width: 64px; height: 64px; image-rendering: pixelated; }
 .ing-entra { min-width: 220px; font-size: 1.1rem; padding: 12px 20px; margin-top: 4px; }
 .ing-nuovo { color: #cdb894; }
+
+/* ---------- Arredi ---------- */
+.arr-scena { position: absolute; height: auto; image-rendering: pixelated; pointer-events: none; filter: drop-shadow(0 2px 0 #0007); }
+.arr-scena.spec { transform: scaleX(-1); }
+.arr-img { image-rendering: pixelated; max-width: 100%; height: auto; }
+.arr-card .arr-img { max-height: 110px; width: auto; margin: 6px auto 2px; }
+.arr-filtri { grid-column: 1 / -1; }
+.arr-posto { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
+.arr-th { width: 54px; height: 54px; flex: none; display: grid; place-items: center; }
+.arr-th .arr-img { max-width: 54px; max-height: 54px; width: auto; }
+.arr-vuoto { font-size: .7rem; color: var(--ash, #8d8499); border: 1px dashed var(--seam, #4a3f58); border-radius: 8px; width: 50px; height: 50px; display: grid; place-items: center; }
+.teca { padding: 10px; background: linear-gradient(180deg, #3a2418, #2a1810); border: 3px solid #1a0807; box-shadow: inset 0 2px 0 #6a4030, 0 4px 0 #0009; }
+.teca-griglia { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.teca-ogg { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; text-align: center; border-radius: 10px; background: #1a1120aa; border: 1px solid #4a2f22; color: inherit; font: inherit; }
+button.teca-ogg { cursor: pointer; }
+.teca-ogg .arr-img { max-height: 72px; width: auto; }
+.teca-ogg b { font-size: .78rem; line-height: 1.15; }

@@ -1,0 +1,581 @@
+[
+{
+"id": "anfora",
+"nome": "Anfora greca",
+"tipo": "reliquia",
+"posto": "terra",
+"prezzo": 200,
+"w": 98,
+"h": 189
+},
+{
+"id": "busto",
+"nome": "Busto di marmo",
+"tipo": "reliquia",
+"posto": "terra",
+"prezzo": 200,
+"w": 96,
+"h": 225
+},
+{
+"id": "astrolabio",
+"nome": "Astrolabio d'ottone",
+"tipo": "reliquia",
+"posto": "terra",
+"prezzo": 200,
+"w": 118,
+"h": 198
+},
+{
+"id": "clessidra",
+"nome": "Clessidra antica",
+"tipo": "reliquia",
+"posto": "terra",
+"prezzo": 200,
+"w": 74,
+"h": 150
+},
+{
+"id": "mappamondo",
+"nome": "Mappamondo",
+"tipo": "reliquia",
+"posto": "terra",
+"prezzo": 200,
+"w": 140,
+"h": 186
+},
+{
+"id": "leggio",
+"nome": "Libro degli incantesimi",
+"tipo": "reliquia",
+"posto": "terra",
+"prezzo": 200,
+"w": 150,
+"h": 211
+},
+{
+"id": "gatto_egizio",
+"nome": "Gatto egizio",
+"tipo": "reliquia",
+"posto": "terra",
+"prezzo": 200,
+"w": 94,
+"h": 193
+},
+{
+"id": "specchio_magico",
+"nome": "Specchio su piede",
+"tipo": "reliquia",
+"posto": "terra",
+"prezzo": 200,
+"w": 93,
+"h": 203
+},
+{
+"id": "mappa_tesoro",
+"nome": "Mappa del tesoro",
+"tipo": "reliquia",
+"posto": "terra",
+"prezzo": 200,
+"w": 149,
+"h": 163
+},
+{
+"id": "lanterna",
+"nome": "Lanterna appesa",
+"tipo": "reliquia",
+"posto": "terra",
+"prezzo": 200,
+"w": 91,
+"h": 183
+},
+{
+"id": "macchina_cucire",
+"nome": "Macchina da cucire",
+"tipo": "casa",
+"posto": "terra",
+"prezzo": 100,
+"w": 135,
+"h": 157
+},
+{
+"id": "scopa_secchio",
+"nome": "Scopa e secchio",
+"tipo": "casa",
+"posto": "terra",
+"prezzo": 100,
+"w": 111,
+"h": 152
+},
+{
+"id": "cesto_cucito",
+"nome": "Cesto da cucito",
+"tipo": "casa",
+"posto": "terra",
+"prezzo": 100,
+"w": 120,
+"h": 112
+},
+{
+"id": "torta",
+"nome": "Torta sotto la campana",
+"tipo": "casa",
+"posto": "terra",
+"prezzo": 100,
+"w": 103,
+"h": 122
+},
+{
+"id": "ciotola_mattarello",
+"nome": "Ciotola e mattarello",
+"tipo": "casa",
+"posto": "terra",
+"prezzo": 100,
+"w": 124,
+"h": 115
+},
+{
+"id": "profumi",
+"nome": "Profumi e alambicco",
+"tipo": "casa",
+"posto": "terra",
+"prezzo": 100,
+"w": 144,
+"h": 103
+},
+{
+"id": "cavalletto",
+"nome": "Cavalletto da pittura",
+"tipo": "casa",
+"posto": "terra",
+"prezzo": 100,
+"w": 69,
+"h": 156
+},
+{
+"id": "zaino",
+"nome": "Zaino da escursione",
+"tipo": "casa",
+"posto": "terra",
+"prezzo": 100,
+"w": 141,
+"h": 147
+},
+{
+"id": "felce",
+"nome": "Felce in vaso",
+"tipo": "casa",
+"posto": "terra",
+"prezzo": 100,
+"w": 122,
+"h": 148
+},
+{
+"id": "filatoio",
+"nome": "Filatoio",
+"tipo": "casa",
+"posto": "terra",
+"prezzo": 100,
+"w": 105,
+"h": 151
+},
+{
+"id": "baule",
+"nome": "Baule col telo",
+"tipo": "casa",
+"posto": "terra",
+"prezzo": 100,
+"w": 101,
+"h": 125
+},
+{
+"id": "d_regina",
+"nome": "La regina in trono",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 136,
+"h": 263,
+"pend": -0.456
+},
+{
+"id": "d_cavaliere",
+"nome": "Il cavaliere col vessillo",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 168,
+"h": 253,
+"pend": -0.454
+},
+{
+"id": "d_citta",
+"nome": "La città murata",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 169,
+"h": 232,
+"pend": -0.446
+},
+{
+"id": "d_dama_falco",
+"nome": "La dama col falco",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 144,
+"h": 257,
+"pend": -0.432
+},
+{
+"id": "d_mietitura",
+"nome": "La mietitura",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 140,
+"h": 210,
+"pend": -0.463
+},
+{
+"id": "d_musici",
+"nome": "I musici",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 143,
+"h": 219,
+"pend": -0.471
+},
+{
+"id": "d_drago",
+"nome": "Il cavaliere e il drago",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 152,
+"h": 204,
+"pend": -0.457
+},
+{
+"id": "d_giardino",
+"nome": "Il giardino della fontana",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 157,
+"h": 213,
+"pend": -0.456
+},
+{
+"id": "d_angelo",
+"nome": "L'angelo col giglio",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 200,
+"w": 111,
+"h": 243,
+"pend": -0.25
+},
+{
+"id": "d_banchetto",
+"nome": "Il banchetto",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 159,
+"h": 198,
+"pend": -0.258
+},
+{
+"id": "a_drago_torre",
+"nome": "Arazzo del drago sulla torre",
+"tipo": "arazzo",
+"posto": "parete",
+"prezzo": 150,
+"w": 116,
+"h": 300,
+"pend": -0.467
+},
+{
+"id": "d_cervi",
+"nome": "Cervi al chiaro di luna",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 139,
+"h": 223,
+"pend": -0.467
+},
+{
+"id": "d_caccia",
+"nome": "La caccia al cervo",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 191,
+"h": 248,
+"pend": -0.463
+},
+{
+"id": "d_tempesta",
+"nome": "Nave nella tempesta",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 144,
+"h": 201,
+"pend": -0.454
+},
+{
+"id": "d_neve",
+"nome": "Villaggio sotto la neve",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 140,
+"h": 188,
+"pend": -0.468
+},
+{
+"id": "d_gatto_re",
+"nome": "Il gatto con la corona",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 86,
+"h": 154,
+"pend": -0.424
+},
+{
+"id": "d_strega",
+"nome": "La casetta della strega",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 152,
+"h": 207,
+"pend": -0.428
+},
+{
+"id": "d_stelle",
+"nome": "Il cielo delle costellazioni",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 157,
+"h": 212,
+"pend": -0.453
+},
+{
+"id": "spade_scudo",
+"nome": "Spade e scudo",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 139,
+"h": 220,
+"pend": -0.311
+},
+{
+"id": "vetrata",
+"nome": "Vetrata della rosa",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 200,
+"w": 104,
+"h": 241,
+"pend": -0.463
+},
+{
+"id": "a_unicorno",
+"nome": "Arazzo dell'unicorno",
+"tipo": "arazzo",
+"posto": "parete",
+"prezzo": 150,
+"w": 140,
+"h": 231,
+"pend": -0.404
+},
+{
+"id": "a_castello",
+"nome": "Arazzo del castello stellato",
+"tipo": "arazzo",
+"posto": "parete",
+"prezzo": 150,
+"w": 135,
+"h": 231,
+"pend": -0.401
+},
+{
+"id": "stendardo",
+"nome": "Stendardo del leone",
+"tipo": "arazzo",
+"posto": "parete",
+"prezzo": 150,
+"w": 103,
+"h": 220,
+"pend": -0.419
+},
+{
+"id": "d_dama",
+"nome": "Ritratto di dama",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 123,
+"h": 230,
+"pend": -0.393
+},
+{
+"id": "d_ritratto_cav",
+"nome": "Ritratto di cavaliere",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 123,
+"h": 230,
+"pend": -0.394
+},
+{
+"id": "d_montagne",
+"nome": "Montagne al tramonto",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 163,
+"h": 222,
+"pend": -0.406
+},
+{
+"id": "d_natura_morta",
+"nome": "Natura morta con candela",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 106,
+"h": 151,
+"pend": -0.405
+},
+{
+"id": "specchio_oro",
+"nome": "Specchio dorato",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 116,
+"h": 147,
+"pend": -0.196
+},
+{
+"id": "d_mappa",
+"nome": "Mappa del mondo",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 150,
+"w": 163,
+"h": 212,
+"pend": -0.406
+},
+{
+"id": "trittico",
+"nome": "Trittico dorato",
+"tipo": "dipinto",
+"posto": "parete",
+"prezzo": 200,
+"w": 136,
+"h": 189,
+"pend": -0.214
+},
+{
+"id": "pianoforte",
+"nome": "Pianoforte a coda",
+"tipo": "strumento",
+"posto": "terra",
+"prezzo": 250,
+"w": 160,
+"h": 193
+},
+{
+"id": "clavicembalo",
+"nome": "Clavicembalo",
+"tipo": "strumento",
+"posto": "terra",
+"prezzo": 250,
+"w": 156,
+"h": 189
+},
+{
+"id": "arpa",
+"nome": "Arpa d'oro",
+"tipo": "strumento",
+"posto": "terra",
+"prezzo": 250,
+"w": 93,
+"h": 171
+},
+{
+"id": "violoncello",
+"nome": "Violoncello",
+"tipo": "strumento",
+"posto": "terra",
+"prezzo": 150,
+"w": 95,
+"h": 194
+},
+{
+"id": "liuto",
+"nome": "Liuto",
+"tipo": "strumento",
+"posto": "terra",
+"prezzo": 150,
+"w": 113,
+"h": 175
+},
+{
+"id": "ghironda",
+"nome": "Ghironda",
+"tipo": "strumento",
+"posto": "terra",
+"prezzo": 150,
+"w": 168,
+"h": 109
+},
+{
+"id": "grammofono",
+"nome": "Grammofono",
+"tipo": "strumento",
+"posto": "terra",
+"prezzo": 150,
+"w": 114,
+"h": 170
+},
+{
+"id": "organo",
+"nome": "Organo a canne",
+"tipo": "strumento",
+"posto": "terra",
+"prezzo": 250,
+"w": 109,
+"h": 173
+},
+{
+"id": "tamburo",
+"nome": "Tamburo",
+"tipo": "strumento",
+"posto": "terra",
+"prezzo": 150,
+"w": 111,
+"h": 155
+},
+{
+"id": "violino",
+"nome": "Violino nella custodia",
+"tipo": "strumento",
+"posto": "terra",
+"prezzo": 150,
+"w": 164,
+"h": 146
+}
+]
