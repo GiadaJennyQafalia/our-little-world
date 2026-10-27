@@ -158,11 +158,7 @@ out = ["# Prompt delle dimore", "",
 for k, nome, lv, chi, stile, st in D:
     out += ["---", "", f"## {nome}", "", (f"Si sblocca al livello {lv}." if lv > 1 else "Disponibile da subito."), ""]
     if k == "reggia":
-        out += ["**Già pronte:** sezione, bagno, sgabuzzino, cucina, ingresso, soggiorno, balcone, studio, lavanderia, cantina, giardino.",
-                "**Da fare:** camera, corridoio, cucina-soggiorno, terrazzo (un foglio da 4) e le stanze in più viste di fronte.", "",
-                "### Interni da rifare (1 foglio)", "", "Allega: `soggiorno.png` del castello.", ""]
-        out += P(foglio(chi, INTERNI[k], [desc(st, "camera"), desc(st, "corridoio"), desc(st, "cucina_soggiorno"), desc(st, "terrazzo")]))
-        out += ["### Stanze in più viste di fronte", "", "Allega: `tessere_extra_castello.png`.", ""] + P(fronte(chi, INTERNI[k]))
+        out += ["**Completo** (sezione, 14 interni, 5 stanze in più viste di fronte). Manca solo la lavanderia vista di fronte: finché non c'è si usa lo sgabuzzino.", ""]
         continue
     out += ["### Sezione", "", "Allega: `castello.png` + l'esterno della dimora.", ""] + P(sezione(chi, stile))
     out += ["### Stanze in più viste di fronte", "", "Allega: `tessere_extra_castello.png`.", ""] + P(fronte(chi, INTERNI[k]))

@@ -37,7 +37,12 @@ const RIPIEGO = { cucina_soggiorno: "soggiorno", studio: "soggiorno", lavanderia
    La vista d'insieme è composta dalla pianta: le stanze vere, nelle loro posizioni, dentro la cornice della dimora. */
 const SKIN = { castello: { img: "img/castello.webp", w: 768, h: 1376, stanze: "img/stanze/",
   cornice: { dir: "img/dimore/castello/", tetto: [768, 283], base: [768, 178], muro: [112, 340] },
-  tessere: { dir: "img/dimore/castello/tessere/", tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone"] }, file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone" } } };
+  tessere: { dir: "img/dimore/castello/tessere/", tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "lavanderia", "terrazzo", "giardino", "cantina"] },
+  file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino" } },
+  reggia: { img: "img/dimore/reggia/sezione.webp", w: 768, h: 1376, stanze: "img/dimore/reggia/stanze/",
+  cornice: { dir: "img/dimore/reggia/", tetto: [768, 300], base: [768, 291], muro: [100, 340] },
+  tessere: { dir: "img/dimore/reggia/tessere/", tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "terrazzo", "giardino", "cantina"] },
+  file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino", terrazzo: "terrazzo" } } };
 /* Lo stesso nelle viste delle singole stanze (immagini 720×676, 720×706 il corridoio): il pavimento è un rombo, i piedi stanno nella parte centrale. */
 const PIANI_STANZA = {
   bagno: { x0: 250, x1: 470, y: 500 }, camera: { x0: 260, x1: 480, y: 505 }, ripostiglio: { x0: 410, x1: 560, y: 505 },
@@ -97,7 +102,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.34.0";
+const VERSIONE_APP = "3.35.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -869,7 +874,7 @@ const stanzeArredabili = () => Object.keys(pianta()).filter(r => postiStanza(r))
 const arrediCasa = () => (S.config && S.config.arredi) || {};
 /* Dove si trova un oggetto: { stanza, posto } oppure null. */
 function doveArredo(id) { const A = arrediCasa(); for (const r in A) for (const k in A[r]) if (A[r][k] && A[r][k].id === id) return { stanza: r, posto: k }; return null; }
-const postiStanza = r => { const sk = SKIN[dimoraMia()] || SKIN.castello; return SLOT_ARREDI[sk.file[tipoConImmagine(sk, tipoStanza(r))]] || null; };
+const postiStanza = r => { const sk = SKIN[dimoraMia()] || SKIN.castello; const f = sk.file[tipoConImmagine(sk, tipoStanza(r))]; return SLOT_ARREDI[f] || (f ? SLOT_ARREDI.soggiorno : null); };
 /* Gli arredi disegnati dentro la scena della stanza (stesse coordinate dei personaggi, 720 px di larghezza). */
 function arrediScena(r, h) {
   const sl = postiStanza(r), A = arrediCasa()[r] || {}; if (!sl) return "";
