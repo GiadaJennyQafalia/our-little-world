@@ -79,6 +79,8 @@
       aggiungi(CAT.fissi.corpo, [["body", pelle]]);
       aggiungi(corpo === "male" ? CAT.fissi.testa_m : CAT.fissi.testa_f, [["body", pelle], ["eye", occhi]]);
       aggiungi(CAT.fissi["sopracciglia_" + (pg.sopr === "thick" ? "thick" : "thin")], [["hair", capCol]]);
+      const fc = pg.faccia && CAT.facce && CAT.facce[pg.faccia];
+      if (fc && pg.faccia !== "neutral") aggiungi(fc, [["body", pelle], ["eye", occhi]]);
     }
     const mat = (voce, col) => !voce || !voce.materiale ? [] : [[voce.materiale, col || (voce.materiale === "body" ? pelle : voce.materiale === "hair" ? capCol : null)]].filter(m => m[1]);
     for (const slot of Object.keys(CAT.slot)) {
@@ -107,12 +109,16 @@
   }
   /* Fa camminare il personaggio sul posto (o ferma, se si preferisce il movimento ridotto). Restituisce una funzione che ferma l'animazione. */
   function anima(canvas, pg, { riga = 2, scala = 3, fps = 8, passi = true } = {}) {
-    let attivo = true, k = 0, fotogrammi = null;
+    let attivo = true, k = 0;
     const rid = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const cols = passi && !rid ? [1, 2, 3, 4, 5, 6, 7, 8] : [0];
+    const batte = !rid && !OCCHI_CHIUSI.has(pg.faccia || "neutral"), chiusa = { ...pg, faccia: "closed" };
     (async () => {
-      fotogrammi = await Promise.all((passi && !rid ? [1, 2, 3, 4, 5, 6, 7, 8] : [0]).map(c => fotogramma(pg, riga, c)));
+      const fotogrammi = await Promise.all(cols.map(c => fotogramma(pg, riga, c)));
+      const chiusi = batte ? await Promise.all(cols.map(c => fotogramma(chiusa, riga, c))) : null;
       canvas.width = F * scala; canvas.height = F * scala; const x = canvas.getContext("2d"); x.imageSmoothingEnabled = false;
-      const giro = () => { if (!attivo || !canvas.isConnected) return; x.clearRect(0, 0, canvas.width, canvas.height); x.drawImage(fotogrammi[k % fotogrammi.length], 0, 0, canvas.width, canvas.height); k++; setTimeout(giro, 1000 / fps); };
+      /* ogni tanto (circa ogni 4–5 secondi) sbatte le palpebre per un fotogramma */
+      const giro = () => { if (!attivo || !canvas.isConnected) return; x.clearRect(0, 0, canvas.width, canvas.height); const i = k % fotogrammi.length; x.drawImage(chiusi && k % 37 === 36 ? chiusi[i] : fotogrammi[i], 0, 0, canvas.width, canvas.height); k++; setTimeout(giro, 1000 / fps); };
       giro();
     })();
     return () => { attivo = false; };
@@ -165,16 +171,33 @@
   }
 
 
+  /* ---------- Espressioni ----------
+     pg.faccia = id di catalogo.facce (strato sopra la testa). Le emozioni a tempo (es. felice dopo una missione) valgono per tutte le viste. */
+  const EMO = {}, OCCHI_CHIUSI = new Set(["happy", "happy2", "closed"]);
+  let alFinireEmo = null;
+  function emozione(id, faccia, ms = 6000) {
+    EMO[id] = { faccia, fino: Date.now() + ms };
+    setTimeout(() => { if (EMO[id] && EMO[id].fino <= Date.now()) { delete EMO[id]; if (alFinireEmo) alFinireEmo(id); } }, ms + 60);
+  }
+  const emoAttiva = id => (EMO[id] && EMO[id].fino > Date.now() ? EMO[id].faccia : null);
+  const facce = () => (CAT && CAT.facce) || {};
+
   /* ---------- Abitanti: gli eroi (e i loro animali) che passeggiano nel pavimento delle stanze ----------
-     host = contenitore posizionato sopra l'immagine; w/h = dimensioni dell'immagine in pixel; abitanti = [{ id, pg, pet, x0, x1, y, scala, stanza }]
-     Le coordinate sono in pixel dell'immagine (x = centro dei piedi, y = linea dei piedi) e vengono trasformate in percentuali. */
-  const FC = new Map(), FSYNC = new Map(), STATO = {};
+     host = contenitore posizionato sopra l'immagine; w/h = dimensioni dell'immagine in pixel;
+     abitanti = [{ id, pg, pet, x0, x1, y, scala, stanza, faccia, spavento }]
+     faccia = espressione di base (preferita, o l'umore della stanza); spavento = sguardo che scatta tra stupore e occhiate ai lati.
+     Le coordinate sono in pixel dell'immagine (x = centro dei piedi, y = linea dei piedi) e vengono trasformate in percentuali.
+     Se due eroi sono nella stessa stanza, ogni tanto si avvicinano e chiacchierano, si sorridono o litigano. */
+  const FC = new Map(), FSYNC = new Map(), STATO = {}, DIALOGO = {};
   let giroAbitanti = 0;
   async function fotoC(pg, riga, col) {
     const k = JSON.stringify(pg) + "|" + riga + "|" + col;
     if (!FC.has(k)) FC.set(k, fotogramma(pg, riga, col).then(f => { FSYNC.set(k, f); return f; }));
     return FC.get(k);
   }
+  let prossimoTipo = null; /* solo per le prove: forza il prossimo dialogo */
+  const TIPI_DIALOGO = [["chiacchiera", 0.45], ["sorriso", 0.3], ["litigio", 0.25]];
+  const FUMETTO = { chiacchiera: "…", sorriso: "♥", litigio: "#!" };
   function abita(host, w, h, abitanti) {
     cancelAnimationFrame(giroAbitanti);
     const rid = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -183,9 +206,10 @@
     const lista = abitanti.filter(a => a && a.pg).map(a => {
       const ch = a.id + "@" + (a.vista || ""), st = STATO[ch] || (STATO[ch] = {});
       const nuovaStanza = st.stanza !== a.stanza;
-      if (nuovaStanza || st.x == null || st.x < a.x0 || st.x > a.x1) { st.x = a.x0 + Math.random() * (a.x1 - a.x0); st.stanza = a.stanza; st.meta = null; st.fermoFino = performance.now() + 800; st.px = null; }
+      if (nuovaStanza || st.x == null || st.x < a.x0 || st.x > a.x1) { st.x = a.x0 + Math.random() * (a.x1 - a.x0); st.stanza = a.stanza; st.meta = null; st.fermoFino = performance.now() + 800; st.px = null; st.inDialogo = false; st.guarda = null; }
       const cv = document.createElement("canvas"); cv.width = F; cv.height = F; cv.className = "abit-eroe" + (nuovaStanza ? " nuovo" : ""); cv.setAttribute("aria-hidden", "true");
       cv.style.width = pc(F * a.scala, w); host.appendChild(cv);
+      const fum = document.createElement("span"); fum.className = "abit-fumetto"; fum.hidden = true; fum.setAttribute("aria-hidden", "true"); host.appendChild(fum);
       let pcv = null, A = null, imgPet = null;
       if (a.pet && ANIMALI[a.pet.specie]) {
         A = ANIMALI[a.pet.specie]; pcv = document.createElement("canvas"); pcv.width = 32; pcv.height = 32; pcv.className = "abit-pet" + (nuovaStanza ? " nuovo" : ""); pcv.setAttribute("aria-hidden", "true");
@@ -193,19 +217,55 @@
         foglio(A.file).then(i => { imgPet = i; }).catch(() => {});
       }
       if (st.px == null) st.px = st.x;
-      const fr = {}, kb = JSON.stringify(a.pg) + "|";
-      for (const r of [1, 2, 3]) for (let c = 0; c <= 8; c++) { const f = FSYNC.get(kb + r + "|" + c); if (f) fr[r + "_" + c] = f; }
-      return { a, st, cv, pcv, A, get imgPet() { return imgPet; }, riga: 2, col: 0, ultimo: "", fr };
+      const base = a.faccia || a.pg.faccia || "neutral", fr = {}, chiesti = new Set();
+      const pgF = fc => ({ ...a.pg, faccia: fc });
+      for (const r of [1, 2, 3]) for (let c = 0; c <= 8; c++) { const f = FSYNC.get(JSON.stringify(pgF(base)) + "|" + r + "|" + c); if (f) fr[base + "|" + r + "_" + c] = f; }
+      const dai = (fc, r, c) => { const k = fc + "|" + r + "_" + c; if (chiesti.has(k)) return; chiesti.add(k); fotoC(pgF(fc), r, c).then(f => { fr[k] = f; }).catch(() => {}); };
+      return { a, st, cv, fum, pcv, A, get imgPet() { return imgPet; }, base, fr, dai, ultimoF: null };
     });
-    /* Carica i fotogrammi: prima la posa ferma, poi i passi. */
+    /* Carica i fotogrammi: prima la posa ferma, poi i passi, poi gli occhi chiusi per il battito delle palpebre. */
     for (const o of lista) {
-      const dai = (r, c) => fotoC(o.a.pg, r, c).then(f => { o.fr[r + "_" + c] = f; });
-      dai(2, 0); if (!rid) for (const r of [1, 3, 2]) for (let c = 1; c <= 8; c++) dai(r, c);
+      o.dai(o.base, 2, 0);
+      if (!rid) { for (const r of [1, 3, 2]) for (let c = 1; c <= 8; c++) o.dai(o.base, r, c); for (const r of [2, 1, 3]) o.dai("closed", r, 0); }
+      if (o.a.spavento) for (const fc of ["shock", "look_l", "look_r"]) o.dai(fc, 2, 0);
     }
-    let t0 = performance.now(), tFps = 0;
+    /* Coppie nella stessa stanza (esattamente due eroi). */
+    const perStanza = {};
+    for (const o of lista) (perStanza[o.a.stanza] = perStanza[o.a.stanza] || []).push(o);
+    const coppie = Object.values(perStanza).filter(g => g.length === 2).map(g => {
+      const k = g.map(o => o.a.id).sort().join("+") + "@" + g[0].a.stanza + "@" + (g[0].a.vista || "");
+      const d = DIALOGO[k] || (DIALOGO[k] = { fase: "attesa", prossima: performance.now() + 5000 + Math.random() * 9000 });
+      for (const o of g) for (const fc of ["happy", "happy2", "anger", "angry2"]) for (const r of [1, 3]) o.dai(fc, r, 0);
+      return { g, d };
+    });
+    const dialoga = t => {
+      for (const { g, d } of coppie) {
+        const [s, x] = g[0].st.x <= g[1].st.x ? g : [g[1], g[0]];
+        if (d.fase === "attesa") {
+          if (rid || t < d.prossima || s.st.meta != null || x.st.meta != null) continue;
+          let r = Math.random(); d.tipo = prossimoTipo || TIPI_DIALOGO.find(([, p]) => (r -= p) < 0)[0]; prossimoTipo = null;
+          s.st.inDialogo = x.st.inDialogo = true;
+          /* si fermano a un passo l'uno dall'altro, senza sovrapporsi */
+          const mezzo = (s.a.x1 + x.a.x0) / 2, gap = 18 * Math.max(s.a.scala, x.a.scala);
+          s.st.meta = Math.max(s.a.x0, Math.min(s.a.x1, mezzo - gap)); x.st.meta = Math.max(x.a.x0, Math.min(x.a.x1, mezzo + gap)); d.fase = "avvicina"; d.limite = t + 9000;
+        } else if (d.fase === "avvicina") {
+          if ((s.st.meta == null && x.st.meta == null) || t > d.limite) { s.st.meta = x.st.meta = null; s.st.guarda = 3; x.st.guarda = 1; d.fase = "parla"; d.inizio = t; d.fino = t + 5500; }
+        } else if (d.fase === "parla" && t > d.fino) {
+          for (const o of g) { o.st.inDialogo = false; o.st.guarda = null; o.st.fermoFino = t + 1200 + Math.random() * 1500; o.fum.hidden = true; }
+          d.fase = "attesa"; d.prossima = t + 18000 + Math.random() * 25000;
+        }
+      }
+    };
+    const facciaDialogo = (o, t) => {
+      const c = coppie.find(c => c.g.includes(o)); if (!c || c.d.fase !== "parla") return null;
+      const turno = Math.floor((t - c.d.inizio) / 1100) % 2, parla = c.g.indexOf(o) === turno;
+      return { tipo: c.d.tipo, parla, faccia: c.d.tipo === "sorriso" ? "happy2" : c.d.tipo === "litigio" ? (parla ? "angry2" : "anger") : (parla ? "neutral" : "happy") };
+    };
+    let t0 = performance.now();
     const passo = t => {
       if (!host.isConnected) return;
       const dt = Math.min(0.1, (t - t0) / 1000); t0 = t;
+      dialoga(t);
       for (const o of lista) {
         const { a, st } = o;
         if (!rid) {
@@ -213,15 +273,31 @@
             const d = st.meta - st.x, mv = Math.min(Math.abs(d), VEL * dt);
             st.x += Math.sign(d) * mv; st.dir = d > 0 ? 3 : 1;
             if (Math.abs(st.meta - st.x) < 0.5) { st.meta = null; st.fermoFino = t + 1500 + Math.random() * 3500; st.dir = 2; }
-          } else if (t >= (st.fermoFino || 0) && a.x1 - a.x0 > 30) {
+          } else if (!st.inDialogo && t >= (st.fermoFino || 0) && a.x1 - a.x0 > 30) {
             let m = a.x0 + Math.random() * (a.x1 - a.x0); if (Math.abs(m - st.x) < 25) m = st.x < (a.x0 + a.x1) / 2 ? a.x1 : a.x0; st.meta = m;
           }
         }
-        const moto = st.meta != null, riga = moto ? st.dir : 2, col = moto ? 1 + Math.floor(t / (1000 / FPS)) % 8 : 0;
-        const k = riga + "_" + col, fr = o.fr[k] || o.fr["2_0"];
-        if (fr && o.ultimo !== k) { const x = o.cv.getContext("2d"); x.clearRect(0, 0, F, F); x.drawImage(fr, 0, 0); o.ultimo = k; }
+        const moto = st.meta != null, riga = moto ? st.dir : (st.guarda || 2), col = moto ? 1 + Math.floor(t / (1000 / FPS)) % 8 : 0;
+        /* Espressione: emozione a tempo > dialogo > spavento > espressione di base; da fermo ogni tanto sbatte le palpebre. */
+        let faccia = o.base;
+        if (a.spavento) faccia = ["shock", "shock", "look_l", "shock", "look_r"][Math.floor(t / 650) % 5];
+        const dl = facciaDialogo(o, t); if (dl) faccia = dl.faccia;
+        const ev = emoAttiva(a.id); if (ev) faccia = ev;
+        if (!moto && !rid && !OCCHI_CHIUSI.has(faccia)) {
+          if (t > (st.batti || 0)) { st.battiFine = t + 150; st.batti = t + 2500 + Math.random() * 4000; }
+          if (t < st.battiFine) faccia = "closed";
+        }
+        let f = o.fr[faccia + "|" + riga + "_" + col];
+        if (!f) { o.dai(faccia, riga, col); f = o.fr[o.base + "|" + riga + "_" + col] || o.fr[o.base + "|2_0"]; }
+        if (f && o.ultimoF !== f) { const x = o.cv.getContext("2d"); x.clearRect(0, 0, F, F); x.drawImage(f, 0, 0); o.ultimoF = f; }
         const yE = a.y;
         o.cv.style.left = pc(st.x - F * a.scala / 2, w); o.cv.style.top = pc(yE - PIEDI * a.scala, h); o.cv.style.zIndex = Math.round(yE);
+        /* Fumetto sopra la testa di chi parla (o di entrambi, se si sorridono). */
+        const mostra = dl && (dl.parla || dl.tipo === "sorriso");
+        if (mostra) {
+          if (o.fum.hidden || o.fum.dataset.t !== dl.tipo) { o.fum.hidden = false; o.fum.dataset.t = dl.tipo; o.fum.textContent = FUMETTO[dl.tipo]; }
+          o.fum.style.left = pc(st.x, w); o.fum.style.top = pc(yE - 50 * a.scala, h); o.fum.style.zIndex = Math.round(yE) + 5;
+        } else if (!o.fum.hidden) o.fum.hidden = true;
         if (o.pcv) {
           const verso = moto ? (st.dir === 3 ? 1 : -1) : (st.pverso || 1), meta = st.x - verso * 34 * a.scala / 2;
           st.px += (meta - st.px) * Math.min(1, dt * 2.4);
@@ -246,5 +322,5 @@
     giroAbitanti = requestAnimationFrame(passo);
   }
 
-  window.OLW_SPRITE = { abita, pezzoSolo, ANIMALI, animaPet, carica, disegna, anima, ritratto, fotogramma, elenco, palette, hexDi, catalogo: () => CAT, compatibile };
+  window.OLW_SPRITE = { abita, emozione, emoAttiva, facce, set alFinireEmo(fn) { alFinireEmo = fn; }, provaDialogo(tipo) { prossimoTipo = tipo; for (const d of Object.values(DIALOGO)) if (d.fase === "attesa") d.prossima = 0; }, pezzoSolo, ANIMALI, animaPet, carica, disegna, anima, ritratto, fotogramma, elenco, palette, hexDi, catalogo: () => CAT, compatibile };
 })();

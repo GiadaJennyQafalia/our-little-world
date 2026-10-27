@@ -205,5 +205,9 @@ Il codice dell'app è un'altra cosa e non è coperto da queste licenze.
 | `shield/heater/revised/trim` | bluecarrot16, Sander Frenken (castelonia), ElizaWy, JaidynReiman | OGA-BY 3.0 | <https://opengameart.org/content/lpc-shields> |
 | `shield/heater/revised/pattern` | bluecarrot16, Sander Frenken (castelonia), ElizaWy, JaidynReiman | OGA-BY 3.0 | <https://opengameart.org/content/lpc-shields> |
 | `shield/heater/revised/pattern/paly` | bluecarrot16, Sander Frenken (castelonia), ElizaWy, JaidynReiman | OGA-BY 3.0 | <https://opengameart.org/content/lpc-shields> |
+| `head/faces` | JaidynReiman, ElizaWy, Stephen Challener (Redshrike) | OGA-BY 3.0 | <https://github.com/ElizaWy/LPC/tree/main/Characters/Head> <https://opengameart.org/content/ulpc-expanded-expressions> |
+| `head/faces/elderly/happy` | JaidynReiman, ElizaWy, Stephen Challener (Redshrike) | OGA-BY 3.0 | <https://github.com/ElizaWy/LPC/tree/main/Characters/Head> <https://opengameart.org/content/ulpc-expanded-expressions> |
+| `head/faces/female/happy` | JaidynReiman, ElizaWy, Stephen Challener (Redshrike) | OGA-BY 3.0 | <https://github.com/ElizaWy/LPC/tree/main/Characters/Head> <https://opengameart.org/content/ulpc-expanded-expressions> |
+| `head/faces/male/happy` | JaidynReiman, ElizaWy, Stephen Challener (Redshrike) | OGA-BY 3.0 | <https://github.com/ElizaWy/LPC/tree/main/Characters/Head> <https://opengameart.org/content/ulpc-expanded-expressions> |
 
 La scimmia (`assets/pets/scimmia.png`) è disegnata da codice per questa app (`tools/scimmia.py`). Le varianti di colore di corvo e pipistrello sono ricolorazioni degli originali (`tools/volanti.py`).

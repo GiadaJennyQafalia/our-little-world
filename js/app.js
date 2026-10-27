@@ -84,7 +84,7 @@ function stanzaDelPosto(tipo, pi) {
 }
 const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.23.0";
+const VERSIONE_APP = "3.24.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -337,15 +337,33 @@ function sigillo(classe, cls) {
   };
   return `<svg class="sigil ${cls || ""}" viewBox="0 0 68 68" aria-hidden="true"><circle cx="34" cy="34" r="32" fill="var(--vault-2)" stroke="var(--candle)" stroke-width="1.5"/><circle cx="34" cy="34" r="27" fill="none" stroke="var(--seam)"/>${g[classe] || g.cavaliere}</svg>`;
 }
+/* ---------- Umore degli eroi ----------
+   Espressione del momento: emozione a tempo (missione appena fatta) > esito della sfida (per un giorno) > stato della stanza dove si trova > espressione preferita. */
+function stanzaDiEroe(id) {
+  let u = null; for (const c of S.comp) if (!c.annullato && (c.giocatori || []).includes(id) && (!u || c.ts > u.ts)) u = c;
+  if (u && u.stanza) return u.stanza;
+  try { return stanzaDelPosto("soggiorno", pianta()) || null; } catch (e) { return null; }
+}
+function umoreDi(id, now = Date.now()) {
+  const g = S.giocatori[id], pref = (g && g.pg && g.pg.faccia) || "neutral";
+  const ev = window.OLW_SPRITE && SP().emoAttiva(id); if (ev) return { faccia: ev };
+  const sf = (typeof sfideLista === "function" ? sfideLista() : []).find(x => x.stato === "conclusa" && x.risultato && x.fine && now - x.fine < DAY && now >= x.fine);
+  if (sf && sf.risultato.vincitore) return { faccia: sf.risultato.vincitore === id ? "happy2" : "eyeroll" };
+  const r = stanzaDiEroe(id);
+  if (r) { const st = statoStanze(now), x = statoUna(r, now, st); if (x && x.livello === 3) return { faccia: "shock", spavento: true }; if (x && x.livello === 2) return { faccia: "sad" }; }
+  return { faccia: pref };
+}
+const pgConUmore = (id, now) => { const g = S.giocatori[id]; if (!g || !g.pg) return null; const u = umoreDi(id, now); return { ...g.pg, faccia: u.faccia === "neutral" ? undefined : u.faccia }; };
 /* Ritratto del personaggio composto con i pezzi LPC; finché non è pronto (o per gli eroi senza personaggio) si vede il sigillo della classe. */
 const AV = new Map(), AVattesa = new Set(); let avTimer = 0;
 function avatar(g, cls) {
   if (!g || !g.pg || !window.OLW_SPRITE) return sigillo(g && g.classe, cls);
-  const k = JSON.stringify(g.pg), u = AV.get(k);
+  const id = Object.keys(S.giocatori).find(k => S.giocatori[k] === g), pg = (id && SP().catalogo() && pgConUmore(id)) || g.pg;
+  const k = JSON.stringify(pg), u = AV.get(k);
   if (u) return `<img class="avatar ${cls || ""}" src="${u}" alt="" width="108" height="108">`;
   if (!AVattesa.has(k)) {
     AVattesa.add(k);
-    window.OLW_SPRITE.ritratto(g.pg, 3).then(d => { AV.set(k, d); clearTimeout(avTimer); avTimer = setTimeout(() => { if (db) render(); }, 60); }).catch(e => console.warn("ritratto", e));
+    window.OLW_SPRITE.ritratto(pg, 3).then(d => { AV.set(k, d); clearTimeout(avTimer); avTimer = setTimeout(() => { if (db) render(); }, 60); }).catch(e => console.warn("ritratto", e));
   }
   return sigillo(g.classe, cls);
 }
@@ -652,7 +670,7 @@ function vetrina(eroe) {
 function avviaVetrina() {
   const cv = document.querySelector("canvas.vet-eroe"); if (!cv || !S.giocatori[me] || !S.giocatori[me].pg) return;
   const riga = S.vetRiga == null ? 2 : S.vetRiga;
-  SP().anima(cv, S.giocatori[me].pg, { riga, scala: 4 });
+  SP().anima(cv, pgConUmore(me) || S.giocatori[me].pg, { riga, scala: 4 });
   const pc = document.querySelector("canvas.vet-pet");
   if (pc) SP().animaPet(pc, { specie: pc.dataset.specie, col: +pc.dataset.col }, { riga: riga === 1 ? 3 : riga === 3 ? 0 : riga === 0 ? 1 : 2, scala: 3, fps: 5 });
 }
@@ -1220,6 +1238,7 @@ function apriProfilo(id, obbligatorio) {
         <div class="field"><span class="lab">Carnagione</span>${sw("pelle", "body", PELLI, pg.pelle)}<div class="sws"><label class="sw custom" title="Colore libero"><input type="color" data-for="pelle" value="${/^#/.test(pg.pelle || "") ? pg.pelle : hexColore("body", pg.pelle || "light")}"></label></div></div>
         <div class="field"><span class="lab">Occhi</span>${sw("occhi", "eye", Object.keys(LPC().palette.eye.rampe), pg.occhi)}<div class="sws"><label class="sw custom" title="Colore libero"><input type="color" data-for="occhi" value="${/^#/.test(pg.occhi || "") ? pg.occhi : hexColore("eye", pg.occhi || "blue")}"></label></div></div>
         <div class="field"><span class="lab">Sopracciglia</span>${radio("sopr", [["thin", "Sottili"], ["thick", "Folte"]], pg.sopr || "thin")}</div>
+        <div class="field"><span class="lab">Espressione preferita</span>${radio("faccia", Object.entries(SP().facce()).filter(([, f]) => f.scegli).map(([k, f]) => [k, f.nome]), pg.faccia || "neutral")}<span class="muted small">È la faccia di tutti i giorni. Cambia da sola quando finisci una missione, quando la stanza è sporca o quando l'altro eroe è nella stessa stanza.</span></div>
         ${blocco("orecchie", "Orecchie", { nessuno: true })}${blocco("corna", "Corna", { nessuno: true })}${blocco("coda", "Coda", { nessuno: true })}${blocco("ali", "Ali", { nessuno: true })}`;
       else if (D.tab === "capelli") h = blocco("capelli", "Stile dei capelli") + blocco("barba", "Barba e baffi", { nessuno: true });
       else if (D.tab === "vestiti") h = blocco("busto", "Busto") + blocco("gambe", "Gambe") + blocco("scarpe", "Scarpe") + blocco("mantello", "Mantello", { nessuno: true }) + blocco("cappello", "Cappello", { nessuno: true });
@@ -1236,6 +1255,7 @@ function apriProfilo(id, obbligatorio) {
       if (t.name === "tab") { D.tab = t.value; pannello(); }
       else if (t.name === "corpo") cambia(p => { p.corpo = t.value; });
       else if (t.name === "sopr") cambia(p => { p.sopr = t.value; });
+      else if (t.name === "faccia") cambia(p => { p.faccia = t.value === "neutral" ? undefined : t.value; });
       else if (t.type === "color") cambia(p => { setCol(p, t.dataset.for, t.value); });
     });
     sh.addEventListener("input", e => { const t = e.target; if (t.type === "color") { setCol(D.pg, t.dataset.for, t.value); anteprima(); } });
@@ -1472,7 +1492,7 @@ function eroiPerPosto() {
 /* Se sono in due nella stessa stanza si dividono il pavimento. */
 function abitantiDi(ids, t, P, vista, scala) {
   const n = ids.length, larg = (P.x1 - P.x0) / n;
-  return ids.map((id, i) => { const g = S.giocatori[id]; return { id, vista, pg: g.pg, pet: g.pet, stanza: t, x0: P.x0 + larg * i + (n > 1 ? 8 : 0), x1: P.x0 + larg * (i + 1) - (n > 1 ? 8 : 0), y: P.y, scala }; });
+  return ids.map((id, i) => { const g = S.giocatori[id], u = umoreDi(id); return { id, vista, pg: g.pg, pet: g.pet, stanza: t, faccia: u.faccia, spavento: !!u.spavento, x0: P.x0 + larg * i + (n > 1 ? 8 : 0), x1: P.x0 + larg * (i + 1) - (n > 1 ? 8 : 0), y: P.y, scala }; });
 }
 function abitantiCastello(host) {
   const dim = (S.config && S.config.dimora) || "castello", sk = SKIN[dim]; if (!sk || dim !== "castello") return;
@@ -2011,7 +2031,14 @@ async function avvio() {
     render();
   }, err => { console.error(err); errore(err); });
   coll("faccende", "faccende");
-  db.collection("completamenti").where("ts", ">=", winStart).orderBy("ts", "desc").limit(1000).onSnapshot(s => { S.comp = s.docs.map(d => ({ id: d.id, ...d.data() })); S.loaded.comp = true; render(); }, err => console.error("completamenti", err));
+  db.collection("completamenti").where("ts", ">=", winStart).orderBy("ts", "desc").limit(1000).onSnapshot(s => {
+    const prima = S.loaded.comp ? new Set(S.comp.map(c => c.id)) : null;
+    S.comp = s.docs.map(d => ({ id: d.id, ...d.data() })); S.loaded.comp = true;
+    /* Missione appena fatta (anche dall'altro telefono): chi l'ha fatta sorride per qualche secondo, raggiante se era la missione del giorno. */
+    if (prima && window.OLW_SPRITE) for (const c of S.comp) if (!prima.has(c.id) && !c.annullato && Date.now() - c.ts < 60000) for (const g of c.giocatori || []) SP().emozione(g, c.bonus ? "happy2" : "happy", 7000);
+    render();
+  }, err => console.error("completamenti", err));
+  if (window.OLW_SPRITE) { let tmE = 0; OLW_SPRITE.alFinireEmo = () => { clearTimeout(tmE); tmE = setTimeout(render, 80); }; }
   let archDone = false;
   db.collection("giocatori").onSnapshot(s => {
     S.giocatori = {}; s.docs.forEach(d => S.giocatori[d.id] = d.data()); S.loaded.giocatori = true; render();

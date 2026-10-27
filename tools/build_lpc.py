@@ -3,7 +3,7 @@
 Uso: python3 tools/build_lpc.py <cartella del clone del generatore> <cartella di destinazione assets/lpc>
 Il clone si prepara con: git clone --depth 1 --filter=blob:none https://github.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator gen
 Copia solo la camminata (walk): il primo fotogramma è la posa ferma dei pezzi scelti qui sotto.
-Dopo una ricostruzione completa va rilanciato anche tools/build_armi.py (armi e scudi aggiunti dopo, con celle 128 e scudi a goccia)."""
+Dopo una ricostruzione completa va rilanciato anche tools/build_armi.py (armi e scudi aggiunti dopo, con celle 128 e scudi a goccia) e tools/build_facce.py (espressioni)."""
 import json, os, shutil, subprocess, sys
 GEN, OUT = sys.argv[1], sys.argv[2]
 ANIM = ["walk"]
