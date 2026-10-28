@@ -48,13 +48,13 @@ const SEZ_REGGIA = {
   cucina: { rect: [415, 570, 622, 802], piano: { x0: 455, x1: 585, y: 790 } }, ingresso: { rect: [100, 822, 365, 1085], piano: { x0: 150, x1: 315, y: 1070 } },
   soggiorno: { rect: [376, 822, 622, 1085], piano: { x0: 420, x1: 580, y: 1070 } }, balcone: { rect: [628, 690, 750, 1085], stretta: true, piano: { x0: 690, x1: 690, y: 1070 } }
 };
-const SKIN = { castello: { img: "img/castello.webp", w: 768, h: 1376, sezione: SEZ_CASTELLO, stanze: "img/stanze/",
+const SKIN = { castello: { modulare: true, img: "img/castello.webp", w: 768, h: 1376, sezione: SEZ_CASTELLO, stanze: "img/stanze/",
   cornice: { dir: "img/dimore/castello/", tetto: [768, 283], base: [768, 178], muro: [112, 340], dx: [112, 90], area: [112, 656], fondo: "#17121d" },
-  tessere: { dir: "img/dimore/castello/tessere/", dim: {"bagno":[300,288],"balcone":[156,288],"camera":[300,288],"cantina":[372,288],"corridoio":[168,288],"cucina":[252,288],"cucina_soggiorno":[504,288],"giardino":[372,288],"ingresso":[240,288],"lavanderia":[372,288],"ripostiglio":[252,288],"soggiorno":[336,288],"studio":[336,288],"terrazzo":[372,288]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "lavanderia", "terrazzo", "giardino", "cantina"] },
+  tessere: { dir: "img/dimore/castello/tessere/", dim: {"bagno":[648,576],"balcone":[312,576],"camera":[648,576],"cantina":[768,576],"corridoio":[336,576],"cucina":[528,576],"cucina_soggiorno":[1056,576],"giardino":[744,576],"ingresso":[528,576],"lavanderia":[768,576],"ripostiglio":[528,576],"soggiorno":[720,576],"studio":[720,576],"terrazzo":[744,576]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "lavanderia", "terrazzo", "giardino", "cantina"] },
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino" } },
-  reggia: { img: "img/dimore/reggia/sezione.webp", w: 768, h: 1376, sezione: SEZ_REGGIA, stanze: "img/dimore/reggia/stanze/",
+  reggia: { modulare: true, img: "img/dimore/reggia/sezione.webp", w: 768, h: 1376, sezione: SEZ_REGGIA, stanze: "img/dimore/reggia/stanze/",
   cornice: { dir: "img/dimore/reggia/", tetto: [768, 300], base: [768, 291], muro: [100, 340], dx: [146, 280], area: [100, 622], fondo: "#d9d3e0" },
-  tessere: { dir: "img/dimore/reggia/tessere/", dim: {"bagno":[300,288],"balcone":[156,288],"camera":[300,288],"cantina":[372,288],"corridoio":[168,288],"cucina":[252,288],"cucina_soggiorno":[504,288],"giardino":[372,288],"ingresso":[240,288],"lavanderia":[372,288],"ripostiglio":[252,288],"soggiorno":[336,288],"studio":[336,288],"terrazzo":[372,288]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "terrazzo", "giardino", "cantina"] },
+  tessere: { dir: "img/dimore/reggia/tessere/", dim: {"bagno":[648,576],"balcone":[312,576],"camera":[648,576],"cantina":[768,576],"corridoio":[336,576],"cucina":[528,576],"cucina_soggiorno":[1056,576],"giardino":[744,576],"ingresso":[528,576],"lavanderia":[768,576],"ripostiglio":[528,576],"soggiorno":[720,576],"studio":[720,576],"terrazzo":[744,576]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "terrazzo", "giardino", "cantina"] },
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino", terrazzo: "terrazzo" } } };
 /* Lo stesso nelle viste delle singole stanze (immagini 720×676, 720×706 il corridoio): il pavimento è un rombo, i piedi stanno nella parte centrale. */
 const PIANI_STANZA = {
@@ -115,7 +115,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.38.0";
+const VERSIONE_APP = "3.38.1";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -572,7 +572,7 @@ function dimoraMappa(dim, st, now) {
   const celle = Object.entries(L.celle).map(([r, c]) => {
     const x = statoUna(r, now, st); if (!x) return "";
     const nome = nomeStanza(r), stretta = c.w < 110, box = `left:${pc(c.x, L.W)};top:${pc(c.y, L.H)};width:${pc(c.w, L.W)};height:${pc(c.h, L.H)}`;
-    return `<div class="vc${c.tes.interno ? " interno" : ""}" style="${box}"><img src="${c.tes.src}" alt="" decoding="async" loading="lazy"></div>
+    return `<div class="vc${c.tes.interno ? " interno" : ""}${sk.modulare ? " mod" : ""}" style="${box}"><img src="${c.tes.src}" alt="" decoding="async" loading="lazy"></div>
       <button class="rm lv${x.livello}${stretta ? " stretta" : ""}" data-act="stanza" data-r="${esc(r)}" style="${box}" title="${esc(nome)}" aria-label="${esc(nome)}: ${STATI[x.livello]}, ${x.urg ? x.urg + (x.urg === 1 ? " missione urgente" : " missioni urgenti") : "tutto in pari"}">${velo(x.livello)}${x.urg ? `<span class="rm-badge num" aria-hidden="true">${x.urg}</span>` : ""}</button>`;
   }).join("");
   const lato = (k, w, f) => `<div class="v-lato ${k}" style="top:${pc(c0, L.H)};height:${pc(c1 - c0, L.H)};width:${pc(w, L.W)};background-image:url(${cr.dir}${f})"></div>`;

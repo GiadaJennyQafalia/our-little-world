@@ -1,28 +1,35 @@
 #!/usr/bin/env python3
 """Compone le stanze modulari della vista dimora: muro + zoccolatura/battiscopa + pavimento (dai campioni di
-materiale) e i mobili ritagliati sopra. Ogni stanza lascia liberi dei POSTI per gli arredi comprati in Bottega:
-un posto a terra per le reliquie e, sopra di esso, un posto a parete per dipinti e arazzi (due e due se la stanza
-è larga). Tutto è disegnato in 'pixel del disegno' e poi ingrandito senza sfumare, come la pixel art.
+materiale) e i mobili ritagliati sopra. Le misure delle ricette sono in 'pixel del disegno' (stanza alta 96); l'immagine
+esce Q volte più grande (Q=6 di solito) usando i pezzi ritagliati ad alta risoluzione (cartella pezzi_x6, estrai.py con Q=6).
+POSTI=1 lascia liberi un posto a terra per le reliquie e uno a parete per i dipinti (servono solo se la stanza si apre).
 
-Uso: python3 componi.py castello|reggia   -> <dimora>/prova.png (ogni stanza stretta e larga, posti segnati in oro)
+Uso: python3 componi.py castello|reggia   -> <dimora>/prova.png (ogni stanza stretta e larga)
      import componi; componi.usa("reggia"); componi.stanza(nome, W)  -> (immagine, posti)
 
-Le cartelle castello/ e reggia/ contengono: pezzi/ (mobili ritagliati con estrai.py), materiali/ (muri e pavimenti,
-materiali.py) e fregi/ (strisce di bordo, fregi.py)."""
+Le cartelle castello/ e reggia/ contengono: pezzi_x6/ (mobili), materiali/ (muri e pavimenti, materiali.py), fregi/ (fregi.py)."""
 import os, random, sys
 import numpy as np
 from PIL import Image, ImageDraw
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 H, MURO, BATT = 96, 68, 3          # altezza stanza, riga dove finisce il muro, spessore battiscopa (pixel del disegno)
-SCALA = 3                           # ingrandimento delle prove
+Q = int(os.environ.get("Q", 6))     # pixel dell'immagine per pixel del disegno
+POSTI = os.environ.get("POSTI", "0") == "1"
 RELIQUIA = (18, 20)                 # posto a terra (larghezza, altezza) per una reliquia
 DIPINTO = (18, 20)                  # posto a parete per un dipinto o un arazzo
 CIMA_DIPINTO = 20                   # riga della cima dei dipinti
 BASE, CFG = None, None              # dimora in uso (vedi usa())
+S = lambda v: int(round(v * Q))     # misura del disegno -> pixel dell'immagine
+
+
+class Pz:
+    """Un pezzo ritagliato: .im è l'immagine, .width/.height sono in pixel del disegno."""
+    def __init__(s, im): s.im = im; s.width = im.width / Q; s.height = im.height / Q
 
 
 def carica(nome):
+    if nome.startswith("pezzi/") and Q > 1: nome = "pezzi_x%d/" % Q + nome[6:]
     return Image.open(os.path.join(BASE, nome)).convert("RGBA")
 
 
@@ -59,23 +66,23 @@ def ripeti(t, w, h):
 
 
 def muro(n, alto):
-    t = carica(f"materiali/muri_{n}.png"); s = alto / t.height
-    t = t.resize((max(8, round(t.width * s)), alto), Image.BOX)
+    t = carica(f"materiali/muri_{n}.png"); s = S(alto) / t.height
+    t = t.resize((max(8, round(t.width * s)), S(alto)), Image.LANCZOS)
     return senza_giunture(t, True, True)
 
 
 def pavimento(n, w=96, h=30, **g):
-    t = carica(f"materiali/pavimenti_{n}.png").resize((w, h), Image.BOX)   # schiacciato in verticale: sembra a terra
+    t = carica(f"materiali/pavimenti_{n}.png").resize((S(w), S(h)), Image.LANCZOS)   # schiacciato in verticale: sembra a terra
     t = senza_giunture(t, True, False)
     return grade(t, **g) if CFG["gradare"] else t
 
 
 def fregio(n, h, W):
-    """Striscia di bordo n (foglio fregi) alta h pixel, ripetuta per tutta la larghezza."""
-    t = carica(f"fregi/fregio_{n}.png"); s = h / t.height
-    t = t.resize((max(8, round(t.width * s)), h), Image.BOX)
+    """Striscia di bordo n (foglio fregi) alta h pixel del disegno, ripetuta per tutta la larghezza W."""
+    t = carica(f"fregi/fregio_{n}.png"); s = S(h) / t.height
+    t = t.resize((max(8, round(t.width * s)), S(h)), Image.LANCZOS)
     a = np.array(t); a[..., 3] = np.where(a[..., 3] > 110, 255, 0)
-    return ripeti(senza_giunture(Image.fromarray(a, "RGBA"), True, False, 0.1), W, h)
+    return ripeti(senza_giunture(Image.fromarray(a, "RGBA"), True, False, 0.1), S(W), S(h))
 
 
 def balaustra(img):
@@ -99,40 +106,47 @@ def siepe(img):
             d.point((x, y), fill=col)
 
 
+def sul_disegno(img, W, f):
+    """Disegna con f a risoluzione 1 (pixel del disegno) e porta il risultato a Q volte, sopra img."""
+    capa = Image.new("RGBA", (W, H)); f(capa)
+    img.alpha_composite(capa.resize((S(W), S(H)), Image.NEAREST))
+
+
 def sfondo(W, r):
     """Muro, zoccolatura, fascia, pavimento e bordo di una stanza larga W, secondo la ricetta r."""
-    img = Image.new("RGBA", (W, H)); d = ImageDraw.Draw(img)
-    img.paste(ripeti(muro(*r["m_alto"]), W, MURO), (0, 0))
+    img = Image.new("RGBA", (S(W), S(H))); d = ImageDraw.Draw(img)
+    img.paste(ripeti(muro(*r["m_alto"]), S(W), S(MURO)), (0, 0))
     mb = r.get("m_basso")
     if isinstance(mb, tuple) and mb and mb[0] == "f":              # zoccolatura da striscia: ("f", n, altezza)
-        _, n, alt = mb; img.alpha_composite(fregio(n, alt, W), (0, MURO - alt))
+        _, n, alt = mb; img.alpha_composite(fregio(n, alt, W), (0, S(MURO - alt)))
     elif mb:                                                        # zoccolatura da campione di muro
         n, h_t, alt = mb
-        img.paste(ripeti(muro(n, h_t), W, alt), (0, MURO - alt))
-        d.rectangle((0, MURO - alt - 2, W, MURO - alt - 1), fill=(70, 46, 40)); d.line((0, MURO - alt - 2, W, MURO - alt - 2), fill=(96, 66, 54))
+        img.paste(ripeti(muro(n, h_t), S(W), S(alt)), (0, S(MURO - alt)))
+        d.rectangle((0, S(MURO - alt - 2), S(W), S(MURO - alt) - 1), fill=(70, 46, 40)); d.rectangle((0, S(MURO - alt - 2), S(W), S(MURO - alt - 2) + Q - 1), fill=(96, 66, 54))
     fa = r.get("fascia")
     if fa and fa[0] == "f":                                         # fascia da striscia: ("f", n, altezza, riga)
-        _, n, alt, y = fa; img.alpha_composite(fregio(n, alt, W), (0, y))
+        _, n, alt, y = fa; img.alpha_composite(fregio(n, alt, W), (0, S(y)))
     elif fa:                                                        # fascia disegnata: (riga, colore)
         y, col = fa
-        d.rectangle((0, y, W, y + 3), fill=col); d.line((0, y, W, y), fill=tuple(min(255, c + 25) for c in col))
-        for x in range(1, W, 6): d.point((x, y + 2), fill=tuple(max(0, c - 30) for c in col))
-    img.paste(ripeti(pavimento(*r["pav"], **(r.get("pav_g") or {})), W, H - MURO), (0, MURO))
+        d.rectangle((0, S(y), S(W), S(y + 3) - 1), fill=col); d.rectangle((0, S(y), S(W), S(y) + Q - 1), fill=tuple(min(255, c + 25) for c in col))
+        for x in range(1, W, 6): d.rectangle((S(x), S(y + 2), S(x + 1) - 1, S(y + 3) - 1), fill=tuple(max(0, c - 30) for c in col))
+    img.paste(ripeti(pavimento(*r["pav"], **(r.get("pav_g") or {})), S(W), S(H - MURO)), (0, S(MURO)))
     bordo, batt = r.get("bordo"), r.get("batt", (52, 36, 34))
     d = ImageDraw.Draw(img)
-    if bordo == "balaustra": balaustra(img)
-    elif bordo == "siepe": siepe(img)
+    if bordo == "balaustra": sul_disegno(img, W, balaustra)
+    elif bordo == "siepe": sul_disegno(img, W, siepe)
     elif isinstance(bordo, tuple):                                  # bordo da striscia: ("f", n, altezza), appoggiato al pavimento
-        _, n, alt = bordo; img.alpha_composite(fregio(n, alt, W), (0, MURO - alt))
+        _, n, alt = bordo; img.alpha_composite(fregio(n, alt, W), (0, S(MURO - alt)))
     elif isinstance(batt, tuple) and batt and batt[0] == "f":       # battiscopa da striscia: ("f", n, altezza)
-        _, n, alt = batt; img.alpha_composite(fregio(n, alt, W), (0, MURO - alt))
+        _, n, alt = batt; img.alpha_composite(fregio(n, alt, W), (0, S(MURO - alt)))
     elif batt:
-        d.rectangle((0, MURO - BATT, W, MURO - 1), fill=batt); d.line((0, MURO - BATT, W, MURO - BATT), fill=tuple(c + 24 for c in batt))
+        d.rectangle((0, S(MURO - BATT), S(W), S(MURO) - 1), fill=batt); d.rectangle((0, S(MURO - BATT), S(W), S(MURO - BATT) + Q - 1), fill=tuple(c + 24 for c in batt))
     # luce: ombra dal soffitto (non all'aperto), ombra del muro sul pavimento, bordi della sezione
-    a = np.array(img).astype(float); y = np.arange(H)[:, None]; ombra = np.ones((H, 1)); lm = CFG["luce_min"]
-    if not bordo: ombra[:MURO] *= (lm + (1 - lm) * np.clip(y[:MURO] / (MURO * 0.55), 0, 1))
-    ombra[MURO:] *= (0.62 + 0.38 * np.clip((y[MURO:] - MURO) / 6, 0, 1))
-    x = np.arange(W)[None, :]; lati = 0.6 + 0.4 * np.clip(np.minimum(x, W - 1 - x) / 7, 0, 1)
+    a = np.array(img).astype(float); y = (np.arange(S(H))[:, None] + .5) / Q; ombra = np.ones((S(H), 1)); lm = CFG["luce_min"]
+    m = S(MURO)
+    if not bordo: ombra[:m] *= (lm + (1 - lm) * np.clip(y[:m] / (MURO * 0.55), 0, 1))
+    ombra[m:] *= (0.62 + 0.38 * np.clip((y[m:] - MURO) / 6, 0, 1))
+    x = (np.arange(S(W))[None, :] + .5) / Q; lati = 0.6 + 0.4 * np.clip(np.minimum(x, W - x) / 7, 0, 1)
     a[..., :3] *= (ombra * lati)[..., None]
     return Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
 
@@ -140,27 +154,27 @@ def sfondo(W, r):
 def pezzo(nome):
     if isinstance(nome, tuple):                  # gruppo: pezzi affiancati (sedia-tavolo-sedia, scopa e secchio…)
         ps = [carica(f"pezzi/{n}.png") for n in nome]
-        g = Image.new("RGBA", (sum(p.width for p in ps) + len(ps) - 1, max(p.height for p in ps))); x = 0
-        for p in ps: g.alpha_composite(p, (x, g.height - p.height)); x += p.width + 1
-        return g
-    return carica(f"pezzi/{nome}.png")
+        g = Image.new("RGBA", (sum(p.width for p in ps) + (len(ps) - 1) * Q, max(p.height for p in ps))); x = 0
+        for p in ps: g.alpha_composite(p, (x, g.height - p.height)); x += p.width + Q
+        return Pz(g)
+    return Pz(carica(f"pezzi/{nome}.png"))
 
 
 def appoggia(img, p, cx, base, ombra=True):
-    x, y = int(cx - p.width / 2), int(base - p.height)
+    x, y = int(S(cx) - p.im.width / 2), int(S(base) - p.im.height)
     if ombra:
-        om = Image.new("RGBA", img.size); ImageDraw.Draw(om).ellipse((x + 2, base - 2, x + p.width - 2, base + 2), fill=(10, 6, 16, 110))
+        om = Image.new("RGBA", img.size); ImageDraw.Draw(om).ellipse((x + 2 * Q, S(base) - 2 * Q, x + p.im.width - 2 * Q, S(base) + 2 * Q), fill=(10, 6, 16, 110))
         img.alpha_composite(om)
-    img.alpha_composite(p, (x, y))
+    img.alpha_composite(p.im, (x, y))
 
 
 def appendi(img, p, cx, cima):
-    img.alpha_composite(p, (int(cx - p.width / 2), int(cima)))
+    img.alpha_composite(p.im, (int(S(cx) - p.im.width / 2), S(cima)))
 
 
 def tappeto(img, p, cx, base, schiaccia=3):
-    q = p.resize((p.width, max(3, p.height // schiaccia)), Image.NEAREST)
-    img.alpha_composite(q, (int(cx - q.width / 2), int(base - q.height)))
+    q = p.im.resize((p.im.width, max(3, p.im.height // schiaccia)), Image.LANCZOS)
+    img.alpha_composite(q, (int(S(cx) - q.width / 2), S(base) - q.height))
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -323,12 +337,13 @@ def usa(dimora):
 usa("castello")
 
 
-def disponi(W, voci, bordo=5, minimo=3):
-    """Sceglie cosa entra e lo distribuisce con spazi uguali. Il posto reliquia non viene mai tolto, e nelle stanze
-    larghe se ne aggiunge un secondo. Restituisce [(chiave, centro x, base, larghezza)]."""
+def disponi(W, voci, bordo=3, minimo=1):
+    """Sceglie cosa entra e lo distribuisce con spazi uguali. Con POSTI il posto reliquia non viene mai tolto, e nelle
+    stanze larghe se ne aggiunge un secondo. Restituisce [(chiave, centro x, base, larghezza)]."""
     def largh(v): return RELIQUIA[0] if v[0] == "R" else pezzo(v[0]).width
+    if not POSTI: voci = [v for v in voci if v != "R"]
     voci = [("R", 88, 9) if v == "R" else v for v in voci]
-    if W >= 160:                                   # stanza larga: secondo posto per una reliquia
+    if POSTI and W >= 160:                         # stanza larga: secondo posto per una reliquia
         voci.insert(len(voci) - 1, ("R", 88, 1.5))
     while voci:
         larg = sum(largh(v) for v in voci)
@@ -344,9 +359,9 @@ def disponi(W, voci, bordo=5, minimo=3):
 
 
 def luce(img, cx, cy, r=26, a=46, col=(255, 168, 70)):
-    """Alone caldo (si somma) attorno a fuochi e candele."""
+    """Alone caldo (si somma) attorno a fuochi e candele; misure in pixel del disegno."""
     y, x = np.mgrid[0:img.height, 0:img.width]
-    k = np.clip(1 - np.hypot(x - cx, (y - cy) * 1.25) / r, 0, 1) ** 2 * a
+    k = np.clip(1 - np.hypot(x - S(cx), (y - S(cy)) * 1.25) / S(r), 0, 1) ** 2 * a
     arr = np.array(img).astype(float)
     for c in range(3): arr[..., c] += k * col[c] / 255
     img.paste(Image.fromarray(arr.clip(0, 255).astype(np.uint8), "RGBA"))
@@ -438,11 +453,11 @@ def stanza(nome, W):
 
 
 def segna_posti(img, posti):
-    """Solo per le prove: riquadri tratteggiati dorati dove andranno reliquie e dipinti."""
+    """Solo per le prove con POSTI=1: riquadri tratteggiati dorati dove andranno reliquie e dipinti."""
     d = ImageDraw.Draw(img); oro = (214, 176, 92, 255)
     def tratteggio(x0, y0, x1, y1):
-        for x in range(x0, x1 + 1, 2): d.point((x, y0), fill=oro); d.point((x, y1), fill=oro)
-        for y in range(y0, y1 + 1, 2): d.point((x0, y), fill=oro); d.point((x1, y), fill=oro)
+        for x in range(S(x0), S(x1) + 1, 2 * Q): d.rectangle((x, S(y0), x + Q - 1, S(y0) + Q - 1), fill=oro); d.rectangle((x, S(y1), x + Q - 1, S(y1) + Q - 1), fill=oro)
+        for y in range(S(y0), S(y1) + 1, 2 * Q): d.rectangle((S(x0), y, S(x0) + Q - 1, y + Q - 1), fill=oro); d.rectangle((S(x1), y, S(x1) + Q - 1, y + Q - 1), fill=oro)
     for cx, b in posti["t"]: tratteggio(cx - RELIQUIA[0] // 2, b - RELIQUIA[1], cx + RELIQUIA[0] // 2, b)
     for cx, c in posti["p"]: tratteggio(cx - DIPINTO[0] // 2, c, cx + DIPINTO[0] // 2, c + DIPINTO[1])
 
@@ -454,15 +469,17 @@ if __name__ == "__main__":
     for nome in ric:
         ims = []
         for w in (110, 190):
-            im, posti = stanza(nome, w); segna_posti(im, posti); ims.append(im)
+            im, posti = stanza(nome, w)
+            if POSTI: segna_posti(im, posti)
+            ims.append(im.resize((w * 3, H * 3), Image.LANCZOS))
         coppie.append(ims)
-    if len(coppie) % 2: coppie.append([Image.new("RGBA", (1, H))])
+    if len(coppie) % 2: coppie.append([Image.new("RGBA", (1, H * 3))])
     righe = [coppie[i] + coppie[i + 1] for i in range(0, len(coppie), 2)]
-    Wt = max(sum(i.width for i in r) + G * (len(r) + 1) for r in righe); Ht = len(righe) * (H + G) + G
+    Wt = max(sum(i.width for i in r) + G * (len(r) + 1) for r in righe); Ht = len(righe) * (H * 3 + G) + G
     tav = Image.new("RGBA", (Wt, Ht), (24, 18, 30, 255)); y = G
     for r in righe:
         x = G
         for im in r: tav.alpha_composite(im, (x, y)); x += im.width + G
-        y += H + G
-    tav.resize((Wt * SCALA, Ht * SCALA), Image.NEAREST).save(os.path.join(BASE, "prova.png"))
+        y += H * 3 + G
+    tav.save(os.path.join(BASE, "prova.png"))
     print(dim, "ok", len(ric), "stanze")

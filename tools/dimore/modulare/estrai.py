@@ -9,7 +9,7 @@ from PIL import Image
 from scipy import ndimage
 
 DIR = os.getcwd()   # lanciato dentro la cartella della dimora (castello/ o reggia/)
-PX = 250  # larghezza del foglio in pixel del disegno: un divano viene ~40 px, come nelle misure scritte dal generatore
+PX = 250 * int(os.environ.get("Q", 1))  # con Q=6 i pezzi escono 6 volte più grandi (cartella pezzi_x6);  larghezza del foglio in pixel del disegno: un divano viene ~40 px, come nelle misure scritte dal generatore
 
 
 def verde(a):
@@ -56,12 +56,13 @@ if __name__ == "__main__":
     path, nomi = sys.argv[1], sys.argv[2:4]
     im, a, righe = pezzi(path)
     k = im.width / PX
-    os.makedirs(os.path.join(DIR, "pezzi"), exist_ok=True)
+    CART = "pezzi" if PX == 250 else "pezzi_x%d" % (PX // 250)
+    os.makedirs(os.path.join(DIR, CART), exist_ok=True)
     ctrl = []
     for nome, riga in zip(nomi, righe):
         for j, (sl, m) in enumerate(riga):
             p = a_pixel(im, a, sl, m, k)
-            p.save(os.path.join(DIR, "pezzi", f"{nome}_{j + 1}.png"))
+            p.save(os.path.join(DIR, CART, f"{nome}_{j + 1}.png"))
             ctrl.append((f"{nome}_{j + 1}", p))
         print(nome, len(riga), "pezzi")
     # foglio di controllo ingrandito 3x su fondo scuro
@@ -69,4 +70,4 @@ if __name__ == "__main__":
     c = Image.new("RGB", (Wc, Hc), (40, 34, 48)); x = 6
     for _, p in ctrl:
         q = p.resize((p.width * 3, p.height * 3), Image.NEAREST); c.paste(q, (x, Hc - q.height - 6), q); x += q.width + 12
-    c.save(os.path.join(DIR, "controllo_" + "_".join(nomi) + ".png"))
+    c.save(os.path.join(DIR, "controllo_" + "_".join(nomi) + ("" if PX == 250 else "_x%d" % (PX // 250)) + ".png")) if PX == 250 else None
