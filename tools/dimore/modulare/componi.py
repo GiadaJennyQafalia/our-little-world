@@ -201,16 +201,124 @@ def disponi(W, voci, bordo=5, minimo=3):
     return out
 
 
+# Riempimenti: decorazioni che si aggiungono da sole negli spazi vuoti, per non lasciare le stanze spoglie.
+# pavimento: (pezzo, riga dei piedi) · tappeti stesi a terra · parete: (pezzo, riga della cima).
+RIEMPI_PAV = {
+ "soggiorno": ["balcone_1", "camera_3", "corridoio_3"], "camera": ["balcone_1", "corridoio_3", "soggiorno_5"],
+ "cucina": ["ripostiglio_5", "ripostiglio_4", "balcone_1"], "bagno": ["balcone_1", "ripostiglio_5"],
+ "ingresso": ["corridoio_3", "ripostiglio_5", "balcone_1"], "corridoio": ["balcone_1", "ripostiglio_5", "corridoio_3"],
+ "ripostiglio": ["cantina_2", "ripostiglio_5", "ripostiglio_4"], "studio": ["corridoio_3", "soggiorno_5", "balcone_1"],
+ "lavanderia": ["ripostiglio_5", "balcone_1", "ripostiglio_4"], "cantina": ["ripostiglio_4", "ripostiglio_5", "cantina_2"],
+ "balcone": ["balcone_1", "giardino_6"], "giardino": ["giardino_6", "balcone_1", "giardino_1"],
+}
+RIEMPI_TAPPETI = {"soggiorno": "camera_5", "camera": "camera_5", "ingresso": "ingresso_5", "corridoio": "corridoio_4", "studio": "camera_5", "bagno": "ingresso_5", "cucina": "ingresso_5"}
+RIEMPI_PARETE = {  # solo le stanze al coperto; all'aperto c'è il cielo. (pezzo, riga della cima)
+ "soggiorno": [("soggiorno_6", 12), ("ingresso_6", 26), ("corridoio_6", 6), ("studio_6", 10), ("corridoio_5", 28), ("bagno_5", 10)],
+ "camera": [("camera_6", 10), ("ingresso_6", 26), ("studio_6", 10), ("bagno_5", 10), ("corridoio_5", 28), ("corridoio_6", 6)],
+ "cucina": [("cucina_6", 26), ("ingresso_6", 24), ("bagno_6", 14), ("bagno_6", 12), ("ripostiglio_8", 20), ("corridoio_5", 28)],
+ "bagno": [("bagno_6", 12), ("bagno_5", 10), ("ingresso_6", 24), ("corridoio_5", 28), ("soggiorno_6", 12)],
+ "ingresso": [("corridoio_6", 6), ("ingresso_6", 26), ("studio_6", 10), ("corridoio_5", 28), ("soggiorno_6", 12)],
+ "corridoio": [("ingresso_6", 24), ("corridoio_6", 6), ("corridoio_5", 26), ("studio_6", 10), ("bagno_5", 10)],
+ "ripostiglio": [("ripostiglio_8", 20), ("ingresso_6", 24), ("lavanderia_7", 26), ("cantina_6", 18), ("bagno_6", 12)],
+ "studio": [("studio_6", 10), ("soggiorno_6", 12), ("corridoio_5", 28), ("ingresso_6", 26), ("corridoio_6", 6)],
+ "lavanderia": [("lavanderia_7", 26), ("ingresso_6", 24), ("bagno_6", 12), ("ripostiglio_8", 20), ("corridoio_5", 28)],
+ "cantina": [("cantina_6", 18), ("ingresso_6", 24), ("ripostiglio_8", 20), ("bagno_6", 12), ("corridoio_6", 6)],
+}
+LUCI = {"soggiorno_3", "cucina_1", "lavanderia_4", "ingresso_6", "corridoio_5", "camera_3", "soggiorno_5", "cantina_6", "studio_5"}
+
+
+def luce(img, cx, cy, r=26, a=46, col=(255, 168, 70)):
+    """Alone caldo (si somma) attorno a fuochi e candele."""
+    y, x = np.mgrid[0:img.height, 0:img.width]
+    k = np.clip(1 - np.hypot(x - cx, (y - cy) * 1.25) / r, 0, 1) ** 2 * a
+    arr = np.array(img).astype(float)
+    for c in range(3): arr[..., c] += k * col[c] / 255
+    img.paste(Image.fromarray(arr.clip(0, 255).astype(np.uint8), "RGBA"))
+
+
+def buchi(occupati, W, bordo=4, pad=2):
+    """Intervalli liberi tra gli ingombri [(x0, x1)]."""
+    occ = sorted((max(bordo, a - pad), min(W - bordo, b + pad)) for a, b in occupati); out, x = [], bordo
+    for a, b in occ:
+        if a > x: out.append((x, a))
+        x = max(x, b)
+    if W - bordo > x: out.append((x, W - bordo))
+    return out
+
+
 def stanza(nome, W):
     """(immagine, posti). posti = {"t": [(cx, base)], "p": [(cx, cima)]} in pixel del disegno."""
     r = STANZE[nome]
     img = sfondo(W, r["m_alto"], r.get("m_basso"), r.get("fascia"), r["pav"], r.get("pav_g"), bordo=r.get("bordo"))
     lay = disponi(W, r["pav_mobili"]); pos = {k: (cx, b) for k, cx, b, _ in lay if k != "R"}
     posti = {"t": [(round(cx), b) for k, cx, b, _ in lay if k == "R"], "p": [(round(cx), CIMA_DIPINTO) for k, cx, b, _ in lay if k == "R"]}
+    piani, parete, ombre = [], [], []          # ingombri a terra, sul muro
+    for k, cx, b, w in lay:
+        piani.append((cx - w / 2, cx + w / 2))
+        if k == "R": parete.append((cx - DIPINTO[0] / 2, cx + DIPINTO[0] / 2)); continue
+        p = pezzo(k)
+        if b - p.height < 56: parete.append((cx - p.width / 2, cx + p.width / 2))
+    appesi = []
+    for p, sopra, cima in r.get("appesi", []):
+        if sopra in pos: appesi.append((p, pos[sopra][0], cima))
+    # profilo dei mobili: altezza della cima di ciò che sta a terra, colonna per colonna (il muro libero sta sopra)
+    cima_mobili = np.full(W, MURO - BATT - 1.0)
+    for k, cx, b, w in lay:
+        if k == "R": continue
+        top = b - pezzo(k).height
+        cima_mobili[max(0, int(cx - w / 2)):min(W, int(cx + w / 2) + 1)] = np.minimum(cima_mobili[max(0, int(cx - w / 2)):min(W, int(cx + w / 2) + 1)], top)
+    blocca = np.zeros(W, bool)                  # colonne con un pezzo appeso o un posto dipinto
+    def segna(cx, w, pad=2): blocca[max(0, int(cx - w / 2 - pad)):min(W, int(cx + w / 2 + pad) + 1)] = True
+    for k, cx, b, w in lay:
+        if k == "R": segna(cx, DIPINTO[0], 3)
+    for p, cx, cima in appesi: segna(cx, pezzo(p).width, 3)
+    # 1. tappeti stesi a terra: sotto al centro (e a un quarto se la stanza è larga)
+    tap = RIEMPI_TAPPETI.get(nome)
+    if tap and not r.get("bordo"):
+        for fx in ((.5,) if W < 150 else (.28, .72)): tappeto(img, pezzo(tap), fx * W, 93)
+    # 2. mobiletti, piante, botti nei buchi del pavimento
+    def riempi_pav(pool):
+        out, i = [], 0
+        for a_, b_ in buchi(piani, W):
+            scelti, usato = [], 0
+            for _ in range(len(pool) * 3):
+                n_, bs = pool[i % len(pool)]; i += 1; w_ = pezzo(n_).width
+                if usato + w_ + 6 <= b_ - a_ and (not scelti or scelti[-1][0] != n_): scelti.append((n_, bs, w_)); usato += w_ + 2
+            if not scelti: continue
+            avanzo = (b_ - a_ - usato) / (len(scelti) + 1); x = a_ + avanzo
+            for n_, bs, w_ in scelti: out.append((n_, x + w_ / 2, bs)); x += w_ + 2 + avanzo
+        return out
+    extra = riempi_pav([(p, 84 + k % 3 * 2) for k, p in enumerate(RIEMPI_PAV[nome] * 2)])
+    for p, cx, b in extra: piani.append((cx - pezzo(p).width / 2, cx + pezzo(p).width / 2))
+    # 3. candele, finestre, arazzi sul muro libero: ognuno va nel punto più largo dove ci sta in altezza
+    deco = []
+    if nome in RIEMPI_PARETE:
+        pool = RIEMPI_PARETE[nome]
+        usati = {}
+        for n in range(14):
+            n_, cima = pool[n % len(pool)]; q = pezzo(n_); best = None
+            if usati.get(n_, 0) >= 1 + (W >= 150): continue          # al massimo uno (due nelle stanze larghe) per tipo
+            libero = (~blocca) & (cima_mobili >= cima + q.height + 3)
+            x = 0
+            while x < W:
+                if not libero[x]: x += 1; continue
+                y = x
+                while y < W and libero[y]: y += 1
+                if y - x >= q.width + 2 and (best is None or y - x > best[1] - best[0]): best = (x, y)
+                x = y
+            if not best: continue
+            cx = (best[0] + best[1]) / 2; deco.append((n_, cx, cima)); usati[n_] = usati.get(n_, 0) + 1; segna(cx, q.width, 3)
+    # luci prima dei mobili, così l'alone sta dietro
+    for k, cx, b, _ in lay:
+        if k in LUCI: luce(img, cx, b - pezzo(k).height * 0.55)
+    for k, cx, cima in [(p, cx, cm) for p, cx, cm in appesi] + deco:
+        if k in LUCI: luce(img, cx, cima + pezzo(k).height * 0.35, r=20, a=40)
+    for k, cx, b in extra:
+        if k in LUCI: luce(img, cx, b - pezzo(k).height * 0.7, r=18, a=36)
     for p, sotto, base in r.get("tappeti", []):
         if sotto in pos: tappeto(img, pezzo(p), pos[sotto][0], base)
-    for p, sopra, cima in r.get("appesi", []):
-        if sopra in pos: appendi(img, pezzo(p), pos[sopra][0], cima)
+    for p, cx, cima in appesi + deco: appendi(img, pezzo(p), cx, cima)
+    for p, cx, b in sorted(extra, key=lambda e: e[2]): appoggia(img, pezzo(p), cx, b)
     for k, cx, b, _ in lay:
         if k != "R": appoggia(img, pezzo(k), cx, b)
     for p, sopra, base in r.get("davanti", []):
