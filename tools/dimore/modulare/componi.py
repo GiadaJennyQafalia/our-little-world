@@ -378,14 +378,14 @@ if os.environ.get("RIF", "1") == "1":
     DIMORE["castello"]["appoggio"] = True; DIMORE["castello"]["fiaccole"] = 2
     RIEMPI_CASTELLO["luci"] = RIEMPI_CASTELLO["luci"] | {"fiaccola"}
     MALVA, VINO, OLIVA = (108, 78, 112), (112, 62, 72), (84, 78, 104)
-    STANZE_CASTELLO["soggiorno"]["tappeto"] = dict(sotto="soggiorno_1", extra=26, dy=-5, prof=24, col=VINO)
-    STANZE_CASTELLO["camera"]["tappeto"] = dict(sotto="camera_1", extra=20, dy=-6, prof=28, col=MALVA)
-    STANZE_CASTELLO["ingresso"]["tappeto"] = dict(sotto="ingresso_1", extra=-4, dy=3, prof=15, col=MALVA)
-    STANZE_CASTELLO["studio"]["tappeto"] = dict(sotto=("studio_1", "studio_2"), extra=14, dy=-4, prof=22, col=OLIVA)
-    STANZE_CASTELLO["bagno"]["tappeto"] = dict(sotto="bagno_1", extra=-10, dy=8, prof=12, col=MALVA)
-    STANZE_CASTELLO["cucina_soggiorno"]["tappeto"] = dict(sotto="soggiorno_1", extra=26, dy=-5, prof=24, col=VINO)
+    STANZE_CASTELLO["soggiorno"]["tappeto"] = dict(sotto="soggiorno_1", extra=26, dy=-5, prof=24, pal="rosso")
+    STANZE_CASTELLO["camera"]["tappeto"] = dict(sotto="camera_1", extra=20, dy=-6, prof=28, pal="blu")
+    STANZE_CASTELLO["ingresso"]["tappeto"] = dict(sotto="ingresso_1", extra=-4, dy=3, prof=15, pal="rosso")
+    STANZE_CASTELLO["studio"]["tappeto"] = dict(sotto=("studio_1", "studio_2"), extra=14, dy=-4, prof=22, pal="verde")
+    STANZE_CASTELLO["bagno"]["tappeto"] = dict(sotto="bagno_1", extra=-10, dy=8, prof=12, pal="blu")
+    STANZE_CASTELLO["cucina_soggiorno"]["tappeto"] = dict(sotto="soggiorno_1", extra=26, dy=-5, prof=24, pal="rosso")
     # corridoio: niente mobili, solo un tappeto lungo e due fiaccole
-    STANZE_CASTELLO["corridoio"].update(muro_riga=38, pav_mobili=[], appesi=[], vuota=True, fiaccole_bordi=True, fiaccola_cima=9, tappeto=dict(y0=4, rel=True, fondo=5, larg=22, lungo=True, col=VINO, oro=(200, 160, 120)))
+    STANZE_CASTELLO["corridoio"].update(muro_riga=38, pav_mobili=[], appesi=[], vuota=True, fiaccole_bordi=True, fiaccola_cima=9, tappeto=dict(y0=4, rel=True, fondo=5, larg=22, lungo=True, pal="rosso"))
     # balcone: vasi e lanterna lungo la balaustra
     STANZE_CASTELLO["balcone"] = dict(STANZE_CASTELLO["balcone"], pav_g=CIOTTOLI, pav_mobili=[("balcone_1", 84, 3), ("balcone_7", 84, 5), ("balcone_2", 84, 2)], appesi=[])
     STANZE_CASTELLO["terrazzo"] = dict(STANZE_CASTELLO["terrazzo"], pav_g=CIOTTOLI, appesi=[])
@@ -393,13 +393,13 @@ if os.environ.get("RIF", "1") == "1":
     # Palazzo d'Argentaluna: mobili alle pareti, tappeti blu e oro piatti, candele a muro; niente lampioni in mezzo alle stanze
     DIMORE["reggia"]["appoggio"] = True; DIMORE["reggia"]["fiaccola_pezzo"] = "corridoio_5"
     BLU, ORO = (42, 72, 150), (226, 186, 98)
-    STANZE_REGGIA["soggiorno"]["tappeto"] = dict(sotto="soggiorno_1", extra=26, dy=-6, prof=17, col=BLU, oro=ORO)
-    STANZE_REGGIA["cucina_soggiorno"]["tappeto"] = dict(sotto="soggiorno_1", extra=26, dy=-6, prof=17, col=BLU, oro=ORO)
-    STANZE_REGGIA["camera"]["tappeto"] = dict(sotto="camera_1", extra=20, dy=-6, prof=17, col=BLU, oro=ORO)
-    STANZE_REGGIA["ingresso"]["tappeto"] = dict(sotto="ingresso_1", extra=-8, dy=3, prof=13, col=BLU, oro=ORO)
-    STANZE_REGGIA["studio"]["tappeto"] = dict(sotto=("studio_1", "studio_2"), extra=14, dy=-5, prof=17, col=BLU, oro=ORO)
+    STANZE_REGGIA["soggiorno"]["tappeto"] = dict(sotto="soggiorno_1", extra=26, dy=-6, prof=17, pal="reale")
+    STANZE_REGGIA["cucina_soggiorno"]["tappeto"] = dict(sotto="soggiorno_1", extra=26, dy=-6, prof=17, pal="reale")
+    STANZE_REGGIA["camera"]["tappeto"] = dict(sotto="camera_1", extra=20, dy=-6, prof=17, pal="reale")
+    STANZE_REGGIA["ingresso"]["tappeto"] = dict(sotto="ingresso_1", extra=-8, dy=3, prof=13, pal="reale")
+    STANZE_REGGIA["studio"]["tappeto"] = dict(sotto=("studio_1", "studio_2"), extra=14, dy=-5, prof=17, pal="reale")
     STANZE_REGGIA["corridoio"].update(muro_riga=40, pav_mobili=[], appesi=[], vuota=True, fiaccole=2, fiaccole_bordi=True, fiaccola_cima=8,
-                                      tappeto=dict(y0=4, rel=True, fondo=-4, larg=22, lungo=True, col=BLU, oro=ORO))
+                                      tappeto=dict(y0=4, rel=True, fondo=-4, larg=22, lungo=True, pal="reale"))
     STANZE_REGGIA["giardino"]["libero"] = True
     RIEMPI_REGGIA["riserva_pav"] = ["balcone_1", "corridoio_3"]
 
@@ -490,6 +490,87 @@ def tappeto_piatto(img, cx, y0, w, prof, col=(108, 78, 112), oro=None, lungo=Fal
             d.polygon([(mx - 2 * r, cy), (mx, cy - r), (mx + 2 * r, cy), (mx, cy + r)], fill=mot + (255,))
     for xx in range(x0 + g, x1, 2 * g):                  # frange sui lati corti
         d.line((xx, ya - g, xx, ya), fill=chiaro + (255,), width=1); d.line((xx, yb, xx, yb + g), fill=chiaro + (255,), width=1)
+
+
+# Tappeti persiani: antichi ma in perfetto stato. Disegnati a "mezzo pixel del disegno" (unità U) e poi ingranditi senza sfumature,
+# così hanno la stessa grana dei mobili. Bordo a fasce con motivo ripetuto, campo con reticolo, medaglioni a rombo, angoli e frange.
+PALETTE_TAPPETI = {
+ # campo, bordo, avorio, oro, contorno, accento
+ "rosso": dict(campo=(124, 38, 50), bordo=(42, 40, 92), avorio=(218, 200, 156), oro=(204, 156, 76), out=(34, 18, 32), acc=(176, 84, 60)),
+ "blu": dict(campo=(40, 44, 102), bordo=(118, 36, 52), avorio=(218, 200, 156), oro=(204, 156, 76), out=(26, 18, 40), acc=(70, 120, 150)),
+ "verde": dict(campo=(34, 86, 82), bordo=(108, 36, 56), avorio=(218, 200, 156), oro=(204, 156, 76), out=(20, 28, 34), acc=(176, 84, 60)),
+ "reale": dict(campo=(30, 56, 128), bordo=(124, 34, 52), avorio=(238, 226, 192), oro=(228, 186, 98), out=(18, 24, 58), acc=(96, 150, 206)),
+}
+
+
+def tappeto_persiano(img, cx, y0, w, prof, pal, lungo=False):
+    """Tappeto persiano steso a terra. cx, y0, w, prof in pixel del disegno; lungo = tappeto lungo (asse lungo verticale)."""
+    P = PALETTE_TAPPETI[pal]; U = max(1, Q // 2); k = 2                       # k unità per pixel del disegno
+    a_, b_ = max(cx - w / 2, 5), min(cx + w / 2, img.width / Q - 5)            # mai oltre le pareti della stanza
+    L, T = round((prof if lungo else b_ - a_) * k), round(((b_ - a_) if lungo else prof) * k)      # lunghezza e spessore (asse lungo = orizzontale)
+    fr = 2                                                                      # frange sui lati corti
+    bw = max(2, round(T / 7)); n0 = 3 + bw                                      # contorno, avorio, fascia, oro
+    A = np.zeros((T + 1, L, 4), np.uint8)                                       # una riga in più: ombra sul pavimento
+    rng = np.random.RandomState(7); col = lambda c, d=0: (*[int(np.clip(v + d, 0, 255)) for v in c], 255)
+    corpo = (slice(0, T), slice(fr, L - fr))
+    A[corpo] = col(P["out"])
+    def box(m, c):                                                             # m = margine dal bordo del corpo
+        if T - 2 * m > 0 and L - 2 * fr - 2 * m > 0: A[m:T - m, fr + m:L - fr - m] = col(c)
+    box(1, P["avorio"]); box(2, P["bordo"]); box(2 + bw, P["oro"]); box(3 + bw, P["campo"])
+    fx0, fx1, fy0, fy1 = fr + n0, L - fr - n0, n0, T - n0; FT = fy1 - fy0        # campo
+    # fascia: motivo ripetuto, rombi avorio e puntini oro
+    cy = 2 + bw // 2 if bw >= 3 else 2
+    for x in range(fr + 3, L - fr - 3, 6):
+        for dx, dy, c in ((0, 0, P["avorio"]), (-1, 0, P["avorio"]), (1, 0, P["avorio"]), (0, -1, P["avorio"]), (0, 1, P["avorio"])):
+            for yy in (cy, T - 1 - cy):
+                if 0 <= yy + dy < T: A[yy + dy, x + dx] = col(c)
+        for yy in (cy, T - 1 - cy):
+            if x + 3 < L - fr - 3: A[yy, x + 3] = col(P["oro"])
+    # campo: reticolo di puntini chiari
+    if FT > 2 and fx1 > fx0:
+        for yy in range(fy0 + 1, fy1 - 1, 4):
+            for xx in range(fx0 + 1 + (2 if (yy // 4) % 2 else 0), fx1 - 1, 4): A[yy, xx] = col(P["campo"], 20)
+        # medaglioni a rombo: contorno oro, riempimento bordo, rombo interno campo, centro avorio
+        ay = (FT - 1) / 2; ax = ay * 1.7; cyy = (fy0 + fy1 - 1) / 2; lung = fx1 - fx0
+        nm = max(1, int(round(lung / (ax * 2.9)))); passo = lung / nm
+        for m in range(nm):
+            cxx = fx0 + passo * (m + .5)
+            for yy in range(fy0, fy1):
+                for xx in range(int(cxx - ax) - 1, int(cxx + ax) + 2):
+                    if not (fx0 <= xx < fx1): continue
+                    d = abs(xx - cxx) / ax + abs(yy - cyy) / ay
+                    if d <= 1.0: c = P["oro"]
+                    else: continue
+                    if d <= .86: c = P["bordo"]
+                    if d <= .56: c = P["campo"]
+                    if d <= .36: c = P["avorio"]
+                    if d <= .16: c = P["bordo"]
+                    A[yy, xx] = col(c)
+            # cuscinetti: piccoli rombi accento ai due lati del medaglione
+            for sgn in (-1, 1):
+                px = int(round(cxx + sgn * (ax + 3)))
+                if fx0 + 1 < px < fx1 - 2:
+                    for dx, dy in ((0, 0), (-1, 0), (1, 0), (0, -1), (0, 1)):
+                        if fy0 <= int(cyy) + dy < fy1: A[int(cyy) + dy, px + dx] = col(P["acc"] if (m + sgn) % 2 else P["avorio"])
+        # angoli: triangoli di bordo con filo oro
+        sz = max(3, int(FT * .62))
+        for fx, fy, sx_, sy_ in ((fx0, fy0, 1, 1), (fx1 - 1, fy0, -1, 1), (fx0, fy1 - 1, 1, -1), (fx1 - 1, fy1 - 1, -1, -1)):
+            for dy in range(sz):
+                for dx in range(sz - dy):
+                    xx, yy = fx + sx_ * dx, fy + sy_ * dy
+                    if fx0 <= xx < fx1 and fy0 <= yy < fy1: A[yy, xx] = col(P["oro"] if dx + dy == sz - 1 else P["bordo"])
+    # grana del tessuto: variazione minima, uguale per ogni tappeto
+    ruv = rng.randint(-5, 6, size=(T + 1, L))
+    corpo_mask = np.zeros((T + 1, L), bool); corpo_mask[corpo] = True
+    for c in range(3): A[..., c] = np.where(corpo_mask, np.clip(A[..., c].astype(int) + ruv, 0, 255), A[..., c])
+    # frange: file di fili avorio ai due lati corti, e ombra sul pavimento lungo il lato inferiore
+    for yy in range(1, T - 1):
+        if yy % 2 == 1:
+            for xx in list(range(0, fr)) + list(range(L - fr, L)): A[yy, xx] = col(P["avorio"], -10 if xx in (0, L - 1) else 0)
+    A[T, fr:L - fr] = (10, 6, 16, 90)
+    if lungo: A = np.ascontiguousarray(np.rot90(A, -1))                        # asse lungo in verticale
+    im = Image.fromarray(A, "RGBA").resize((A.shape[1] * U, A.shape[0] * U), Image.NEAREST)
+    img.paste(im, (S(a_) - (fr * U if not lungo else 0), S(y0) - (fr * U if lungo else 0)), im)
 
 
 def stanza(nome, W):
@@ -595,11 +676,13 @@ def stanza(nome, W):
         if tp.get("sotto") is not None:
             if tp["sotto"] in pos:
                 lw = [w for k, cx, b, w in lay if k == tp["sotto"]][0]; cx, b = pos[tp["sotto"]]
-                tappeto_piatto(img, cx, b + tp.get("dy", -4), lw + tp.get("extra", 12), tp.get("prof", 20), tp.get("col", (108, 78, 112)), tp.get("oro"))
+                if tp.get("pal"): tappeto_persiano(img, cx, b + tp.get("dy", -4), lw + tp.get("extra", 12), tp.get("prof", 20), tp["pal"])
+                else: tappeto_piatto(img, cx, b + tp.get("dy", -4), lw + tp.get("extra", 12), tp.get("prof", 20), tp.get("col", (108, 78, 112)), tp.get("oro"))
         else:
             y0 = MURO + tp["y0"] if tp.get("rel") else tp["y0"]            # rel: la riga è misurata dal muro (MURO cambia con la dimora)
             prof = H - y0 - tp.get("fondo", 2) if tp.get("rel") else tp.get("prof", 22)
-            tappeto_piatto(img, W * tp.get("cx", .5), y0, tp.get("larg") or W - tp.get("meno", 14), prof, tp.get("col", (108, 78, 112)), tp.get("oro"), tp.get("lungo", False))
+            if tp.get("pal"): tappeto_persiano(img, W * tp.get("cx", .5), y0, tp.get("larg") or W - tp.get("meno", 14), prof, tp["pal"], tp.get("lungo", False))
+            else: tappeto_piatto(img, W * tp.get("cx", .5), y0, tp.get("larg") or W - tp.get("meno", 14), prof, tp.get("col", (108, 78, 112)), tp.get("oro"), tp.get("lungo", False))
     for p, cx, cima in appesi + deco: appendi(img, pezzo(p), cx, cima)
     for p, cx, b in sorted(extra, key=lambda e: e[2]): appoggia(img, pezzo(p), cx, b)
     for k, cx, b, _ in lay:
