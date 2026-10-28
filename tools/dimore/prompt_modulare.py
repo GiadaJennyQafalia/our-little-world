@@ -60,6 +60,8 @@ def p_sfondi(stile, tipi):
             "arranged in a 2x2 grid of square panels separated by wide gaps of flat pure chroma green (#00FF00). "
             "Every panel shows ONLY the back wall and the floor of a room seen straight from the front: the back wall fills the top two thirds, "
             "the floor fills the bottom third and is seen slightly from above, and the line where the wall meets the floor is at exactly the same height in all four panels. "
+            "The floor must look FLAT, with NO perspective: every floor joint, plank and tile line is perfectly horizontal or perfectly vertical and parallel to the others, and no line converges toward a vanishing point. "
+            "Each panel is a plain full rectangle that fills its whole square, with no trapezoid or slanted edges and no floor spilling outside the wall. "
             "NO side walls, NO corners, NO ceiling, NO doors, NO windows, NO furniture, NO objects, NO lamps, NO characters: just the empty wall and floor surfaces with their materials, trims and baseboards. "
             "Each panel must TILE SEAMLESSLY HORIZONTALLY: its left edge continues exactly into its right edge, with no border, no frame, no vignette and no darker edges. "
             "Even soft ambient light, no bright spots. Materials in the style of " + stile + ". "
