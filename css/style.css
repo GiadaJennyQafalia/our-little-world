@@ -804,8 +804,9 @@ button.teca-ogg { cursor: pointer; }
 .pianta-ante .pf-n { width: 18px; flex: none; display: grid; place-items: center; font-size: .7rem; color: var(--ash, #8d8499); }
 .pianta-ante .pf-row { flex: 1; min-width: 0; display: flex; gap: 3px; height: 64px; }
 .pianta-ante .pf-st { position: relative; min-width: 0; padding: 0; border: 2px solid #0c0911; border-radius: 4px; overflow: hidden; background: #0b0910; cursor: pointer; }
-.pianta-ante .pf-st img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; image-rendering: pixelated; display: block; }
-.pianta-ante .pf-st span { position: absolute; left: 0; right: 0; bottom: 0; padding: 1px 2px; font-size: .62rem; line-height: 1.2; color: #fff; background: #000a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pianta-ante .pf-st { display: grid; place-items: center; }
+.pianta-ante .pf-st.fix { opacity: .7; border-style: dashed; }
+.pianta-ante .pf-st span { max-width: 100%; padding: 0 3px; font-family: var(--f-display); font-size: .62rem; line-height: 1.2; color: #fff; text-shadow: 0 1px 0 #0c0911, 1px 0 0 #0c0911, -1px 0 0 #0c0911, 0 -1px 0 #0c0911; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pianta-ante .pf-st.on { border-color: var(--candle); box-shadow: 0 0 0 2px var(--candle); }
 .pianta-ante .pf-vuoto { flex: 1; display: grid; place-items: center; border: 1px dashed var(--seam); border-radius: 4px; font-size: .75rem; color: var(--ash, #8d8499); }
 .pianta-info .p-frecce { display: flex; flex-wrap: wrap; gap: 6px; }

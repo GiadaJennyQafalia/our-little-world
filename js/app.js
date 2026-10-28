@@ -49,7 +49,7 @@ const SEZ_REGGIA = {
   soggiorno: { rect: [376, 822, 622, 1085], piano: { x0: 420, x1: 580, y: 1070 } }, balcone: { rect: [628, 690, 750, 1085], stretta: true, piano: { x0: 690, x1: 690, y: 1070 } }
 };
 const SKIN = { castello: { img: "img/castello.webp", w: 768, h: 1376, sezione: SEZ_CASTELLO, stanze: "img/stanze/",
-  cornice: { dir: "img/dimore/castello/", tetto: [768, 283], base: [768, 178], muro: [112, 340], dx: [112, 340], area: [112, 656], fondo: "#17121d" },
+  cornice: { dir: "img/dimore/castello/", tetto: [768, 283], base: [768, 178], muro: [112, 340], dx: [112, 90], area: [112, 656], fondo: "#17121d" },
   tessere: { dir: "img/dimore/castello/tessere/", dim: {"bagno":[264,247],"balcone":[78,662],"camera":[264,247],"cantina":[797,538],"corridoio":[112,348],"cucina":[200,348],"cucina_soggiorno":[916,538],"giardino":[706,538],"ingresso":[200,280],"lavanderia":[782,537],"ripostiglio":[200,248],"soggiorno":[328,280],"studio":[599,537],"terrazzo":[797,531]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "lavanderia", "terrazzo", "giardino", "cantina"] },
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino" } },
   reggia: { img: "img/dimore/reggia/sezione.webp", w: 768, h: 1376, sezione: SEZ_REGGIA, stanze: "img/dimore/reggia/stanze/",
@@ -115,7 +115,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.37.0";
+const VERSIONE_APP = "3.37.1";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -2217,7 +2217,7 @@ function apriPianta() {
       const sk = SKIN[dimoraMia()] || SKIN.castello;
       ante.innerHTML = F.map((f, i) => `<div class="pf"><span class="pf-n">${i + 1}</span><div class="pf-row">${f.length ? f.map(r => {
           const t = tipoDi(r, D), q = quota(sk, t), nm = nomeStanza(r);
-          return `<button class="pf-st${r === sel ? " on" : ""}" data-r="${esc(r)}" style="flex:${q.k} 1 0" aria-pressed="${r === sel}"><img src="${q.tes.src}" alt=""><span>${esc(nm)}</span></button>`;
+          return `<button class="pf-st${r === sel ? " on" : ""}${r === "Tutta la casa" ? " fix" : ""}" data-r="${esc(r)}" style="flex:${q.k} 1 0;background:${COL_TIPO[t] || COL_TIPO.altro}" aria-pressed="${r === sel}"><span>${esc(nm)}</span></button>`;
         }).join("") : `<span class="pf-vuoto">Piano vuoto${F.length > 1 ? " · sparisce al salvataggio" : ""}</span>`}</div></div>`).join("");
       const pos = sel && dove(sel);
       if (!pos) { info.innerHTML = `<span class="muted small">Tocca una stanza per spostarla o cambiarne il tipo.</span>`; return; }
