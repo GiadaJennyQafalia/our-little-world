@@ -49,11 +49,11 @@ const SEZ_REGGIA = {
   soggiorno: { rect: [376, 822, 622, 1085], piano: { x0: 420, x1: 580, y: 1070 } }, balcone: { rect: [628, 690, 750, 1085], stretta: true, piano: { x0: 690, x1: 690, y: 1070 } }
 };
 const SKIN = { castello: { img: "img/castello.webp", w: 768, h: 1376, sezione: SEZ_CASTELLO, stanze: "img/stanze/",
-  cornice: { dir: "img/dimore/castello/", tetto: [768, 283], base: [768, 178], muro: [112, 340] },
+  cornice: { dir: "img/dimore/castello/", tetto: [768, 283], base: [768, 178], muro: [112, 340], dx: [112, 340], area: [112, 656], fondo: "#17121d" },
   tessere: { dir: "img/dimore/castello/tessere/", dim: {"bagno":[264,247],"balcone":[78,662],"camera":[264,247],"cantina":[797,538],"corridoio":[112,348],"cucina":[200,348],"cucina_soggiorno":[916,538],"giardino":[706,538],"ingresso":[200,280],"lavanderia":[782,537],"ripostiglio":[200,248],"soggiorno":[328,280],"studio":[599,537],"terrazzo":[797,531]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "lavanderia", "terrazzo", "giardino", "cantina"] },
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino" } },
   reggia: { img: "img/dimore/reggia/sezione.webp", w: 768, h: 1376, sezione: SEZ_REGGIA, stanze: "img/dimore/reggia/stanze/",
-  cornice: { dir: "img/dimore/reggia/", tetto: [768, 300], base: [768, 291], muro: [100, 340] },
+  cornice: { dir: "img/dimore/reggia/", tetto: [768, 300], base: [768, 291], muro: [100, 340], dx: [146, 280], area: [100, 622], fondo: "#d9d3e0" },
   tessere: { dir: "img/dimore/reggia/tessere/", dim: {"bagno":[220,248],"balcone":[122,395],"camera":[290,248],"cantina":[841,782],"corridoio":[102,250],"cucina":[207,232],"cucina_soggiorno":[1684,759],"giardino":[845,782],"ingresso":[265,263],"ripostiglio":[192,232],"soggiorno":[246,263],"studio":[844,758],"terrazzo":[840,781]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "terrazzo", "giardino", "cantina"] },
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino", terrazzo: "terrazzo" } } };
 /* Lo stesso nelle viste delle singole stanze (immagini 720×676, 720×706 il corridoio): il pavimento è un rombo, i piedi stanno nella parte centrale. */
@@ -115,7 +115,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.36.2";
+const VERSIONE_APP = "3.37.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -495,23 +495,44 @@ function strisciaGiorno(now) {
     <button class="btn prime sm" data-act="fatta" data-id="${f.id}">Compiuta!</button>
   </section>`;
 }
-/* Disposizione della vista d'insieme in unità virtuali: celle della pianta (U) dentro la cornice della dimora. */
-const VU = 80, VMARG = 56;
-function vistaLayout(dim) {
-  const sk = SKIN[dim] || SKIN.castello, cr = sk.cornice, pi = pianta(), rs = Object.keys(pi);
-  const x0 = Math.min(...rs.map(r => pi[r].x)), y0 = Math.min(...rs.map(r => pi[r].y)), x1 = Math.max(...rs.map(r => pi[r].x + pi[r].w)), y1 = Math.max(...rs.map(r => pi[r].y + pi[r].h));
-  const W = (x1 - x0) * VU + 2 * VMARG, tetto = cr.tetto[1] * W / cr.tetto[0], base = cr.base[1] * W / cr.base[0];
-  const top = tetto - 24, H = Math.round(top + (y1 - y0) * VU + base - 20), celle = {};
-  /* La tessera prende tutta l'altezza della cella (soffitto e pavimento allineati tra stanze vicine) ed è centrata;
-     se la cella è più larga, ai lati si ripete la sua striscia di muro e pavimento (tessere/riempi), così la stanza
-     si allunga senza buchi. Se è più stretta si tagliano i lati, al massimo un terzo; oltre, si adatta alla larghezza. */
-  for (const r of rs) {
-    const q = pi[r], cx = VMARG + (q.x - x0) * VU, cy = top + (q.y - y0) * VU, cw = q.w * VU, ch = q.h * VU, tes = tessera(sk, q.tipo);
-    const [tw, th] = tes.dim || [720, 676]; let ih = ch, iw = ch * tw / th;
-    if (iw > cw * 1.5) { iw = cw; ih = cw * th / tw; }
-    celle[r] = { x: cx, y: cy, w: cw, h: ch, iw, ih, tes, tipo: q.tipo };
+/* La casa a piani: ogni piano è una fila di stanze da sinistra a destra (config.piani, dall'alto in basso).
+   Ogni stanza è larga quanto il suo disegno; tutte le stanze di un piano hanno la stessa altezza, scelta perché
+   il piano riempia la larghezza della dimora. Così i disegni non si tagliano e non si deformano mai. */
+const ESTERNI = ["balcone", "terrazzo", "giardino"];
+const TIPI_SEZIONE = [["bagno", "camera"], ["ripostiglio", "corridoio", "cucina", "balcone"], ["ingresso", "soggiorno"]];
+const tipoDi = (r, pi) => r === "Tutta la casa" ? "corridoio" : (pi[r] || {}).tipo || "altro";
+/* Dai rettangoli della vecchia pianta: un piano per ogni riga dove inizia una stanza (gli esterni si appoggiano al piano che toccano a metà). */
+function pianiDaPianta(pi) {
+  const rs = Object.keys(pi), ys = [...new Set(rs.filter(r => !ESTERNI.includes(pi[r].tipo)).map(r => pi[r].y))].sort((a, b) => a - b);
+  if (!ys.length) return [rs];
+  const out = ys.map(() => []);
+  for (const r of rs) { const c = pi[r].y + pi[r].h / 2; let k = 0; ys.forEach((y, i) => { if (y < c) k = i; }); out[k].push(r); }
+  return out.map(f => f.sort((a, b) => pi[a].x - pi[b].x)).filter(f => f.length);
+}
+function piani() {
+  const pi = pianta(), salv = S.config && S.config.piani, visti = new Set(), out = [];
+  for (const f of (Array.isArray(salv) && salv.length ? salv : pianiDaPianta(pi))) {
+    const r = (Array.isArray(f) ? f : []).filter(x => pi[x] && !visti.has(x)); r.forEach(x => visti.add(x)); out.push(r);
   }
-  return { W, H, tetto, base, celle, sk };
+  const nuove = Object.keys(pi).filter(x => !visti.has(x));
+  if (nuove.length) { if (!out.length) out.push([]); out[out.length - 1].push(...nuove); }
+  return out.filter(f => f.length);
+}
+const GAP_X = 14, GAP_Y = 18, H_PIANO = 280;
+/* Proporzione (larghezza/altezza) del disegno di una stanza; gli esterni stretti e alti non scendono sotto 0.3. */
+function quota(sk, tipo) { const tes = tessera(sk, tipo), [tw, th] = tes.dim || [720, 676]; return { tes, k: Math.max(.3, tw / th) }; }
+function vistaLayout(dim, P = piani(), pi = pianta()) {
+  const sk = SKIN[dim] || SKIN.castello, cr = sk.cornice, [a0, a1] = cr.area, AW = a1 - a0, celle = {};
+  let y = cr.tetto[1];
+  for (const f of P) {
+    const it = f.map(r => ({ r, tipo: tipoDi(r, pi), ...quota(sk, tipoDi(r, pi)) }));
+    const somma = it.reduce((t, q) => t + q.k, 0), h = Math.min(H_PIANO, (AW - GAP_X * (it.length - 1)) / somma);
+    let x = a0 + (AW - (somma * h + GAP_X * (it.length - 1))) / 2;
+    for (const q of it) { celle[q.r] = { x, y, w: q.k * h, h, tes: q.tes, tipo: q.tipo }; x += q.k * h + GAP_X; }
+    y += h + GAP_Y;
+  }
+  y -= GAP_Y;
+  return { W: 768, H: y + cr.base[1], corpo: [cr.tetto[1], y], celle, sk };
 }
 /* Immagine della tessera frontale di un tipo: la tessera della dimora, il ripiego, oppure l'interno ritagliato. */
 function tessera(sk, t) {
@@ -521,16 +542,16 @@ function tessera(sk, t) {
   if (T.tipi.includes(RIPIEGO[t])) return { src: T.dir + RIPIEGO[t] + ".webp", riempi: T.dir + "riempi/" + RIPIEGO[t] + ".webp", dim: d[RIPIEGO[t]] };
   return { src: sk.stanze + sk.file[tipoConImmagine(sk, t)] + ".webp", interno: true };
 }
-/* Vista in sezione: l'illustrazione intera della dimora. Si usa finché la pianta è quella di partenza (ogni stanza al suo posto,
-   con la sua misura); appena la pianta cambia, la vista si compone dalla pianta, così la dimora segue la casa vera. */
-const RECT_BASE = Object.fromEntries([...Object.values(PIANTA_BASE), CORRIDOIO].map(q => [q.tipo, q]));
+/* Vista in sezione: l'illustrazione intera della dimora, finché i piani sono quelli di partenza (stessi tipi, stesso ordine);
+   appena la casa cambia, la vista si compone a piani. */
 function postiSezione(dim) {
   const sk = SKIN[dim] || SKIN.castello, Z = sk.sezione; if (!Z) return null;
-  const pi = pianta(), posti = {}, usati = new Set(), uguale = (a, b) => b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
-  for (const r of Object.keys(pi)) {
-    const t = r === "Tutta la casa" ? "corridoio" : [pi[r].tipo, RIPIEGO[pi[r].tipo]].find(k => Z[k] && !usati.has(k));
-    if (!t || !uguale(pi[r], RECT_BASE[t])) return null;
-    usati.add(t); posti[r] = Z[t];
+  const P = piani(), pi = pianta(), posti = {};
+  if (P.length !== TIPI_SEZIONE.length || P.some((f, i) => f.length !== TIPI_SEZIONE[i].length)) return null;
+  for (let i = 0; i < P.length; i++) for (let j = 0; j < P[i].length; j++) {
+    const r = P[i][j], t = tipoDi(r, pi), vuole = TIPI_SEZIONE[i][j];
+    if (t !== vuole && RIPIEGO[t] !== vuole) return null;
+    posti[r] = Z[vuole];
   }
   return { posti, altre: [] };
 }
@@ -547,15 +568,18 @@ function dimoraMappa(dim, st, now) {
       return `<button class="altra fr-stone lv${x.livello}" data-act="stanza" data-r="${esc(r)}" aria-label="${esc(nome)}: ${STATI[x.livello]}"><span class="altra-ic">${iconaStanza(tipoConImmagine(sk, tipoStanza(r)))}</span><b>${esc(nome)}</b>${x.urg ? `<span class="rm-badge num" aria-hidden="true">${x.urg}</span>` : ""}</button>`; }).join("");
     return `<div class="castle"><img src="${sk.img}" width="${sk.w}" height="${sk.h}" alt="${esc(DIMORE[dim])} in sezione: tocca una stanza" decoding="async">${tasti}</div>${altre ? `<div class="altre-stanze" role="group" aria-label="Altre stanze">${altre}</div>` : ""}`;
   }
-  const L = vistaLayout(dim), sk = L.sk, cr = sk.cornice, pc = (v, t) => (v / t * 100).toFixed(3) + "%";
+  const L = vistaLayout(dim), sk = L.sk, cr = sk.cornice, pc = (v, t) => (v / t * 100).toFixed(3) + "%", [c0, c1] = L.corpo;
   const celle = Object.entries(L.celle).map(([r, c]) => {
     const x = statoUna(r, now, st); if (!x) return "";
-    const nome = nomeStanza(r), tes = c.tes, stretta = c.w <= VU || c.h <= VU;
-    return `<div class="vc${tes.interno ? " interno" : ""}" style="left:${pc(c.x, L.W)};top:${pc(c.y, L.H)};width:${pc(c.w, L.W)};height:${pc(c.h, L.H)}${tes.riempi ? `;background-image:url(${tes.riempi})` : ""}"><img src="${tes.src}" alt="" decoding="async" loading="lazy" style="width:${pc(c.iw, c.w)};height:${pc(c.ih, c.h)};left:${pc((c.w - c.iw) / 2, c.w)}"></div>
-      <button class="rm lv${x.livello}${stretta ? " stretta" : ""}" data-act="stanza" data-r="${esc(r)}" style="left:${pc(c.x, L.W)};top:${pc(c.y, L.H)};width:${pc(c.w, L.W)};height:${pc(c.h, L.H)}" title="${esc(nome)}" aria-label="${esc(nome)}: ${STATI[x.livello]}, ${x.urg ? x.urg + (x.urg === 1 ? " missione urgente" : " missioni urgenti") : "tutto in pari"}">${velo(x.livello)}${x.urg ? `<span class="rm-badge num" aria-hidden="true">${x.urg}</span>` : ""}</button>`;
+    const nome = nomeStanza(r), stretta = c.w < 110, box = `left:${pc(c.x, L.W)};top:${pc(c.y, L.H)};width:${pc(c.w, L.W)};height:${pc(c.h, L.H)}`;
+    return `<div class="vc${c.tes.interno ? " interno" : ""}" style="${box}"><img src="${c.tes.src}" alt="" decoding="async" loading="lazy"></div>
+      <button class="rm lv${x.livello}${stretta ? " stretta" : ""}" data-act="stanza" data-r="${esc(r)}" style="${box}" title="${esc(nome)}" aria-label="${esc(nome)}: ${STATI[x.livello]}, ${x.urg ? x.urg + (x.urg === 1 ? " missione urgente" : " missioni urgenti") : "tutto in pari"}">${velo(x.livello)}${x.urg ? `<span class="rm-badge num" aria-hidden="true">${x.urg}</span>` : ""}</button>`;
   }).join("");
-  return `<div class="castle vista" style="aspect-ratio:${L.W} / ${L.H};background-image:url(${cr.dir}muro.webp);background-size:${pc(cr.muro[0], L.W)} auto" role="group" aria-label="${esc(DIMORE[dim])}: tocca una stanza">
-    <img class="v-tetto" src="${cr.dir}tetto.webp" alt="" style="height:${pc(L.tetto, L.H)}"><img class="v-base" src="${cr.dir}base.webp" alt="" style="height:${pc(L.base, L.H)}">${celle}</div>`;
+  const lato = (k, w, f) => `<div class="v-lato ${k}" style="top:${pc(c0, L.H)};height:${pc(c1 - c0, L.H)};width:${pc(w, L.W)};background-image:url(${cr.dir}${f})"></div>`;
+  return `<div class="castle vista" style="aspect-ratio:${L.W} / ${L.H};--fondo:${cr.fondo}" role="group" aria-label="${esc(DIMORE[dim])}: tocca una stanza">
+    <div class="v-corpo" style="top:${pc(c0 - 2, L.H)};height:${pc(c1 - c0 + 4, L.H)};left:${pc(cr.area[0], L.W)};right:${pc(L.W - cr.area[1], L.W)}"></div>
+    ${lato("sx", cr.muro[0], "muro.webp")}${lato("dx", cr.dx[0], "muro_dx.webp")}
+    <img class="v-tetto" src="${cr.dir}tetto.webp" alt="" style="height:${pc(cr.tetto[1], L.H)}"><img class="v-base" src="${cr.dir}base.webp" alt="" style="height:${pc(cr.base[1], L.H)}">${celle}</div>`;
 }
 function gruppoMissioni(t, a, vuoto, now) {
   return `<section class="sec"><div class="sec-head"><h3>${t}</h3><span class="muted small num">${a.length}</span></div>${a.length ? `<div class="list">${a.map(x => cartaMissione(x, now)).join("")}</div>` : `<div class="empty fr-dash small">${vuoto}</div>`}</section>`;
@@ -1939,8 +1963,8 @@ function abitantiCastello(host) {
   const L = vistaLayout(dim);
   for (const [r, ids] of Object.entries(eroiPerStanza())) {
     const c = L.celle[r]; if (!c) continue;
-    const m = c.w > VU * 1.5 ? c.w * 0.2 : c.w / 2, P = { x0: c.x + m, x1: c.x + c.w - m, y: c.y + c.h - 8 };
-    out.push(...abitantiDi(ids, r, P, "castello", c.h < VU * 2.5 ? 1.6 : 2));
+    const m = c.w > 160 ? c.w * 0.22 : c.w / 2, P = { x0: c.x + m, x1: c.x + c.w - m, y: c.y + c.h - 6 };
+    out.push(...abitantiDi(ids, r, P, "castello", Math.max(1.3, Math.min(2.1, 2 * c.h / 250))));
   }
   window.OLW_SPRITE.abita(host, L.W, L.H, out);
 }
@@ -2171,95 +2195,64 @@ async function azzera(o) {
   toast("Fatto: l'app riparte da zero");
 }
 
-/* Editor della pianta: rettangoli su una griglia, un tipo per stanza. Il tipo decide l'immagine della stanza nella dimora.
-   La griglia cresce: sotto e a destra delle stanze resta sempre spazio libero per aggiungerne o allargarle. */
+/* Editor della casa a piani: ogni piano è una fila di stanze. Si sposta una stanza con le frecce (dentro il piano o su e giù),
+   si sceglie il tipo, si aggiungono stanze e piani. L'anteprima è la dimora vera, in piccolo. */
 const NOME_TIPO = { ingresso: "Ingresso", soggiorno: "Salotto", cucina: "Cucina", cucina_soggiorno: "Zona giorno", camera: "Camera", bagno: "Bagno", ripostiglio: "Sgabuzzino",
   studio: "Studio", lavanderia: "Lavanderia", balcone: "Balcone", terrazzo: "Terrazzo", giardino: "Giardino", cantina: "Cantina" };
 function apriPianta() {
-  const base = pianta(), D = {};
-  for (const r of Object.keys(base)) D[r] = { ...base[r] };
-  let sel = null, drag = null, W = GRIGLIA.w, H = GRIGLIA.h;
-  const MAXW = 16, MAXH = 20;
-  const misura = () => {
-    const q = Object.values(D);
-    W = Math.min(MAXW, Math.max(GRIGLIA.w, ...q.map(x => x.x + x.w + 2)));
-    H = Math.min(MAXH, Math.max(GRIGLIA.h, ...q.map(x => x.y + x.h + 3)));
-  };
-  const sovrapposte = () => { const k = Object.keys(D), out = new Set();
-    for (let i = 0; i < k.length; i++) for (let j = i + 1; j < k.length; j++) { const a = D[k[i]], c = D[k[j]];
-      if (a.x < c.x + c.w && c.x < a.x + a.w && a.y < c.y + c.h && c.y < a.y + a.h) { out.add(k[i]); out.add(k[j]); } }
-    return out; };
+  const base = pianta(), D = {}; for (const r of Object.keys(base)) D[r] = { tipo: base[r].tipo };
+  const F = piani().map(f => [...f]); let sel = null;
   const nFacc = r => S.faccende.filter(f => f.attiva !== false && f.stanza === r).length;
   const opzTipi = cur => Object.entries(TIPI).filter(([k]) => k !== "corridoio").map(([k, v]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${esc(v)}</option>`).join("");
+  const dove = r => { for (let i = 0; i < F.length; i++) { const j = F[i].indexOf(r); if (j >= 0) return [i, j]; } return null; };
   apriSheet(`<h2>Pianta della casa</h2>
-    <p class="muted small" style="margin:0">Trascina una stanza per spostarla. Toccala per cambiarne tipo e misura (o tira il quadratino giallo). Non serve la scala giusta: basta che si capisca com'è fatta casa.</p>
-    <div class="pianta-wrap fr-dash"><svg id="pSvg" role="img" aria-label="Pianta stilizzata della casa"></svg></div>
+    <p class="muted small" style="margin:0">Ogni piano è una fila di stanze, dall'alto in basso. Tocca una stanza per spostarla con le frecce, cambiarne il tipo o toglierla. Le larghezze vengono dai disegni, così la dimora resta sempre in ordine.</p>
+    <div id="pAnte" class="pianta-ante"></div>
     <div id="pInfo" class="pianta-info"></div>
-    <div class="field"><label for="pNuova">Aggiungi una stanza</label><div class="row-actions"><select id="pNuova" style="flex:1;min-width:0"><option value="">Scegli il tipo…</option>${opzTipi("")}</select><button class="btn" id="pAdd">Aggiungi</button></div></div>
-    <div id="pAvvisi" class="pianta-avvisi small"></div>
+    <div class="field"><label for="pNuova">Aggiungi una stanza</label><div class="row-actions"><select id="pNuova" style="flex:1;min-width:0"><option value="">Scegli il tipo…</option>${opzTipi("")}</select><button class="btn" id="pAdd">Aggiungi</button></div><span class="muted small">Va nel piano della stanza selezionata, altrimenti nell'ultimo.</span></div>
+    <button class="btn ghost sm" id="pPiano">+ Aggiungi un piano in fondo</button>
     <div class="sheet-actions"><button class="btn ghost" data-close>Annulla</button><button class="btn prime" id="pSalva">Salva la pianta</button></div>`, sh => {
-    const svg = sh.querySelector("#pSvg"), info = sh.querySelector("#pInfo"), av = sh.querySelector("#pAvvisi");
-    const ridisegna = (rimisura = true) => {
-      if (rimisura) misura();
-      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-      const sov = sovrapposte();
-      svg.innerHTML = `<defs><pattern id="pg" width="1" height="1" patternUnits="userSpaceOnUse"><path d="M1 0H0V1" fill="none" stroke="#ffffff" stroke-opacity=".09" stroke-width=".04"/></pattern></defs><rect width="${W}" height="${H}" fill="url(#pg)"/>` +
-        Object.entries(D).map(([r, q]) => {
-          const on = r === sel, nm = nomeStanza(r), max = Math.max(3, Math.floor(q.w * 2.4));
-          return `<g data-r="${esc(r)}"><rect class="pr${on ? " on" : ""}${r === "Tutta la casa" ? " fix" : ""}${sov.has(r) ? " sov" : ""}" x="${q.x + .06}" y="${q.y + .06}" width="${q.w - .12}" height="${q.h - .12}" rx=".18" fill="${COL_TIPO[q.tipo] || COL_TIPO.altro}"/>` +
-            `<text x="${q.x + q.w / 2}" y="${q.y + q.h / 2 + .18}" text-anchor="middle" class="pt">${esc(nm.length > max ? nm.slice(0, max - 1) + "…" : nm)}</text>` +
-            (on ? `<rect class="ph-hit" data-h="1" x="${q.x + q.w - 1.1}" y="${q.y + q.h - 1.1}" width="1.3" height="1.3"/><rect class="ph" data-h="1" x="${q.x + q.w - .78}" y="${q.y + q.h - .78}" width=".66" height=".66" rx=".12"/>` : "") + `</g>`;
-        }).join("");
-      const q = sel && D[sel];
-      const passi = q ? `<div class="p-misure">
-          <span class="p-mis"><span class="muted small">Larghezza</span><button class="btn ghost sm" data-m="w" data-d="-1" aria-label="Più stretta">−</button><b class="num">${q.w}</b><button class="btn ghost sm" data-m="w" data-d="1" aria-label="Più larga">+</button></span>
-          <span class="p-mis"><span class="muted small">Altezza</span><button class="btn ghost sm" data-m="h" data-d="-1" aria-label="Più bassa">−</button><b class="num">${q.h}</b><button class="btn ghost sm" data-m="h" data-d="1" aria-label="Più alta">+</button></span></div>` : "";
-      info.innerHTML = q ? (sel === "Tutta la casa"
-        ? `<b>Corridoio</b><span class="muted small">Qui stanno le faccende di "tutta la casa", come l'aspirapolvere.</span>${passi}`
-        : `<div class="p-sel"><b>${esc(sel)}</b><select id="pTipo" aria-label="Tipo di ${esc(sel)}">${opzTipi(q.tipo)}</select></div>${passi}
-           <button class="btn ghost sm" id="pDel" ${nFacc(sel) ? "disabled" : ""}>${nFacc(sel) ? `Ha ${nFacc(sel)} faccende: non si può togliere` : "Togli questa stanza"}</button>`)
-        : `<span class="muted small">Tocca una stanza per cambiarne tipo e misura.</span>`;
+    const ante = sh.querySelector("#pAnte"), info = sh.querySelector("#pInfo");
+    const ridisegna = () => {
+      const sk = SKIN[dimoraMia()] || SKIN.castello;
+      ante.innerHTML = F.map((f, i) => `<div class="pf"><span class="pf-n">${i + 1}</span><div class="pf-row">${f.length ? f.map(r => {
+          const t = tipoDi(r, D), q = quota(sk, t), nm = nomeStanza(r);
+          return `<button class="pf-st${r === sel ? " on" : ""}" data-r="${esc(r)}" style="flex:${q.k} 1 0" aria-pressed="${r === sel}"><img src="${q.tes.src}" alt=""><span>${esc(nm)}</span></button>`;
+        }).join("") : `<span class="pf-vuoto">Piano vuoto${F.length > 1 ? " · sparisce al salvataggio" : ""}</span>`}</div></div>`).join("");
+      const pos = sel && dove(sel);
+      if (!pos) { info.innerHTML = `<span class="muted small">Tocca una stanza per spostarla o cambiarne il tipo.</span>`; return; }
+      const [i, j] = pos, f = F[i];
+      info.innerHTML = `<div class="p-sel"><b>${esc(nomeStanza(sel))}</b>${sel === "Tutta la casa" ? `<span class="muted small">le faccende di tutta la casa</span>` : `<select id="pTipo" aria-label="Tipo di ${esc(sel)}">${opzTipi(D[sel].tipo)}</select>`}</div>
+        <div class="p-frecce">
+          <button class="btn ghost sm" data-mv="sx" ${j === 0 ? "disabled" : ""} aria-label="A sinistra">←</button>
+          <button class="btn ghost sm" data-mv="dx" ${j === f.length - 1 ? "disabled" : ""} aria-label="A destra">→</button>
+          <button class="btn ghost sm" data-mv="su" ${i === 0 ? "disabled" : ""}>↑ Piano sopra</button>
+          <button class="btn ghost sm" data-mv="giu">↓ ${i === F.length - 1 ? "Nuovo piano sotto" : "Piano sotto"}</button>
+        </div>
+        ${sel === "Tutta la casa" ? "" : `<button class="btn ghost sm" id="pDel" ${nFacc(sel) ? "disabled" : ""}>${nFacc(sel) ? `Ha ${nFacc(sel)} faccende: non si può togliere` : "Togli questa stanza"}</button>`}`;
       const t = info.querySelector("#pTipo"); if (t) t.onchange = () => { D[sel].tipo = t.value; ridisegna(); };
-      const d = info.querySelector("#pDel"); if (d) d.onclick = () => { delete D[sel]; sel = null; ridisegna(); };
-      info.querySelectorAll("[data-m]").forEach(bt => bt.onclick = () => { const k = bt.dataset.m, lim = k === "w" ? MAXW - q.x : MAXH - q.y; q[k] = Math.max(1, Math.min(lim, q[k] + +bt.dataset.d)); ridisegna(); });
-      const sk = SKIN[dimoraMia()] || SKIN.castello, msg = [];
-      if (sov.size) msg.push(`<b>Stanze sovrapposte:</b> ${[...sov].map(r => esc(nomeStanza(r))).join(", ")}. Spostale o rimpiccioliscile prima di salvare.`);
-      const senza = [...new Set(Object.values(D).map(x => x.tipo).filter(t => !(sk.tessere && sk.tessere.tipi.includes(t)) && t !== "corridoio"))];
-      if (senza.length) msg.push(`${senza.map(t => TIPI[t]).join(", ")}: la ${esc(DIMORE[dimoraMia()].replace(/^(Il |La |L')/, ""))} non ha ancora un disegno su misura, per ora ${senza.length === 1 ? "usa" : "usano"} quello più simile.`);
-      av.innerHTML = msg.map(m => `<p class="${m.startsWith("<b>") ? "err" : "muted"}">${m}</p>`).join("");
+      const d = info.querySelector("#pDel"); if (d) d.onclick = () => { F[i].splice(j, 1); delete D[sel]; sel = null; ridisegna(); };
+      info.querySelectorAll("[data-mv]").forEach(bt => bt.onclick = () => {
+        const mv = bt.dataset.mv;
+        if (mv === "sx" || mv === "dx") { const k = j + (mv === "sx" ? -1 : 1); [f[j], f[k]] = [f[k], f[j]]; }
+        else { f.splice(j, 1); const k = i + (mv === "su" ? -1 : 1); if (k >= F.length) F.push([]); F[k].push(sel); }
+        ridisegna();
+      });
     };
-    const cella = e => { const b = svg.getBoundingClientRect(); return [(e.clientX - b.left) / b.width * W, (e.clientY - b.top) / b.height * H]; };
-    svg.addEventListener("pointerdown", e => {
-      const g = e.target.closest("g[data-r]"); if (!g) { sel = null; ridisegna(); return; }
-      const r = g.dataset.r, q = D[r], [cx, cy] = cella(e), resize = !!e.target.closest("[data-h]");
-      sel = r; drag = { r, resize, dx: cx - q.x, dy: cy - q.y, w0: q.w, h0: q.h, x0: cx, y0: cy };
-      try { svg.setPointerCapture(e.pointerId); } catch (x) {}
-      e.preventDefault(); ridisegna();
-    });
-    /* Durante il trascinamento la griglia resta ferma (altrimenti scapperebbe sotto il dito); si adatta quando si lascia. */
-    svg.addEventListener("pointermove", e => {
-      if (!drag) return; const q = D[drag.r], [cx, cy] = cella(e);
-      if (drag.resize) { q.w = Math.max(1, Math.min(W - q.x, Math.round(drag.w0 + cx - drag.x0))); q.h = Math.max(1, Math.min(H - q.y, Math.round(drag.h0 + cy - drag.y0))); }
-      else { q.x = Math.max(0, Math.min(W - q.w, Math.round(cx - drag.dx))); q.y = Math.max(0, Math.min(H - q.h, Math.round(cy - drag.dy))); }
-      ridisegna(false);
-    });
-    const fine = () => { if (drag) { drag = null; ridisegna(); } };
-    svg.addEventListener("pointerup", fine); svg.addEventListener("pointercancel", fine);
+    ante.addEventListener("click", e => { const b = e.target.closest(".pf-st"); if (!b) return; sel = b.dataset.r === sel ? null : b.dataset.r; ridisegna(); });
     sh.querySelector("#pAdd").onclick = () => {
       const s = sh.querySelector("#pNuova"), tipo = s.value; if (!tipo) { toast("Scegli che stanza aggiungere"); return; }
       const radice = NOME_TIPO[tipo] || TIPI[tipo]; let n = radice, k = 2;
       while (D[n] || stanze().includes(n)) n = `${radice} ${k++}`;
-      const w = 3, h = 2, libero = (x, y) => Object.values(D).every(q => x + w <= q.x || q.x + q.w <= x || y + h <= q.y || q.y + q.h <= y);
-      /* Prima cerca un buco dentro la larghezza della casa (così la nuova stanza va sotto, non di lato), poi ovunque. */
-      const larga = Math.max(GRIGLIA.w, ...Object.values(D).map(q => q.x + q.w)); let pos = null;
-      for (const lim of [larga, MAXW]) for (let y = 0; !pos && y < MAXH; y++) for (let x = 0; !pos && x <= lim - w; x++) if (libero(x, y)) pos = { x, y };
-      D[n] = { tipo, w, h, ...(pos || { x: 0, y: H }) }; sel = n; s.value = ""; ridisegna();
+      D[n] = { tipo }; const pos = sel && dove(sel); (pos ? F[pos[0]] : F[F.length - 1] || (F[0] = [])).push(n);
+      sel = n; s.value = ""; ridisegna();
     };
+    sh.querySelector("#pPiano").onclick = () => { F.push([]); ridisegna(); };
     sh.querySelector("#pSalva").onclick = async () => {
-      if (sovrapposte().size) { toast("Ci sono stanze sovrapposte: sistemale prima di salvare"); return; }
       try {
-        const nomi = Object.keys(D).filter(r => r !== "Tutta la casa");
-        await db.doc("config/casa").update({ pianta: D, stanze: nomi });
+        const P = F.filter(f => f.length), nomi = Object.keys(D).filter(r => r !== "Tutta la casa");
+        const pi = {}; P.forEach((f, y) => f.forEach((r, x) => { pi[r] = { tipo: tipoDi(r, D), x, y, w: 1, h: 1 }; }));
+        await db.doc("config/casa").update({ piani: P, pianta: pi, stanze: nomi });
         chiudiSheet(); toast("Pianta salvata");
       } catch (e) { errore(e); }
     };

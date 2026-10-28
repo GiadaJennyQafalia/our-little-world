@@ -781,11 +781,14 @@ button.teca-ogg { cursor: pointer; }
 .dimore .dim-chiusa small { font-size: .68rem; }
 
 /* ---------- Vista d'insieme composta dalla pianta ---------- */
-.castle.vista { height: auto; background-color: #241c2e; background-repeat: repeat; overflow: hidden; }
+.castle.vista { height: auto; background: transparent; overflow: hidden; }
+.castle.vista > .v-corpo { position: absolute; background: var(--fondo); z-index: 0; }
+.castle.vista > .v-lato { position: absolute; z-index: 0; background-repeat: repeat-y; background-size: 100% auto; image-rendering: pixelated; }
+.castle.vista > .v-lato.sx { left: 0; } .castle.vista > .v-lato.dx { right: 0; }
 .castle.vista > .v-tetto { position: absolute; left: 0; top: 0; width: 100%; object-fit: fill; z-index: 0; image-rendering: pixelated; }
 .castle.vista > .v-base { position: absolute; left: 0; bottom: 0; width: 100%; object-fit: fill; z-index: 0; image-rendering: pixelated; }
-.vc { position: absolute; z-index: 1; overflow: hidden; background-color: #0b0910; background-repeat: repeat-x; background-size: auto 100%; background-position: center bottom; image-rendering: pixelated; box-shadow: 0 0 0 3px #0b0910, 0 0 0 5px #3a3046; }
-.vc > img { position: absolute; bottom: 0; display: block; max-width: none; image-rendering: pixelated; }
+.vc { position: absolute; z-index: 1; overflow: hidden; background: #0b0910; box-shadow: 0 0 0 2px #0b0910; }
+.vc > img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; image-rendering: pixelated; }
 .castle.vista .rm { z-index: 2; }
 
 /* Stanze che non hanno un posto nell'illustrazione in sezione */
@@ -794,3 +797,17 @@ button.teca-ogg { cursor: pointer; }
 .altre-stanze .altra-ic{width:22px;height:22px;display:inline-flex}
 .altre-stanze .altra-ic>*{width:100%;height:100%}
 .altre-stanze .altra .rm-badge{position:absolute;top:-6px;right:-6px}
+
+/* Editor della casa a piani */
+.pianta-ante { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--night); border: 1px dashed var(--seam); border-radius: 12px; }
+.pianta-ante .pf { display: flex; align-items: stretch; gap: 6px; }
+.pianta-ante .pf-n { width: 18px; flex: none; display: grid; place-items: center; font-size: .7rem; color: var(--ash, #8d8499); }
+.pianta-ante .pf-row { flex: 1; min-width: 0; display: flex; gap: 3px; height: 64px; }
+.pianta-ante .pf-st { position: relative; min-width: 0; padding: 0; border: 2px solid #0c0911; border-radius: 4px; overflow: hidden; background: #0b0910; cursor: pointer; }
+.pianta-ante .pf-st img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; image-rendering: pixelated; display: block; }
+.pianta-ante .pf-st span { position: absolute; left: 0; right: 0; bottom: 0; padding: 1px 2px; font-size: .62rem; line-height: 1.2; color: #fff; background: #000a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pianta-ante .pf-st.on { border-color: var(--candle); box-shadow: 0 0 0 2px var(--candle); }
+.pianta-ante .pf-vuoto { flex: 1; display: grid; place-items: center; border: 1px dashed var(--seam); border-radius: 4px; font-size: .75rem; color: var(--ash, #8d8499); }
+.pianta-info .p-frecce { display: flex; flex-wrap: wrap; gap: 6px; }
+.pianta-info .p-frecce .btn { align-self: auto; }
+#pPiano { align-self: flex-start; }
