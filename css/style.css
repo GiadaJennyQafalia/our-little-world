@@ -788,6 +788,7 @@ button.teca-ogg { cursor: pointer; }
 .castle.vista > .v-lato.sx { left: 0; } .castle.vista > .v-lato.dx { right: 0; }
 .castle.vista > .v-tetto { position: absolute; left: 0; top: 0; width: 100%; object-fit: fill; z-index: 0; image-rendering: pixelated; }
 .castle.vista > .v-base { position: absolute; left: 0; bottom: 0; width: 100%; object-fit: fill; z-index: 0; image-rendering: pixelated; }
+.castle.vista.hd > .v-tetto, .castle.vista.hd > .v-base, .castle.vista.hd > .v-lato > i { image-rendering: auto; }
 .vc { position: absolute; z-index: 1; overflow: hidden; background: #0b0910; box-shadow: 0 0 0 2px #0b0910; }
 .vc > img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; image-rendering: pixelated; }
 .vc.mod > img { image-rendering: auto; }
