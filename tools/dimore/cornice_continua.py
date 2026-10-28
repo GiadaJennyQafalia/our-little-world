@@ -41,6 +41,10 @@ ZOC, TER = 16, 22
 vecchio = B[:, 2:8].reshape(-1, 3).mean(0)
 B[np.abs(B - vecchio).sum(2) < 24] = SKY     # il cielo della base prende il colore del tetto
 cielo_sx = cielo_dx = SKY.astype(float)
+# gli anelli in cima alle torri della base sporgono oltre la fascia: si sostituiscono con il fusto, così la torre sale dritta
+RING = 40
+for xa, xb, fuori in ((24, 164, (0, 24)), (606, 744, (744, w))):
+    B[:RING, xa:xb] = B[96:96 + RING, xa:xb]; B[:RING, fuori[0]:fuori[1]] = SKY
 nuova = np.zeros((h + ZOC + TER, w, 3)); nuova[:h] = B
 for y in range(h, h + ZOC + TER):
     nuova[y, :w // 2] = cielo_sx; nuova[y, w // 2:] = cielo_dx
