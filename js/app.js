@@ -42,18 +42,12 @@ const SEZ_CASTELLO = {
   cucina: { rect: [456, 550, 656, 898], piano: { x0: 490, x1: 625, y: 885 } }, ingresso: { rect: [112, 918, 312, 1198], piano: { x0: 165, x1: 285, y: 1185 } },
   soggiorno: { rect: [328, 918, 656, 1198], piano: { x0: 385, x1: 600, y: 1165 } }, balcone: { rect: [678, 400, 756, 1062], stretta: true, piano: { x0: 717, x1: 717, y: 1080 } }
 };
-const SEZ_REGGIA = {
-  bagno: { rect: [102, 302, 322, 550], piano: { x0: 150, x1: 280, y: 538 } }, camera: { rect: [332, 302, 622, 550], piano: { x0: 390, x1: 570, y: 538 } },
-  ripostiglio: { rect: [100, 570, 292, 802], piano: { x0: 140, x1: 255, y: 790 } }, corridoio: { rect: [303, 552, 405, 802], stretta: true, piano: { x0: 354, x1: 354, y: 790 } },
-  cucina: { rect: [415, 570, 622, 802], piano: { x0: 455, x1: 585, y: 790 } }, ingresso: { rect: [100, 822, 365, 1085], piano: { x0: 150, x1: 315, y: 1070 } },
-  soggiorno: { rect: [376, 822, 622, 1085], piano: { x0: 420, x1: 580, y: 1070 } }, balcone: { rect: [628, 690, 750, 1085], stretta: true, piano: { x0: 690, x1: 690, y: 1070 } }
-};
 const SKIN = { castello: { modulare: true, img: "img/castello.webp", w: 768, h: 1376, sezione: SEZ_CASTELLO, stanze: "img/stanze/",
   cornice: { dir: "img/dimore/castello/", hd: true, tetto: [768, 144], base: [768, 260.5, 35], muro: [129, 208], dx: [128, 208], area: [129, 640], fondo: "#17121d", cielo: "#362131" },
   tessere: { dir: "img/dimore/castello/tessere/", dim: {"bagno":[648,576],"balcone":[360,576],"camera":[648,576],"cantina":[768,576],"corridoio":[336,576],"cucina":[528,576],"cucina_soggiorno":[1056,576],"giardino":[744,576],"ingresso":[528,576],"lavanderia":[768,576],"ripostiglio":[528,576],"soggiorno":[720,576],"studio":[720,576],"terrazzo":[744,576]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "lavanderia", "terrazzo", "giardino", "cantina"] },
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino" } },
-  reggia: { modulare: true, img: "img/dimore/reggia/sezione.webp", w: 768, h: 1376, sezione: SEZ_REGGIA, stanze: "img/dimore/reggia/stanze/",
-  cornice: { dir: "img/dimore/reggia/", tetto: [768, 300], base: [768, 291], muro: [100, 340], dx: [146, 280], area: [100, 622], fondo: "#d9d3e0", cielo: "#111b40" },
+  reggia: { modulare: true, img: "img/dimore/reggia/sezione.webp", w: 768, h: 1376, stanze: "img/dimore/reggia/stanze/",
+  cornice: { dir: "img/dimore/reggia/", hd: true, tetto: [768, 234.5, 38], base: [768, 297, 43], muro: [121.5, 97.5], dx: [121.5, 97.5], area: [121.5, 646.5], fondo: "#d9d3e0", cielo: "#111b40" },
   tessere: { dir: "img/dimore/reggia/tessere/", dim: {"bagno":[648,576],"balcone":[312,576],"camera":[648,576],"cantina":[768,576],"corridoio":[336,576],"cucina":[528,576],"cucina_soggiorno":[1056,576],"giardino":[744,576],"ingresso":[528,576],"lavanderia":[768,576],"ripostiglio":[528,576],"soggiorno":[720,576],"studio":[720,576],"terrazzo":[744,576]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "terrazzo", "giardino", "cantina"] },
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino", terrazzo: "terrazzo" } } };
 /* Lo stesso nelle viste delle singole stanze (immagini 720×676, 720×706 il corridoio): il pavimento è un rombo, i piedi stanno nella parte centrale. */
@@ -115,7 +109,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.39.1";
+const VERSIONE_APP = "3.40.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -523,7 +517,8 @@ const GAP_X = 14, GAP_Y = 18, H_PIANO = 280;
 function quota(sk, tipo) { const tes = tessera(sk, tipo), [tw, th] = tes.dim || [720, 676]; return { tes, k: Math.max(.3, tw / th) }; }
 function vistaLayout(dim, P = piani(), pi = pianta()) {
   const sk = SKIN[dim] || SKIN.castello, cr = sk.cornice, [a0, a1] = cr.area, AW = a1 - a0, celle = {};
-  let y = cr.tetto[1];
+  const ot = cr.tetto[2] || 0;                       // quanto il tetto scende sopra l'apertura (le stanze partono dove l'apertura comincia)
+  let y = cr.tetto[1] - ot;
   for (const f of P) {
     const it = f.map(r => ({ r, tipo: tipoDi(r, pi), ...quota(sk, tipoDi(r, pi)) }));
     const somma = it.reduce((t, q) => t + q.k, 0), h = Math.min(H_PIANO, (AW - GAP_X * (it.length - 1)) / somma);
@@ -532,7 +527,7 @@ function vistaLayout(dim, P = piani(), pi = pianta()) {
     y += h + GAP_Y;
   }
   y -= GAP_Y;
-  return { W: 768, H: y + cr.base[1] - (cr.base[2] || 0), corpo: [cr.tetto[1], y], celle, sk };
+  return { W: 768, H: y + cr.base[1] - (cr.base[2] || 0), corpo: [cr.tetto[1] - ot, y], celle, sk };
 }
 /* Immagine della tessera frontale di un tipo: la tessera della dimora, il ripiego, oppure l'interno ritagliato. */
 function tessera(sk, t) {
@@ -568,7 +563,7 @@ function dimoraMappa(dim, st, now) {
       return `<button class="altra fr-stone lv${x.livello}" data-act="stanza" data-r="${esc(r)}" aria-label="${esc(nome)}: ${STATI[x.livello]}"><span class="altra-ic">${iconaStanza(tipoConImmagine(sk, tipoStanza(r)))}</span><b>${esc(nome)}</b>${x.urg ? `<span class="rm-badge num" aria-hidden="true">${x.urg}</span>` : ""}</button>`; }).join("");
     return `<div class="castle"><img src="${sk.img}" width="${sk.w}" height="${sk.h}" alt="${esc(DIMORE[dim])} in sezione: tocca una stanza" decoding="async">${tasti}</div>${altre ? `<div class="altre-stanze" role="group" aria-label="Altre stanze">${altre}</div>` : ""}`;
   }
-  const L = vistaLayout(dim), sk = L.sk, cr = sk.cornice, pc = (v, t) => (v / t * 100).toFixed(3) + "%", [c0, c1] = L.corpo;
+  const L = vistaLayout(dim), sk = L.sk, cr = sk.cornice, pc = (v, t) => (v / t * 100).toFixed(3) + "%", [c0, c1] = L.corpo, ot = cr.tetto[2] || 0;
   const celle = Object.entries(L.celle).map(([r, c]) => {
     const x = statoUna(r, now, st); if (!x) return "";
     const nome = nomeStanza(r), stretta = c.w < 110, box = `left:${pc(c.x, L.W)};top:${pc(c.y, L.H)};width:${pc(c.w, L.W)};height:${pc(c.h, L.H)}`;
@@ -578,7 +573,7 @@ function dimoraMappa(dim, st, now) {
   /* Le fasce laterali delle torri: se la dimora lo prevede (cornice.taper) la torre si allarga piano piano dall'alto al basso, per combaciare con il tetto e con la base. */
   const lato = (k, w, f) => { const t = cr.taper && cr.taper[k], pp = v => (v / w * 100).toFixed(2) + "%",
     clip = t ? `;clip-path:polygon(${k === "sx" ? `${pp(t[0])} 0,100% 0,100% 100%,${pp(t[1])} 100%` : `0 0,${pp(t[0])} 0,${pp(t[1])} 100%,0 100%`})` : "";
-    return `<div class="v-lato ${k}" style="top:${pc(c0 - 1, L.H)};height:${pc(c1 - c0 + 2 - (cr.base[2] || 0), L.H)};width:${pc(w, L.W)}${cr.cielo ? ";background-color:" + cr.cielo : ""}"><i style="background-image:url(${cr.dir}${f})${clip}"></i></div>`; };
+    return `<div class="v-lato ${k}" style="top:${pc(c0 + ot - 1, L.H)};height:${pc(c1 - c0 - ot + 2 - (cr.base[2] || 0), L.H)};width:${pc(w, L.W)}${cr.cielo ? ";background-color:" + cr.cielo : ""}"><i style="background-image:url(${cr.dir}${f})${clip}"></i></div>`; };
   return `<div class="castle vista${cr.hd ? " hd" : ""}" style="aspect-ratio:${L.W} / ${L.H};--fondo:${cr.fondo}" role="group" aria-label="${esc(DIMORE[dim])}: tocca una stanza">
     <div class="v-corpo" style="top:${pc(c0 - 2, L.H)};height:${pc(c1 - c0 + 4, L.H)};left:${pc(cr.area[0], L.W)};right:${pc(L.W - cr.area[1], L.W)}"></div>
     ${lato("sx", cr.muro[0], "muro.webp")}${lato("dx", cr.dx[0], "muro_dx.webp")}
