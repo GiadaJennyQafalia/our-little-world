@@ -174,6 +174,7 @@ def ingrandisci(im):
 
 
 def pezzo(nome):
+    if nome == "fiaccola" and CFG and CFG.get("fiaccola_pezzo"): nome = CFG["fiaccola_pezzo"]      # candela a muro al posto della fiaccola
     if isinstance(nome, tuple):                  # gruppo: pezzi affiancati (sedia-tavolo-sedia, scopa e secchio…)
         ps = [carica(f"pezzi/{n}.png") for n in nome]
         g = Image.new("RGBA", (sum(p.width for p in ps) + (len(ps) - 1) * Q, max(p.height for p in ps))); x = 0
@@ -384,11 +385,23 @@ if os.environ.get("RIF", "1") == "1":
     STANZE_CASTELLO["bagno"]["tappeto"] = dict(sotto="bagno_1", extra=-10, dy=8, prof=12, col=MALVA)
     STANZE_CASTELLO["cucina_soggiorno"]["tappeto"] = dict(sotto="soggiorno_1", extra=26, dy=-5, prof=24, col=VINO)
     # corridoio: niente mobili, solo un tappeto lungo e due fiaccole
-    STANZE_CASTELLO["corridoio"].update(pav_mobili=[], appesi=[], vuota=True, fiaccole_bordi=True, fiaccola_cima=20, tappeto=dict(y0=MURO + 12, prof=26, meno=22, col=VINO))
+    STANZE_CASTELLO["corridoio"].update(muro_riga=38, pav_mobili=[], appesi=[], vuota=True, fiaccole_bordi=True, fiaccola_cima=9, tappeto=dict(y0=4, rel=True, fondo=5, larg=22, lungo=True, col=VINO, oro=(200, 160, 120)))
     # balcone: vasi e lanterna lungo la balaustra
     STANZE_CASTELLO["balcone"] = dict(STANZE_CASTELLO["balcone"], pav_g=CIOTTOLI, pav_mobili=[("balcone_1", 84, 3), ("balcone_7", 84, 5), ("balcone_2", 84, 2)], appesi=[])
     STANZE_CASTELLO["terrazzo"] = dict(STANZE_CASTELLO["terrazzo"], pav_g=CIOTTOLI, appesi=[])
     RIEMPI_CASTELLO["pav"]["balcone"] = ["balcone_1", "balcone_2", "giardino_6"]
+    # Palazzo d'Argentaluna: mobili alle pareti, tappeti blu e oro piatti, candele a muro; niente lampioni in mezzo alle stanze
+    DIMORE["reggia"]["appoggio"] = True; DIMORE["reggia"]["fiaccola_pezzo"] = "corridoio_5"
+    BLU, ORO = (42, 72, 150), (226, 186, 98)
+    STANZE_REGGIA["soggiorno"]["tappeto"] = dict(sotto="soggiorno_1", extra=26, dy=-6, prof=17, col=BLU, oro=ORO)
+    STANZE_REGGIA["cucina_soggiorno"]["tappeto"] = dict(sotto="soggiorno_1", extra=26, dy=-6, prof=17, col=BLU, oro=ORO)
+    STANZE_REGGIA["camera"]["tappeto"] = dict(sotto="camera_1", extra=20, dy=-6, prof=17, col=BLU, oro=ORO)
+    STANZE_REGGIA["ingresso"]["tappeto"] = dict(sotto="ingresso_1", extra=-8, dy=3, prof=13, col=BLU, oro=ORO)
+    STANZE_REGGIA["studio"]["tappeto"] = dict(sotto=("studio_1", "studio_2"), extra=14, dy=-5, prof=17, col=BLU, oro=ORO)
+    STANZE_REGGIA["corridoio"].update(muro_riga=40, pav_mobili=[], appesi=[], vuota=True, fiaccole=2, fiaccole_bordi=True, fiaccola_cima=8,
+                                      tappeto=dict(y0=4, rel=True, fondo=-4, larg=22, lungo=True, col=BLU, oro=ORO))
+    STANZE_REGGIA["giardino"]["libero"] = True
+    RIEMPI_REGGIA["riserva_pav"] = ["balcone_1", "corridoio_3"]
 
 
 def usa(dimora):
@@ -450,11 +463,11 @@ def piede(k, b):
     """Riga dei piedi di un mobile. Senza CFG['appoggio'] resta quella della ricetta."""
     if not CFG.get("appoggio"): return b
     n = k[0] if isinstance(k, tuple) else k
-    if n in CENTRO: return MURO + 26
+    if n in CENTRO: return MURO + round(.62 * (H - MURO))
     return MURO + 2 + .55 * max(b - 68, 2)
 
 
-def tappeto_piatto(img, cx, y0, w, prof, col=(108, 78, 112)):
+def tappeto_piatto(img, cx, y0, w, prof, col=(108, 78, 112), oro=None, lungo=False):
     """Tappeto steso a terra: rettangolo con bordo, fascia e motivo, disegnato in alta risoluzione (non è un mobile in piedi)."""
     d = ImageDraw.Draw(img); g = max(2, Q // 2)
     a_, b_ = max(cx - w / 2, 5), min(cx + w / 2, img.width / Q - 5)      # mai oltre le pareti della stanza
@@ -464,20 +477,30 @@ def tappeto_piatto(img, cx, y0, w, prof, col=(108, 78, 112)):
     d.rectangle((x0 + g, ya + g, x1 - g, yb - g), fill=chiaro + (255,))
     d.rectangle((x0 + 3 * g, ya + 3 * g, x1 - 3 * g, yb - 3 * g), fill=scuro + (255,))
     d.rectangle((x0 + 4 * g, ya + 4 * g, x1 - 4 * g, yb - 4 * g), fill=col + (255,))
-    cy = (ya + yb) // 2; n = max(1, int((x1 - x0) // (S(9))))
-    for i in range(n):                                   # rombi lungo il centro
-        mx = x0 + (i + .5) * (x1 - x0) / n; r = min(g * 3, (yb - ya) // 4)
-        d.polygon([(mx - 2 * r, cy), (mx, cy - r), (mx + 2 * r, cy), (mx, cy + r)], fill=chiaro + (255,))
+    cy = (ya + yb) // 2; n = max(1, int((x1 - x0) // (S(9)))); mot = tuple(oro) if oro else chiaro
+    if lungo:                                            # tappeto lungo: rombi lungo l'asse verticale
+        n = max(1, int((yb - ya) // S(11))); mx = (x0 + x1) // 2; r = min(g * 3, (x1 - x0) // 5)
+        d.rectangle((x0 + 5 * g, ya + 5 * g, x1 - 5 * g, yb - 5 * g), outline=mot + (255,), width=max(1, g // 2)) if oro else None
+        for i in range(n):
+            my = ya + (i + .5) * (yb - ya) / n
+            d.polygon([(mx - r, my), (mx, my - 2 * r), (mx + r, my), (mx, my + 2 * r)], fill=mot + (255,))
+    else:
+        for i in range(n):                               # rombi lungo il centro
+            mx = x0 + (i + .5) * (x1 - x0) / n; r = min(g * 3, (yb - ya) // 4)
+            d.polygon([(mx - 2 * r, cy), (mx, cy - r), (mx + 2 * r, cy), (mx, cy + r)], fill=mot + (255,))
     for xx in range(x0 + g, x1, 2 * g):                  # frange sui lati corti
         d.line((xx, ya - g, xx, ya), fill=chiaro + (255,), width=1); d.line((xx, yb, xx, yb + g), fill=chiaro + (255,), width=1)
 
 
 def stanza(nome, W):
     """(immagine, posti). posti = {"t": [(cx, base)], "p": [(cx, cima)]} in pixel del disegno."""
+    global MURO
     r = CFG["stanze"][nome]; rie = CFG["rie"]; LUCI = rie["luci"]
+    MURO = int(os.environ.get("MURO", r.get("muro_riga", CFG.get("muro_riga", 68))))      # ogni stanza può avere il suo orizzonte (corridoio più profondo)
     img = sfondo(W, r)
     lay = disponi(W, r["pav_mobili"])
-    if CFG.get("appoggio") and r.get("bordo") != "siepe": lay = [(k, cx, piede(k, b), w) for k, cx, b, w in lay]
+    appog = CFG.get("appoggio") and r.get("bordo") != "siepe" and not r.get("libero")
+    if appog: lay = [(k, cx, piede(k, b), w) for k, cx, b, w in lay]
     pos = {k: (cx, b) for k, cx, b, _ in lay if k != "R"}
     posti = {"t": [(round(cx), b) for k, cx, b, _ in lay if k == "R"], "p": [(round(cx), CIMA_DIPINTO) for k, cx, b, _ in lay if k == "R"]}
     piani = [(cx - w / 2, cx + w / 2) for k, cx, b, w in lay]
@@ -514,7 +537,7 @@ def stanza(nome, W):
     presenti = {k for k, *_ in lay if isinstance(k, str)} | {p for p, *_ in appesi}
     ris = rie["riserva_pav"][:]; random.Random(sum(map(ord, nome))).shuffle(ris)
     extra = riempi_pav([(p, 84 + k % 3 * 2) for k, p in enumerate(rie["pav"][nome] + [x for x in ris if x not in rie["pav"][nome]])]) if not r.get("vuota") else []
-    if CFG.get("appoggio") and r.get("bordo") != "siepe": extra = [(p, cx, piede(p, b)) for p, cx, b in extra]
+    if appog: extra = [(p, cx, piede(p, b)) for p, cx, b in extra]
     for p, cx, b in extra:
         piani.append((cx - pezzo(p).width / 2, cx + pezzo(p).width / 2))
         top = b - pezzo(p).height; sl = slice(max(0, int(cx - pezzo(p).width / 2)), min(W, int(cx + pezzo(p).width / 2) + 1))
@@ -572,15 +595,17 @@ def stanza(nome, W):
         if tp.get("sotto") is not None:
             if tp["sotto"] in pos:
                 lw = [w for k, cx, b, w in lay if k == tp["sotto"]][0]; cx, b = pos[tp["sotto"]]
-                tappeto_piatto(img, cx, b + tp.get("dy", -4), lw + tp.get("extra", 12), tp.get("prof", 20), tp.get("col", (108, 78, 112)))
+                tappeto_piatto(img, cx, b + tp.get("dy", -4), lw + tp.get("extra", 12), tp.get("prof", 20), tp.get("col", (108, 78, 112)), tp.get("oro"))
         else:
-            tappeto_piatto(img, W * tp.get("cx", .5), tp["y0"], W - tp.get("meno", 14), tp.get("prof", 22), tp.get("col", (108, 78, 112)))
+            y0 = MURO + tp["y0"] if tp.get("rel") else tp["y0"]            # rel: la riga è misurata dal muro (MURO cambia con la dimora)
+            prof = H - y0 - tp.get("fondo", 2) if tp.get("rel") else tp.get("prof", 22)
+            tappeto_piatto(img, W * tp.get("cx", .5), y0, tp.get("larg") or W - tp.get("meno", 14), prof, tp.get("col", (108, 78, 112)), tp.get("oro"), tp.get("lungo", False))
     for p, cx, cima in appesi + deco: appendi(img, pezzo(p), cx, cima)
     for p, cx, b in sorted(extra, key=lambda e: e[2]): appoggia(img, pezzo(p), cx, b)
     for k, cx, b, _ in lay:
         if k != "R": appoggia(img, pezzo(k), cx, b)
     for p, sopra, base in r.get("davanti", []):
-        if sopra in pos and not (CFG.get("appoggio") and p == "ingresso_5"): appoggia(img, pezzo(p), pos[sopra][0], piede(p, base) if CFG.get("appoggio") else base, ombra=False)
+        if sopra in pos and not (CFG.get("appoggio") and p == "ingresso_5"): appoggia(img, pezzo(p), pos[sopra][0], piede(p, base) if CFG.get("appoggio") and not r.get("libero") else base, ombra=False)
     return img, posti
 
 

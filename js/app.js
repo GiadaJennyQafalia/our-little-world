@@ -48,7 +48,7 @@ const SKIN = { castello: { modulare: true, img: "img/castello.webp", w: 768, h: 
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino" } },
   reggia: { modulare: true, img: "img/dimore/reggia/sezione.webp", w: 768, h: 1376, stanze: "img/dimore/reggia/stanze/",
   cornice: { dir: "img/dimore/reggia/", hd: true, tetto: [768, 234.5, 38], base: [768, 297, 43], muro: [121.5, 97.5], dx: [121.5, 97.5], area: [121.5, 646.5], fondo: "#d9d3e0", cielo: "#111b40" },
-  tessere: { dir: "img/dimore/reggia/tessere/", dim: {"bagno":[648,576],"balcone":[312,576],"camera":[648,576],"cantina":[768,576],"corridoio":[336,576],"cucina":[528,576],"cucina_soggiorno":[1056,576],"giardino":[744,576],"ingresso":[528,576],"lavanderia":[768,576],"ripostiglio":[528,576],"soggiorno":[720,576],"studio":[720,576],"terrazzo":[744,576]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "terrazzo", "giardino", "cantina"] },
+  tessere: { dir: "img/dimore/reggia/tessere/", dim: {"bagno":[648,576],"balcone":[360,576],"camera":[648,576],"cantina":[768,576],"corridoio":[336,576],"cucina":[528,576],"cucina_soggiorno":[1056,576],"giardino":[744,576],"ingresso":[528,576],"lavanderia":[768,576],"ripostiglio":[528,576],"soggiorno":[720,576],"studio":[720,576],"terrazzo":[744,576]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "terrazzo", "giardino", "cantina"] },
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino", terrazzo: "terrazzo" } } };
 /* Lo stesso nelle viste delle singole stanze (immagini 720×676, 720×706 il corridoio): il pavimento è un rombo, i piedi stanno nella parte centrale. */
 const PIANI_STANZA = {
@@ -109,7 +109,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.40.0";
+const VERSIONE_APP = "3.40.1";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
