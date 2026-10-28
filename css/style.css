@@ -783,7 +783,8 @@ button.teca-ogg { cursor: pointer; }
 /* ---------- Vista d'insieme composta dalla pianta ---------- */
 .castle.vista { height: auto; background: transparent; overflow: hidden; }
 .castle.vista > .v-corpo { position: absolute; background: var(--fondo); z-index: 0; }
-.castle.vista > .v-lato { position: absolute; z-index: 0; background-repeat: repeat-y; background-size: 100% auto; image-rendering: pixelated; }
+.castle.vista > .v-lato { position: absolute; z-index: 0; }
+.castle.vista > .v-lato > i { position: absolute; inset: 0; background-repeat: repeat-y; background-size: 100% auto; image-rendering: pixelated; }
 .castle.vista > .v-lato.sx { left: 0; } .castle.vista > .v-lato.dx { right: 0; }
 .castle.vista > .v-tetto { position: absolute; left: 0; top: 0; width: 100%; object-fit: fill; z-index: 0; image-rendering: pixelated; }
 .castle.vista > .v-base { position: absolute; left: 0; bottom: 0; width: 100%; object-fit: fill; z-index: 0; image-rendering: pixelated; }

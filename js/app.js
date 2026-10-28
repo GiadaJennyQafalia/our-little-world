@@ -49,7 +49,7 @@ const SEZ_REGGIA = {
   soggiorno: { rect: [376, 822, 622, 1085], piano: { x0: 420, x1: 580, y: 1070 } }, balcone: { rect: [628, 690, 750, 1085], stretta: true, piano: { x0: 690, x1: 690, y: 1070 } }
 };
 const SKIN = { castello: { modulare: true, img: "img/castello.webp", w: 768, h: 1376, sezione: SEZ_CASTELLO, stanze: "img/stanze/",
-  cornice: { dir: "img/dimore/castello/", tetto: [768, 283], base: [768, 178], muro: [112, 340], dx: [112, 90], area: [112, 656], fondo: "#17121d" },
+  cornice: { dir: "img/dimore/castello/", tetto: [768, 283], base: [768, 216], muro: [112, 340], dx: [112, 90], area: [112, 656], fondo: "#17121d", cielo: "#362131", taper: { sx: [31, 24], dx: [80, 87] } },
   tessere: { dir: "img/dimore/castello/tessere/", dim: {"bagno":[648,576],"balcone":[312,576],"camera":[648,576],"cantina":[768,576],"corridoio":[336,576],"cucina":[528,576],"cucina_soggiorno":[1056,576],"giardino":[744,576],"ingresso":[528,576],"lavanderia":[768,576],"ripostiglio":[528,576],"soggiorno":[720,576],"studio":[720,576],"terrazzo":[744,576]}, tipi: ["bagno", "camera", "ripostiglio", "corridoio", "cucina", "ingresso", "soggiorno", "balcone", "cucina_soggiorno", "studio", "lavanderia", "terrazzo", "giardino", "cantina"] },
   file: { bagno: "bagno", camera: "camera", ripostiglio: "sgabuzzino", corridoio: "corridoio", cucina: "cucina", ingresso: "ingresso", soggiorno: "soggiorno", balcone: "balcone", cucina_soggiorno: "cucina_soggiorno", studio: "studio", lavanderia: "lavanderia", cantina: "cantina", giardino: "giardino" } },
   reggia: { modulare: true, img: "img/dimore/reggia/sezione.webp", w: 768, h: 1376, sezione: SEZ_REGGIA, stanze: "img/dimore/reggia/stanze/",
@@ -115,7 +115,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.38.1";
+const VERSIONE_APP = "3.38.2";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -575,7 +575,10 @@ function dimoraMappa(dim, st, now) {
     return `<div class="vc${c.tes.interno ? " interno" : ""}${sk.modulare ? " mod" : ""}" style="${box}"><img src="${c.tes.src}" alt="" decoding="async" loading="lazy"></div>
       <button class="rm lv${x.livello}${stretta ? " stretta" : ""}" data-act="stanza" data-r="${esc(r)}" style="${box}" title="${esc(nome)}" aria-label="${esc(nome)}: ${STATI[x.livello]}, ${x.urg ? x.urg + (x.urg === 1 ? " missione urgente" : " missioni urgenti") : "tutto in pari"}">${velo(x.livello)}${x.urg ? `<span class="rm-badge num" aria-hidden="true">${x.urg}</span>` : ""}</button>`;
   }).join("");
-  const lato = (k, w, f) => `<div class="v-lato ${k}" style="top:${pc(c0, L.H)};height:${pc(c1 - c0, L.H)};width:${pc(w, L.W)};background-image:url(${cr.dir}${f})"></div>`;
+  /* Le fasce laterali delle torri: se la dimora lo prevede (cornice.taper) la torre si allarga piano piano dall'alto al basso, per combaciare con il tetto e con la base. */
+  const lato = (k, w, f) => { const t = cr.taper && cr.taper[k], pp = v => (v / w * 100).toFixed(2) + "%",
+    clip = t ? `;clip-path:polygon(${k === "sx" ? `${pp(t[0])} 0,100% 0,100% 100%,${pp(t[1])} 100%` : `0 0,${pp(t[0])} 0,${pp(t[1])} 100%,0 100%`})` : "";
+    return `<div class="v-lato ${k}" style="top:${pc(c0 - 1, L.H)};height:${pc(c1 - c0 + 2, L.H)};width:${pc(w, L.W)}${cr.cielo ? ";background-color:" + cr.cielo : ""}"><i style="background-image:url(${cr.dir}${f})${clip}"></i></div>`; };
   return `<div class="castle vista" style="aspect-ratio:${L.W} / ${L.H};--fondo:${cr.fondo}" role="group" aria-label="${esc(DIMORE[dim])}: tocca una stanza">
     <div class="v-corpo" style="top:${pc(c0 - 2, L.H)};height:${pc(c1 - c0 + 4, L.H)};left:${pc(cr.area[0], L.W)};right:${pc(L.W - cr.area[1], L.W)}"></div>
     ${lato("sx", cr.muro[0], "muro.webp")}${lato("dx", cr.dx[0], "muro_dx.webp")}

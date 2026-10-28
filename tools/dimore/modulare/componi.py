@@ -20,6 +20,7 @@ RELIQUIA = (18, 20)                 # posto a terra (larghezza, altezza) per una
 DIPINTO = (18, 20)                  # posto a parete per un dipinto o un arazzo
 CIMA_DIPINTO = 20                   # riga della cima dei dipinti
 BASE, CFG = None, None              # dimora in uso (vedi usa())
+GLOBALI = {}                        # quante stanze della dimora usano già ogni decorazione (per non ripetersi)
 S = lambda v: int(round(v * Q))     # misura del disegno -> pixel dell'immagine
 
 
@@ -321,16 +322,24 @@ RIEMPI_REGGIA["pav"]["cucina_soggiorno"] = ["balcone_1", "corridoio_3"]
 RIEMPI_REGGIA["parete"]["cucina_soggiorno"] = [("ingresso_6", 26), ("corridoio_6", 4), ("studio_6", 8), ("corridoio_5", 28)]
 RIEMPI_REGGIA["tap"]["cucina_soggiorno"] = "camera_5"
 
+RIEMPI_CASTELLO["riserva_pav"] = ["dec_b_1", "dec_b_2", "dec_b_3", "dec_b_4", "dec_b_6", "balcone_1", "camera_3", "corridoio_3", "ripostiglio_4", "ripostiglio_5", "cantina_2", "soggiorno_5", "giardino_6"]
+RIEMPI_CASTELLO["riserva_parete"] = [("dec_a_1", 12), ("dec_a_2", 14), ("dec_a_3", 6), ("dec_a_5", 14), ("dec_a_6", 26), ("dec_a_4", 0), ("ingresso_6", 26), ("studio_6", 10), ("soggiorno_6", 12),
+    ("camera_6", 10), ("corridoio_5", 28), ("corridoio_6", 6), ("bagno_6", 12), ("bagno_5", 10), ("cucina_6", 26), ("lavanderia_7", 26), ("ripostiglio_8", 20), ("cantina_6", 18)]
+RIEMPI_REGGIA["riserva_pav"] = ["balcone_1", "corridoio_3", "ripostiglio_4", "ripostiglio_5", "giardino_6", "cantina_2"]
+RIEMPI_REGGIA["riserva_parete"] = [("studio_6", 8), ("soggiorno_6", 8), ("camera_6", 8), ("ingresso_6", 26), ("corridoio_5", 28), ("corridoio_6", 4), ("bagno_6", 12), ("bagno_5", 12),
+    ("bagno_4", 20), ("cucina_6", 24), ("cucina_8", 16), ("lavanderia_6", 26), ("ripostiglio_7", 20), ("cantina_6", 18)]
+
 DIMORE = {
- "castello": dict(stanze=STANZE_CASTELLO, rie=RIEMPI_CASTELLO, gradare=True, luce_min=0.68),
- "reggia": dict(stanze=STANZE_REGGIA, rie=RIEMPI_REGGIA, gradare=False, luce_min=0.85),
+ "castello": dict(stanze=STANZE_CASTELLO, rie=RIEMPI_CASTELLO, gradare=True, luce_min=0.68, lim=2),
+ "reggia": dict(stanze=STANZE_REGGIA, rie=RIEMPI_REGGIA, gradare=False, luce_min=0.85, lim=3),
 }
 
 
 def usa(dimora):
     """Sceglie la dimora su cui lavorare (cartella con pezzi/, materiali/, fregi/)."""
     global BASE, CFG
-    BASE = os.path.join(DIR, dimora); CFG = DIMORE[dimora]
+    global GLOBALI
+    BASE = os.path.join(DIR, dimora); CFG = DIMORE[dimora]; GLOBALI = {}
     return CFG["stanze"]
 
 
@@ -402,38 +411,41 @@ def stanza(nome, W):
         for fx in ((.5,) if W < 150 else (.28, .72)): tappeto(img, pezzo(tap), fx * W, 93)
     # 2. mobiletti, piante, botti nei buchi del pavimento
     def riempi_pav(pool):
-        out, i = [], 0
+        """Ogni pezzo al massimo una volta nella stanza, e al massimo LIM stanze della dimora lo usano."""
+        out = []
         for a_, b_ in buchi(piani, W):
             scelti, usato = [], 0
-            for _ in range(len(pool) * 3):
-                n_, bs = pool[i % len(pool)]; i += 1; w_ = pezzo(n_).width
-                if usato + w_ + 6 <= b_ - a_ and (not scelti or scelti[-1][0] != n_): scelti.append((n_, bs, w_)); usato += w_ + 2
+            for n_, bs in pool:
+                if n_ in presenti or GLOBALI.get(n_, 0) >= CFG["lim"]: continue
+                w_ = pezzo(n_).width
+                if usato + w_ + 5 <= b_ - a_: scelti.append((n_, bs, w_)); usato += w_ + 2; presenti.add(n_); GLOBALI[n_] = GLOBALI.get(n_, 0) + 1
             if not scelti: continue
             avanzo = (b_ - a_ - usato) / (len(scelti) + 1); x = a_ + avanzo
             for n_, bs, w_ in scelti: out.append((n_, x + w_ / 2, bs)); x += w_ + 2 + avanzo
         return out
-    extra = riempi_pav([(p, 84 + k % 3 * 2) for k, p in enumerate(rie["pav"][nome] * 2)])
+    presenti = {k for k, *_ in lay if isinstance(k, str)} | {p for p, *_ in appesi}
+    ris = rie["riserva_pav"][:]; random.Random(sum(map(ord, nome))).shuffle(ris)
+    extra = riempi_pav([(p, 84 + k % 3 * 2) for k, p in enumerate(rie["pav"][nome] + [x for x in ris if x not in rie["pav"][nome]])])
     for p, cx, b in extra:
         piani.append((cx - pezzo(p).width / 2, cx + pezzo(p).width / 2))
         top = b - pezzo(p).height; sl = slice(max(0, int(cx - pezzo(p).width / 2)), min(W, int(cx + pezzo(p).width / 2) + 1))
         cima_mobili[sl] = np.minimum(cima_mobili[sl], top)
     # 3. candele, finestre, arazzi sul muro libero: ognuno va nel punto più largo dove ci sta in altezza
-    deco, usati = [], {}
-    if nome in rie["parete"]:
-        pool = rie["parete"][nome]
-        for n in range(14):
-            n_, cima = pool[n % len(pool)]; q = pezzo(n_); best = None
-            if usati.get(n_, 0) >= 1 + (W >= 150): continue          # al massimo uno (due nelle stanze larghe) per tipo
-            libero = (~blocca) & (cima_mobili >= cima + q.height + 3)
-            x = 0
-            while x < W:
-                if not libero[x]: x += 1; continue
-                y = x
-                while y < W and libero[y]: y += 1
-                if y - x >= q.width + 2 and (best is None or y - x > best[1] - best[0]): best = (x, y)
-                x = y
-            if not best: continue
-            cx = (best[0] + best[1]) / 2; deco.append((n_, cx, cima)); usati[n_] = usati.get(n_, 0) + 1; segna(cx, q.width, 3)
+    deco = []
+    pool = rie["parete"].get(nome, []) + ([] if r.get("bordo") else [x for x in rie["riserva_parete"] if x[0] not in {y[0] for y in rie["parete"].get(nome, [])}])   # all'aperto niente quadri nel cielo
+    for n_, cima in pool:
+        q = pezzo(n_); best = None
+        if n_ in presenti or GLOBALI.get(n_, 0) >= CFG["lim"]: continue      # mai due volte nella stanza, poche volte nella dimora
+        libero = (~blocca) & (cima_mobili >= cima + q.height + 3)
+        x = 0
+        while x < W:
+            if not libero[x]: x += 1; continue
+            y = x
+            while y < W and libero[y]: y += 1
+            if y - x >= q.width + 2 and (best is None or y - x > best[1] - best[0]): best = (x, y)
+            x = y
+        if not best: continue
+        cx = (best[0] + best[1]) / 2; deco.append((n_, cx, cima)); presenti.add(n_); GLOBALI[n_] = GLOBALI.get(n_, 0) + 1; segna(cx, q.width, 3)
     # luci prima dei mobili, così l'alone sta dietro
     for k, cx, b, _ in lay:
         if k in LUCI: luce(img, cx, b - pezzo(k).height * 0.55)
@@ -465,14 +477,14 @@ def segna_posti(img, posti):
 if __name__ == "__main__":
     dim = sys.argv[1] if len(sys.argv) > 1 else "castello"
     ric = usa(dim)
-    G, coppie = 6, []
-    for nome in ric:
-        ims = []
-        for w in (110, 190):
+    G, coppie = 6, {n: [] for n in ric}
+    for w in (110, 190):
+        GLOBALI.clear()
+        for nome in ric:
             im, posti = stanza(nome, w)
             if POSTI: segna_posti(im, posti)
-            ims.append(im.resize((w * 3, H * 3), Image.LANCZOS))
-        coppie.append(ims)
+            coppie[nome].append(im.resize((w * 3, H * 3), Image.LANCZOS))
+    coppie = list(coppie.values())
     if len(coppie) % 2: coppie.append([Image.new("RGBA", (1, H * 3))])
     righe = [coppie[i] + coppie[i + 1] for i in range(0, len(coppie), 2)]
     Wt = max(sum(i.width for i in r) + G * (len(r) + 1) for r in righe); Ht = len(righe) * (H * 3 + G) + G
