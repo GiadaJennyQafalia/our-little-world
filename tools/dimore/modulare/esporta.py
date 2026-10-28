@@ -10,7 +10,7 @@ from PIL import Image
 
 RADICE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
 LARGHEZZE = {"bagno": 108, "camera": 108, "ripostiglio": 88, "corridoio": 56, "cucina": 88, "ingresso": 88, "soggiorno": 120,
-             "balcone": 52, "cucina_soggiorno": 176, "studio": 120, "lavanderia": 128, "cantina": 128, "giardino": 124, "terrazzo": 124}
+             "balcone": 60, "cucina_soggiorno": 176, "studio": 120, "lavanderia": 128, "cantina": 128, "giardino": 124, "terrazzo": 124}
 
 for dim in sys.argv[1:] or ["castello", "reggia"]:
     componi.usa(dim)

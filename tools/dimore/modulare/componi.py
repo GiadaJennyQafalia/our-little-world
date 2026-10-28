@@ -373,6 +373,22 @@ if os.environ.get("RIF", "1") == "1":
                        ("cucina", 5, CIOTTOLI), ("corridoio", 5, CIOTTOLI), ("ingresso", 5, CIOTTOLI), ("lavanderia", 5, CIOTTOLI),
                        ("bagno", 5, PIASTRELLE), ("ripostiglio", 4, SCURO), ("cantina", 4, SCURO)):
         STANZE_CASTELLO[_n]["pav"] = (_p,); STANZE_CASTELLO[_n]["pav_g"] = _g
+    # mobili contro i muri, tappeti piatti, fiaccole
+    DIMORE["castello"]["appoggio"] = True; DIMORE["castello"]["fiaccole"] = 2
+    RIEMPI_CASTELLO["luci"] = RIEMPI_CASTELLO["luci"] | {"fiaccola"}
+    MALVA, VINO, OLIVA = (108, 78, 112), (112, 62, 72), (84, 78, 104)
+    STANZE_CASTELLO["soggiorno"]["tappeto"] = dict(sotto="soggiorno_1", extra=26, dy=-5, prof=24, col=VINO)
+    STANZE_CASTELLO["camera"]["tappeto"] = dict(sotto="camera_1", extra=20, dy=-6, prof=28, col=MALVA)
+    STANZE_CASTELLO["ingresso"]["tappeto"] = dict(sotto="ingresso_1", extra=-4, dy=3, prof=15, col=MALVA)
+    STANZE_CASTELLO["studio"]["tappeto"] = dict(sotto=("studio_1", "studio_2"), extra=14, dy=-4, prof=22, col=OLIVA)
+    STANZE_CASTELLO["bagno"]["tappeto"] = dict(sotto="bagno_1", extra=-10, dy=8, prof=12, col=MALVA)
+    STANZE_CASTELLO["cucina_soggiorno"]["tappeto"] = dict(sotto="soggiorno_1", extra=26, dy=-5, prof=24, col=VINO)
+    # corridoio: niente mobili, solo un tappeto lungo e due fiaccole
+    STANZE_CASTELLO["corridoio"].update(pav_mobili=[], appesi=[], vuota=True, fiaccole_bordi=True, fiaccola_cima=20, tappeto=dict(y0=MURO + 12, prof=26, meno=22, col=VINO))
+    # balcone: vasi e lanterna lungo la balaustra
+    STANZE_CASTELLO["balcone"] = dict(STANZE_CASTELLO["balcone"], pav_g=CIOTTOLI, pav_mobili=[("balcone_1", 84, 3), ("balcone_7", 84, 5), ("balcone_2", 84, 2)], appesi=[])
+    STANZE_CASTELLO["terrazzo"] = dict(STANZE_CASTELLO["terrazzo"], pav_g=CIOTTOLI, appesi=[])
+    RIEMPI_CASTELLO["pav"]["balcone"] = ["balcone_1", "balcone_2", "giardino_6"]
 
 
 def usa(dimora):
@@ -426,12 +442,43 @@ def buchi(occupati, W, bordo=4, pad=2):
     if W - bordo > x: out.append((x, W - bordo))
     return out
 
+# Mobili appoggiati ai muri: i piedi stanno poco davanti al muro; solo tavoli, sedie e simili stanno più avanti nel pavimento.
+CENTRO = {"cucina_4", "soggiorno_5", "balcone_3", "balcone_4", "balcone_5", "dec_b_6", "ripostiglio_3", "ripostiglio_7"}
+
+
+def piede(k, b):
+    """Riga dei piedi di un mobile. Senza CFG['appoggio'] resta quella della ricetta."""
+    if not CFG.get("appoggio"): return b
+    n = k[0] if isinstance(k, tuple) else k
+    if n in CENTRO: return MURO + 26
+    return MURO + 2 + .55 * max(b - 68, 2)
+
+
+def tappeto_piatto(img, cx, y0, w, prof, col=(108, 78, 112)):
+    """Tappeto steso a terra: rettangolo con bordo, fascia e motivo, disegnato in alta risoluzione (non è un mobile in piedi)."""
+    d = ImageDraw.Draw(img); g = max(2, Q // 2)
+    a_, b_ = max(cx - w / 2, 5), min(cx + w / 2, img.width / Q - 5)      # mai oltre le pareti della stanza
+    x0, x1, ya, yb = S(a_), S(b_), S(y0), S(y0 + prof)
+    chiaro = tuple(min(255, c + 42) for c in col); scuro = tuple(max(0, c - 44) for c in col)
+    d.rectangle((x0, ya, x1, yb), fill=(34, 24, 40, 255))
+    d.rectangle((x0 + g, ya + g, x1 - g, yb - g), fill=chiaro + (255,))
+    d.rectangle((x0 + 3 * g, ya + 3 * g, x1 - 3 * g, yb - 3 * g), fill=scuro + (255,))
+    d.rectangle((x0 + 4 * g, ya + 4 * g, x1 - 4 * g, yb - 4 * g), fill=col + (255,))
+    cy = (ya + yb) // 2; n = max(1, int((x1 - x0) // (S(9))))
+    for i in range(n):                                   # rombi lungo il centro
+        mx = x0 + (i + .5) * (x1 - x0) / n; r = min(g * 3, (yb - ya) // 4)
+        d.polygon([(mx - 2 * r, cy), (mx, cy - r), (mx + 2 * r, cy), (mx, cy + r)], fill=chiaro + (255,))
+    for xx in range(x0 + g, x1, 2 * g):                  # frange sui lati corti
+        d.line((xx, ya - g, xx, ya), fill=chiaro + (255,), width=1); d.line((xx, yb, xx, yb + g), fill=chiaro + (255,), width=1)
+
 
 def stanza(nome, W):
     """(immagine, posti). posti = {"t": [(cx, base)], "p": [(cx, cima)]} in pixel del disegno."""
     r = CFG["stanze"][nome]; rie = CFG["rie"]; LUCI = rie["luci"]
     img = sfondo(W, r)
-    lay = disponi(W, r["pav_mobili"]); pos = {k: (cx, b) for k, cx, b, _ in lay if k != "R"}
+    lay = disponi(W, r["pav_mobili"])
+    if CFG.get("appoggio") and r.get("bordo") != "siepe": lay = [(k, cx, piede(k, b), w) for k, cx, b, w in lay]
+    pos = {k: (cx, b) for k, cx, b, _ in lay if k != "R"}
     posti = {"t": [(round(cx), b) for k, cx, b, _ in lay if k == "R"], "p": [(round(cx), CIMA_DIPINTO) for k, cx, b, _ in lay if k == "R"]}
     piani = [(cx - w / 2, cx + w / 2) for k, cx, b, w in lay]
     appesi = [(p, pos[sopra][0], cima) for p, sopra, cima in r.get("appesi", []) if sopra in pos]
@@ -448,7 +495,7 @@ def stanza(nome, W):
     for p, cx, cima in appesi: segna(cx, pezzo(p).width, 3)
     # 1. tappeti stesi a terra: sotto al centro (e a un quarto se la stanza è larga)
     tap = rie["tap"].get(nome)
-    if tap and not r.get("bordo"):
+    if tap and not r.get("bordo") and not CFG.get("appoggio"):
         for fx in ((.5,) if W < 150 else (.28, .72)): tappeto(img, pezzo(tap), fx * W, 93)
     # 2. mobiletti, piante, botti nei buchi del pavimento
     def riempi_pav(pool):
@@ -466,14 +513,37 @@ def stanza(nome, W):
         return out
     presenti = {k for k, *_ in lay if isinstance(k, str)} | {p for p, *_ in appesi}
     ris = rie["riserva_pav"][:]; random.Random(sum(map(ord, nome))).shuffle(ris)
-    extra = riempi_pav([(p, 84 + k % 3 * 2) for k, p in enumerate(rie["pav"][nome] + [x for x in ris if x not in rie["pav"][nome]])])
+    extra = riempi_pav([(p, 84 + k % 3 * 2) for k, p in enumerate(rie["pav"][nome] + [x for x in ris if x not in rie["pav"][nome]])]) if not r.get("vuota") else []
+    if CFG.get("appoggio") and r.get("bordo") != "siepe": extra = [(p, cx, piede(p, b)) for p, cx, b in extra]
     for p, cx, b in extra:
         piani.append((cx - pezzo(p).width / 2, cx + pezzo(p).width / 2))
         top = b - pezzo(p).height; sl = slice(max(0, int(cx - pezzo(p).width / 2)), min(W, int(cx + pezzo(p).width / 2) + 1))
         cima_mobili[sl] = np.minimum(cima_mobili[sl], top)
-    # 3. candele, finestre, arazzi sul muro libero: ognuno va nel punto più largo dove ci sta in altezza
+    # 2b. fiaccole a muro: una per lato nel tratto di parete libero più vicino al bordo (nelle stanze al chiuso)
     deco = []
-    pool = rie["parete"].get(nome, []) + ([] if r.get("bordo") else [x for x in rie["riserva_parete"] if x[0] not in {y[0] for y in rie["parete"].get(nome, [])}])   # all'aperto niente quadri nel cielo
+    nf = r.get("fiaccole", CFG.get("fiaccole", 0))
+    if nf and not r.get("bordo"):
+        ft = pezzo("fiaccola"); cf = r.get("fiaccola_cima", 17)
+        libero = (~blocca) & (cima_mobili >= cf + ft.height + 3)
+        segs, x = [], 0
+        while x < W:
+            if not libero[x]: x += 1; continue
+            y = x
+            while y < W and libero[y]: y += 1
+            if y - x >= ft.width + 3: segs.append((x, y))
+            x = y
+        if r.get("fiaccole_bordi") or not segs:          # stanze senza mobili: ai due lati
+            sc = [(round(W * .16), cf), (round(W * .84), cf)] if W > 40 else [(W // 2, cf)]
+        else:
+            sc = []
+            a_, b_ = segs[0]
+            if a_ < W * .5: sc.append(((a_ + b_) / 2 if b_ - a_ < 30 else (a_ + 8 if a_ < 6 else a_ + 13), cf))
+            a_, b_ = segs[-1]
+            if b_ > W * .5 and (segs[-1] != segs[0] or not sc): sc.append(((a_ + b_) / 2 if b_ - a_ < 30 else (b_ - 8 if b_ > W - 6 else b_ - 13), cf))
+        for cx, cf_ in sc[:nf]:
+            deco.append(("fiaccola", cx, cf_)); segna(cx, ft.width, 4)
+    # 3. candele, finestre, arazzi sul muro libero: ognuno va nel punto più largo dove ci sta in altezza
+    pool = [] if r.get("vuota") else rie["parete"].get(nome, []) + ([] if r.get("bordo") else [x for x in rie["riserva_parete"] if x[0] not in {y[0] for y in rie["parete"].get(nome, [])}])   # all'aperto niente quadri nel cielo
     for n_, cima in pool:
         q = pezzo(n_); best = None
         if n_ in presenti or GLOBALI.get(n_, 0) >= CFG["lim"]: continue      # mai due volte nella stanza, poche volte nella dimora
@@ -491,17 +561,26 @@ def stanza(nome, W):
     for k, cx, b, _ in lay:
         if k in LUCI: luce(img, cx, b - pezzo(k).height * 0.55)
     for k, cx, cima in appesi + deco:
-        if k in LUCI: luce(img, cx, cima + pezzo(k).height * 0.35, r=20, a=40)
+        if k == "fiaccola": luce(img, cx, cima + pezzo(k).height * 0.2, r=26, a=64)
+        elif k in LUCI: luce(img, cx, cima + pezzo(k).height * 0.35, r=20, a=40)
     for k, cx, b in extra:
         if k in LUCI: luce(img, cx, b - pezzo(k).height * 0.7, r=18, a=36)
-    for p, sotto, base in r.get("tappeti", []):
+    for p, sotto, base in ([] if CFG.get("appoggio") else r.get("tappeti", [])):
         if sotto in pos: tappeto(img, pezzo(p), pos[sotto][0], base)
+    tp = r.get("tappeto")
+    if CFG.get("appoggio") and tp:
+        if tp.get("sotto") is not None:
+            if tp["sotto"] in pos:
+                lw = [w for k, cx, b, w in lay if k == tp["sotto"]][0]; cx, b = pos[tp["sotto"]]
+                tappeto_piatto(img, cx, b + tp.get("dy", -4), lw + tp.get("extra", 12), tp.get("prof", 20), tp.get("col", (108, 78, 112)))
+        else:
+            tappeto_piatto(img, W * tp.get("cx", .5), tp["y0"], W - tp.get("meno", 14), tp.get("prof", 22), tp.get("col", (108, 78, 112)))
     for p, cx, cima in appesi + deco: appendi(img, pezzo(p), cx, cima)
     for p, cx, b in sorted(extra, key=lambda e: e[2]): appoggia(img, pezzo(p), cx, b)
     for k, cx, b, _ in lay:
         if k != "R": appoggia(img, pezzo(k), cx, b)
     for p, sopra, base in r.get("davanti", []):
-        if sopra in pos: appoggia(img, pezzo(p), pos[sopra][0], base, ombra=False)
+        if sopra in pos and not (CFG.get("appoggio") and p == "ingresso_5"): appoggia(img, pezzo(p), pos[sopra][0], piede(p, base) if CFG.get("appoggio") else base, ombra=False)
     return img, posti
 
 
