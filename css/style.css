@@ -784,7 +784,7 @@ button.teca-ogg { cursor: pointer; }
 .castle.vista { height: auto; background-color: #241c2e; background-repeat: repeat; overflow: hidden; }
 .castle.vista > .v-tetto { position: absolute; left: 0; top: 0; width: 100%; object-fit: fill; z-index: 0; image-rendering: pixelated; }
 .castle.vista > .v-base { position: absolute; left: 0; bottom: 0; width: 100%; object-fit: fill; z-index: 0; image-rendering: pixelated; }
-.vc { position: absolute; z-index: 1; overflow: hidden; background: #0b0910; box-shadow: 0 0 0 3px #0b0910, 0 0 0 5px #3a3046; }
+.vc { position: absolute; z-index: 1; overflow: hidden; background-color: #0b0910; background-repeat: repeat-x; background-size: auto 100%; background-position: center bottom; image-rendering: pixelated; box-shadow: 0 0 0 3px #0b0910, 0 0 0 5px #3a3046; }
 .vc > img { position: absolute; bottom: 0; display: block; max-width: none; image-rendering: pixelated; }
 .castle.vista .rm { z-index: 2; }
 

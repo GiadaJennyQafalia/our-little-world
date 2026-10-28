@@ -115,7 +115,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.36.1";
+const VERSIONE_APP = "3.36.2";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -502,13 +502,14 @@ function vistaLayout(dim) {
   const x0 = Math.min(...rs.map(r => pi[r].x)), y0 = Math.min(...rs.map(r => pi[r].y)), x1 = Math.max(...rs.map(r => pi[r].x + pi[r].w)), y1 = Math.max(...rs.map(r => pi[r].y + pi[r].h));
   const W = (x1 - x0) * VU + 2 * VMARG, tetto = cr.tetto[1] * W / cr.tetto[0], base = cr.base[1] * W / cr.base[0];
   const top = tetto - 24, H = Math.round(top + (y1 - y0) * VU + base - 20), celle = {};
-  /* Ogni tessera entra intera nella sua cella (appoggiata in basso, centrata); se avanza spazio si ingrandisce un poco
-     tagliando al massimo un quinto, così non resta troppo muro vuoto ma l'arredo non viene mozzato. */
+  /* La tessera prende tutta l'altezza della cella (soffitto e pavimento allineati tra stanze vicine) ed è centrata;
+     se la cella è più larga, ai lati si ripete la sua striscia di muro e pavimento (tessere/riempi), così la stanza
+     si allunga senza buchi. Se è più stretta si tagliano i lati, al massimo un terzo; oltre, si adatta alla larghezza. */
   for (const r of rs) {
     const q = pi[r], cx = VMARG + (q.x - x0) * VU, cy = top + (q.y - y0) * VU, cw = q.w * VU, ch = q.h * VU, tes = tessera(sk, q.tipo);
-    const [tw, th] = tes.dim || [720, 676], k = Math.min(cw / tw, ch / th) * Math.min(1.25, Math.max(cw / tw, ch / th) / Math.min(cw / tw, ch / th));
-    const iw = tw * k, ih = th * k, vw = Math.min(iw, cw), vh = Math.min(ih, ch);
-    celle[r] = { x: cx + (cw - vw) / 2, y: cy + ch - vh, w: vw, h: vh, iw, ih, tes, tipo: q.tipo };
+    const [tw, th] = tes.dim || [720, 676]; let ih = ch, iw = ch * tw / th;
+    if (iw > cw * 1.5) { iw = cw; ih = cw * th / tw; }
+    celle[r] = { x: cx, y: cy, w: cw, h: ch, iw, ih, tes, tipo: q.tipo };
   }
   return { W, H, tetto, base, celle, sk };
 }
@@ -516,8 +517,8 @@ function vistaLayout(dim) {
 function tessera(sk, t) {
   const T = sk.tessere || { tipi: [] };
   const d = T.dim || {};
-  if (T.tipi.includes(t)) return { src: T.dir + t + ".webp", dim: d[t] };
-  if (T.tipi.includes(RIPIEGO[t])) return { src: T.dir + RIPIEGO[t] + ".webp", dim: d[RIPIEGO[t]] };
+  if (T.tipi.includes(t)) return { src: T.dir + t + ".webp", riempi: T.dir + "riempi/" + t + ".webp", dim: d[t] };
+  if (T.tipi.includes(RIPIEGO[t])) return { src: T.dir + RIPIEGO[t] + ".webp", riempi: T.dir + "riempi/" + RIPIEGO[t] + ".webp", dim: d[RIPIEGO[t]] };
   return { src: sk.stanze + sk.file[tipoConImmagine(sk, t)] + ".webp", interno: true };
 }
 /* Vista in sezione: l'illustrazione intera della dimora. Si usa finché la pianta è quella di partenza (ogni stanza al suo posto,
@@ -550,7 +551,7 @@ function dimoraMappa(dim, st, now) {
   const celle = Object.entries(L.celle).map(([r, c]) => {
     const x = statoUna(r, now, st); if (!x) return "";
     const nome = nomeStanza(r), tes = c.tes, stretta = c.w <= VU || c.h <= VU;
-    return `<div class="vc${tes.interno ? " interno" : ""}" style="left:${pc(c.x, L.W)};top:${pc(c.y, L.H)};width:${pc(c.w, L.W)};height:${pc(c.h, L.H)}"><img src="${tes.src}" alt="" decoding="async" loading="lazy" style="width:${pc(c.iw, c.w)};height:${pc(c.ih, c.h)};left:${pc((c.w - c.iw) / 2, c.w)}"></div>
+    return `<div class="vc${tes.interno ? " interno" : ""}" style="left:${pc(c.x, L.W)};top:${pc(c.y, L.H)};width:${pc(c.w, L.W)};height:${pc(c.h, L.H)}${tes.riempi ? `;background-image:url(${tes.riempi})` : ""}"><img src="${tes.src}" alt="" decoding="async" loading="lazy" style="width:${pc(c.iw, c.w)};height:${pc(c.ih, c.h)};left:${pc((c.w - c.iw) / 2, c.w)}"></div>
       <button class="rm lv${x.livello}${stretta ? " stretta" : ""}" data-act="stanza" data-r="${esc(r)}" style="left:${pc(c.x, L.W)};top:${pc(c.y, L.H)};width:${pc(c.w, L.W)};height:${pc(c.h, L.H)}" title="${esc(nome)}" aria-label="${esc(nome)}: ${STATI[x.livello]}, ${x.urg ? x.urg + (x.urg === 1 ? " missione urgente" : " missioni urgenti") : "tutto in pari"}">${velo(x.livello)}${x.urg ? `<span class="rm-badge num" aria-hidden="true">${x.urg}</span>` : ""}</button>`;
   }).join("");
   return `<div class="castle vista" style="aspect-ratio:${L.W} / ${L.H};background-image:url(${cr.dir}muro.webp);background-size:${pc(cr.muro[0], L.W)} auto" role="group" aria-label="${esc(DIMORE[dim])}: tocca una stanza">
