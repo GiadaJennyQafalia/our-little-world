@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-DIR = os.path.dirname(os.path.abspath(__file__))
+DIR = os.getcwd()   # lanciato dentro la cartella della dimora (castello/ o reggia/)
 PX = 250  # larghezza del foglio in pixel del disegno: un divano viene ~40 px, come nelle misure scritte dal generatore
 
 

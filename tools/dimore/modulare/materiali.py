@@ -5,7 +5,7 @@ import sys, os
 import numpy as np
 from PIL import Image
 
-DIR = os.path.dirname(os.path.abspath(__file__))
+DIR = os.getcwd()   # lanciato dentro la cartella della dimora (castello/ o reggia/)
 
 
 def verde(a):
