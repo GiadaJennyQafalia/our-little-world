@@ -215,6 +215,12 @@ STANZE_REGGIA = {
  "camera": dict(m_alto=(8, 60), fascia=("f", 4, 12, 28), batt=("f", 2, 6), pav=(7,),
      pav_mobili=[("camera_2", 82, 3), ("camera_3", 84, 2), ("camera_1", 87, 5), "R", ("camera_4", 83, 1)],
      appesi=[("camera_6", "camera_1", 8)], tappeti=[("camera_5", "camera_1", 93)]),
+ "cucina": dict(m_alto=(2, 56), m_basso=("f", 1, 18), batt=("f", 2, 6), pav=(5,),
+     pav_mobili=[("cucina_1", 82, 5), ("cucina_2", 82, 4), "R", ("cucina_3", 81, 2), (("cucina_4", "cucina_5", "cucina_7"), 88, 3)],
+     appesi=[("cucina_8", "cucina_1", 16), ("cucina_6", "cucina_2", 24)]),
+ "bagno": dict(m_alto=(2, 56), m_basso=(6, 30, 22), batt=("f", 2, 6), pav=(6,),
+     pav_mobili=[("bagno_1", 88, 5), ("bagno_2", 84, 4), "R", ("bagno_3", 84, 4.2)],
+     appesi=[("bagno_5", "bagno_2", 12), ("bagno_6", "bagno_1", 12), ("bagno_4", "bagno_3", 20)]),
  "ingresso": dict(m_alto=(8, 44), m_basso=("f", 1, 18), batt=("f", 2, 6), pav=(6,),
      pav_mobili=[("ingresso_1", 72, 5), ("ingresso_2", 84, 3), "R", ("ingresso_3", 84, 2), ("ingresso_4", 84, 1)],
      appesi=[("ingresso_6", "ingresso_3", 30)], davanti=[("ingresso_5", "ingresso_1", 80)]),
@@ -266,12 +272,15 @@ RIEMPI_CASTELLO = dict(
 )
 RIEMPI_REGGIA = dict(
  pav={"soggiorno": ["balcone_1", "corridoio_3"], "camera": ["balcone_1", "corridoio_3"], "ingresso": ["corridoio_3", "balcone_1"],
+      "cucina": ["balcone_1", "corridoio_3"], "bagno": ["balcone_1", "corridoio_3"],
       "corridoio": ["balcone_1", "corridoio_3"], "ripostiglio": ["ripostiglio_5", "ripostiglio_4"], "studio": ["corridoio_3", "balcone_1"],
       "lavanderia": ["ripostiglio_5", "balcone_1"], "cantina": ["ripostiglio_5", "ripostiglio_4"], "balcone": ["balcone_1", "giardino_6"],
       "giardino": ["giardino_6", "balcone_1"]},
  tap={"soggiorno": "camera_5", "camera": "camera_5", "ingresso": "ingresso_5", "studio": "camera_5"},
  parete={
   "soggiorno": [("soggiorno_6", 8), ("ingresso_6", 26), ("corridoio_6", 4), ("studio_6", 8), ("corridoio_5", 28)],
+  "cucina": [("cucina_6", 24), ("ingresso_6", 24), ("corridoio_6", 4), ("corridoio_5", 28)],
+  "bagno": [("bagno_6", 12), ("bagno_5", 12), ("ingresso_6", 24), ("corridoio_6", 4)],
   "camera": [("camera_6", 8), ("ingresso_6", 26), ("studio_6", 8), ("corridoio_5", 28), ("corridoio_6", 4)],
   "ingresso": [("corridoio_6", 4), ("ingresso_6", 26), ("studio_6", 8), ("corridoio_5", 28), ("soggiorno_6", 8)],
   "corridoio": [("ingresso_6", 24), ("corridoio_6", 4), ("corridoio_5", 26), ("studio_6", 8)],
@@ -281,6 +290,23 @@ RIEMPI_REGGIA = dict(
   "cantina": [("cantina_6", 18), ("ingresso_6", 24), ("ripostiglio_7", 20), ("corridoio_6", 4)]},
  luci={"soggiorno_3", "lavanderia_4", "ingresso_6", "corridoio_5", "camera_3", "cantina_6", "studio_1", "balcone_7", "giardino_6"},
 )
+# Stanze in più (tessere della dimora): il terrazzo è un balcone più largo; la zona giorno unisce cucina e soggiorno.
+STANZE_CASTELLO["terrazzo"] = STANZE_CASTELLO["balcone"]
+RIEMPI_CASTELLO["pav"]["terrazzo"] = RIEMPI_CASTELLO["pav"]["balcone"]
+STANZE_CASTELLO["cucina_soggiorno"] = dict(m_alto=(1, 40), m_basso=(7, 36, 22), pav=(2,),
+     pav_mobili=[("cucina_1", 82, 5), ("cucina_2", 82, 4), ("cucina_3", 81, 2), "R", ("soggiorno_3", 81, 5), ("soggiorno_1", 86, 4), ("soggiorno_2", 86, 1), ("cucina_4", 88, 3)],
+     appesi=[("cucina_7", "cucina_2", 16), ("cucina_6", "cucina_1", 24), ("soggiorno_6", "soggiorno_1", 18)], tappeti=[("camera_5", "soggiorno_1", 93)], davanti=[("soggiorno_5", "soggiorno_1", 92)])
+RIEMPI_CASTELLO["pav"]["cucina_soggiorno"] = ["dec_b_1", "camera_3", "dec_b_6", "balcone_1"]
+RIEMPI_CASTELLO["parete"]["cucina_soggiorno"] = [("dec_a_2", 14), ("ingresso_6", 26), ("dec_a_1", 12), ("corridoio_6", 6), ("dec_a_6", 26), ("studio_6", 10), ("dec_a_4", 0)]
+STANZE_REGGIA["terrazzo"] = STANZE_REGGIA["balcone"]
+RIEMPI_REGGIA["pav"]["terrazzo"] = RIEMPI_REGGIA["pav"]["balcone"]
+STANZE_REGGIA["cucina_soggiorno"] = dict(m_alto=(2, 44), fascia=("f", 3, 8, 30), batt=("f", 2, 6), pav=(1,),
+     pav_mobili=[("cucina_1", 82, 5), ("cucina_2", 82, 4), ("cucina_3", 81, 2), "R", ("soggiorno_3", 81, 5), ("soggiorno_1", 86, 4), ("soggiorno_2", 86, 1), (("cucina_4", "cucina_5", "cucina_7"), 88, 3)],
+     appesi=[("cucina_8", "cucina_1", 16), ("cucina_6", "cucina_2", 24), ("soggiorno_6", "soggiorno_1", 8)], tappeti=[("camera_5", "soggiorno_1", 93)], davanti=[("soggiorno_5", "soggiorno_1", 92)])
+RIEMPI_REGGIA["pav"]["cucina_soggiorno"] = ["balcone_1", "corridoio_3"]
+RIEMPI_REGGIA["parete"]["cucina_soggiorno"] = [("ingresso_6", 26), ("corridoio_6", 4), ("studio_6", 8), ("corridoio_5", 28)]
+RIEMPI_REGGIA["tap"]["cucina_soggiorno"] = "camera_5"
+
 DIMORE = {
  "castello": dict(stanze=STANZE_CASTELLO, rie=RIEMPI_CASTELLO, gradare=True, luce_min=0.68),
  "reggia": dict(stanze=STANZE_REGGIA, rie=RIEMPI_REGGIA, gradare=False, luce_min=0.85),
