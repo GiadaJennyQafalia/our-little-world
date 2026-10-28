@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Scrive PROMPT-MODULARE.md: i prompt per le stanze modulari di ogni dimora.
-Una stanza modulare è fatta di due parti:
-  - uno SFONDO vuoto (solo muro e pavimento) che si ripete in orizzontale senza giunture, così la stanza può
-    essere larga quanto serve;
+Una stanza modulare (solo nella vista della dimora) è fatta di due parti:
+  - uno SFONDO (muro + fregio + pavimento) che l'app costruisce dai CAMPIONI DI MATERIALE, così si ripete
+    senza giunture e la stanza può essere larga quanto serve;
   - i MOBILI come pezzi singoli su fondo verde, che l'app appoggia sul pavimento in base alla larghezza.
-Per ogni dimora: 3 fogli di sfondi (4 per foglio) e 6 fogli di mobili (2 stanze per foglio)."""
+Per ogni dimora: 3 fogli di materiali (pavimenti visti dall'alto, muri, fregi) e 6 fogli di mobili."""
 
 DIMORE = [
  ("castello", "La Rocca di Pietranotte", 1, "dark purple-grey stone bricks, dark wooden beams and furniture, wrought iron details, warm candle light, a moody dark fantasy medieval castle"),
@@ -18,23 +18,14 @@ DIMORE = [
  ("nave", "Il Galeone delle Nuvole", 16, "curved ship planks of warm wood, brass fittings, ropes and canvas, red and navy fabrics, a flying galleon above the clouds"),
 ]
 
-# Sfondi: cosa c'è su muro e pavimento (niente mobili). Gli esterni hanno cielo stellato SENZA luna (si ripete).
-SFONDI = {
- "soggiorno": "LIVING ROOM: wall with a wooden wainscot on the lower part, wooden plank floor",
- "camera": "BEDROOM: soft plain wall with a thin decorative band, warm wooden floor",
- "cucina": "KITCHEN: wall with a band of ceramic tiles at counter height, stone tile floor",
- "bagno": "BATHROOM: wall covered with ceramic tiles on the lower half, checkered tile floor",
- "ingresso": "ENTRANCE HALL: wall with a stone or wooden wainscot, large floor tiles",
- "corridoio": "CORRIDOR: plain wall with a simple baseboard, long stone floor",
- "ripostiglio": "STORAGE ROOM: rough plain wall, worn wooden floor",
- "studio": "STUDY: wall with wooden panelling, wooden parquet floor",
- "lavanderia": "LAUNDRY ROOM: plain wall with a tiled band, stone floor",
- "cantina": "CELLAR: rough stone wall, packed earth and stone floor",
- "balcone": "BALCONY: a starry night sky (no moon) behind a balustrade that runs along the whole back edge, stone floor",
- "giardino": "GARDEN: a starry night sky (no moon) behind a low hedge that runs along the whole back edge, grass with a stone path",
-}
-FOGLI_SFONDI = [("soggiorno", "camera", "cucina", "bagno"), ("ingresso", "corridoio", "ripostiglio", "studio"), ("lavanderia", "cantina", "balcone", "giardino")]
-
+# Materiali: l'app costruisce da sola lo sfondo di ogni stanza (muro + fregio + pavimento) partendo da questi campioni.
+# Il pavimento si genera visto DALL'ALTO (così non può avere prospettiva) e l'app lo schiaccia in verticale.
+PAVIMENTI = ["light wooden planks", "dark wooden planks", "old worn wooden planks", "large stone slabs", "small square stone tiles",
+             "black and white checkered tiles", "wooden parquet with a geometric pattern", "packed earth with small stones", "short grass"]
+MURI = ["stone bricks", "smooth plaster", "plaster in a darker shade", "rough irregular stones", "carved wooden panelling",
+        "square ceramic tiles", "vertical wooden boards", "large cut stone blocks", "a starry night sky with no moon (for outdoor rooms)"]
+FREGI = ["a wooden wainscot with vertical boards and a top rail", "a simple wooden baseboard", "a thin decorative painted band",
+         "a band of small decorated ceramic tiles", "a stone balustrade", "a low trimmed hedge"]
 # Mobili: (pezzo, "p" se va appeso alla parete). 6 pezzi per stanza, nell'ordine in cui li ritaglio.
 MOBILI = {
  "soggiorno": ["a sofa", "an armchair", "a fireplace", "a tall bookcase", "a low coffee table", "a tall window (wall piece)"],
@@ -54,24 +45,35 @@ FOGLI_MOBILI = [("soggiorno", "camera"), ("cucina", "bagno"), ("ingresso", "corr
 NOMI = {"soggiorno": "soggiorno", "camera": "camera", "cucina": "cucina", "bagno": "bagno", "ingresso": "ingresso", "corridoio": "corridoio",
         "ripostiglio": "sgabuzzino", "studio": "studio", "lavanderia": "lavanderia", "cantina": "cantina", "balcone": "balcone e terrazzo", "giardino": "giardino"}
 
-def p_sfondi(stile, tipi):
-    pos = ["Top left", "Top right", "Bottom left", "Bottom right"]
-    return ("16-bit pixel art sheet of 4 EMPTY room backgrounds for a side-view cutaway dollhouse game (like Fallout Shelter or Tiny Tower), "
-            "arranged in a 2x2 grid of square panels separated by wide gaps of flat pure chroma green (#00FF00). "
-            "Every panel shows ONLY the back wall and the floor of a room seen straight from the front: the back wall fills the top two thirds, "
-            "the floor fills the bottom third and is seen slightly from above, and the line where the wall meets the floor is at exactly the same height in all four panels. "
-            "The floor must look FLAT, with NO perspective: every floor joint, plank and tile line is perfectly horizontal or perfectly vertical and parallel to the others, and no line converges toward a vanishing point. "
-            "Each panel is a plain full rectangle that fills its whole square, with no trapezoid or slanted edges and no floor spilling outside the wall. "
-            "NO side walls, NO corners, NO ceiling, NO doors, NO windows, NO furniture, NO objects, NO lamps, NO characters: just the empty wall and floor surfaces with their materials, trims and baseboards. "
-            "Each panel must TILE SEAMLESSLY HORIZONTALLY: its left edge continues exactly into its right edge, with no border, no frame, no vignette and no darker edges. "
-            "Even soft ambient light, no bright spots. Materials in the style of " + stile + ". "
-            + " ".join(f"{pos[i]}: {SFONDI[t]}." for i, t in enumerate(tipi))
-            + " No text, no letters, no green inside the panels.")
+GRIGLIA = "arranged in a 3x3 grid of square swatches separated by wide gaps of flat pure chroma green (#00FF00). "
+ORDINE = "Order left to right, top to bottom: "
+
+def p_pavimenti(stile):
+    return ("16-bit pixel art texture sheet of 9 FLOOR materials for a cozy dark fantasy game, " + GRIGLIA +
+            "Every swatch is a seamless tileable texture seen EXACTLY FROM DIRECTLY ABOVE (top-down, orthographic): completely flat, no perspective, "
+            "no vanishing point, no horizon, every plank and tile line perfectly horizontal or vertical. "
+            "Each swatch tiles seamlessly in both directions: its left edge continues into its right edge and its top edge into its bottom edge. "
+            "Even flat lighting, no shadows, no vignette, no darker edges, no objects, no furniture, no rugs. Materials in the style of " + stile + ". "
+            + ORDINE + "; ".join(f"{i + 1}) {m}" for i, m in enumerate(PAVIMENTI)) + ". No text, no letters, no green inside the swatches.")
+
+def p_muri(stile):
+    return ("16-bit pixel art texture sheet of 9 WALL materials for a side-view cutaway dollhouse game, " + GRIGLIA +
+            "Every swatch is a seamless tileable texture of a flat wall seen straight from the front, with no perspective, no corners, no floor, no ceiling. "
+            "Each swatch tiles seamlessly in both directions: its left edge continues into its right edge and its top edge into its bottom edge. "
+            "Even flat lighting, no vignette, no darker edges, no doors, no windows, no lamps, no objects. Materials in the style of " + stile + ". "
+            + ORDINE + "; ".join(f"{i + 1}) {m}" for i, m in enumerate(MURI)) + ". No text, no letters, no green inside the swatches.")
+
+def p_fregi(stile):
+    return ("16-bit pixel art sheet of 6 horizontal TRIM STRIPS for a side-view cutaway dollhouse game, stacked one above the other across the whole width of the image "
+            "and separated by wide gaps of flat pure chroma green (#00FF00). Every strip is seen straight from the front, flat, with no perspective, "
+            "and tiles seamlessly horizontally: its left end continues exactly into its right end. Each strip is drawn as it would sit along the bottom of a wall. "
+            "Even flat lighting, no vignette, no darker ends. Materials in the style of " + stile + ". "
+            "From top to bottom: " + "; ".join(f"{i + 1}) {m}" for i, m in enumerate(FREGI)) + ". No text, no letters, no green inside the strips.")
 
 def p_mobili(stile, a, b):
     lista = lambda t: ", ".join(f"{i + 1}) {m}" for i, m in enumerate(MOBILI[t]))
     return ("16-bit pixel art sprite sheet of separate furniture pieces on a flat pure chroma green (#00FF00) background, for a side-view cutaway dollhouse game (like Fallout Shelter or Tiny Tower). "
-            "Same front view, light and pixel scale as the attached room backgrounds: every piece seen straight from the front and slightly from above; floor pieces stand on their own feet, wall pieces are drawn flat as if hanging on a wall. "
+            "Same front view, light and pixel scale as the attached material sheets: every piece seen straight from the front and slightly from above; floor pieces stand on their own feet, wall pieces are drawn flat as if hanging on a wall. "
             "Each piece is complete and separate, with wide green gaps around it; no piece touches another, no shadows on the green, no floor and no wall behind the pieces. "
             "Furniture in the style of " + stile + ". "
             f"Top row, left to right ({a.upper()}): {lista(a)}. "
@@ -80,24 +82,26 @@ def p_mobili(stile, a, b):
 
 out = ["# Prompt delle stanze modulari", "",
  "## Come funziona", "",
- "Ogni stanza è fatta di **due parti**, come nei giochi tipo Fallout Shelter:",
- "1. **Lo sfondo**: solo muro e pavimento, vuoto, che si ripete in orizzontale. L'app lo allunga quanto serve, quindi una stanza può essere larga quanto vuoi.",
- "2. **I mobili**: pezzi singoli su fondo verde. L'app li appoggia sul pavimento e li distribuisce in base alla larghezza della stanza.", "",
- "**Per ogni dimora servono 9 immagini:** 3 fogli di sfondi (4 stanze per foglio) e 6 fogli di mobili (2 stanze per foglio, 6 pezzi per stanza).",
- "Cucina-soggiorno, terrazzo e \"altro\" non hanno immagini proprie: usano sfondi e mobili delle altre stanze.", "",
+ "Nella vista della dimora ogni stanza è fatta di **due parti**, come nei giochi tipo Fallout Shelter:",
+ "1. **Lo sfondo** (muro, fregio e pavimento): lo costruisco io da codice partendo dai **campioni di materiale**, quindi si ripete senza giunture e la stanza può essere larga quanto serve.",
+ "2. **I mobili**: pezzi singoli su fondo verde, che l'app appoggia sul pavimento.", "",
+ "Le stanze che si aprono toccandole restano come sono: questi prompt servono solo per la vista della dimora.", "",
+ "**Per ogni dimora servono 9 immagini:** 3 fogli di materiali (pavimenti, muri, fregi) e 6 fogli di mobili (2 stanze per foglio, 6 pezzi per stanza).",
+ "I pavimenti si generano visti **dall'alto**, così non possono avere prospettiva: sono io a schiacciarli per farli sembrare a terra.", "",
  "**Cosa allegare**",
- "- **Sfondi, foglio 1**: allega la sezione della dimora (per la Rocca `castello.png`, per il Palazzo `sezione.png`; per le altre dimore il foglio 1 di sfondi della Rocca, così il generatore capisce l'inquadratura).",
- "- **Sfondi, fogli 2 e 3**: allega il foglio 1 di sfondi della stessa dimora.",
- "- **Mobili**: allega il foglio 1 di sfondi della stessa dimora (stessa inquadratura e stessa scala).", "",
+ "- **Pavimenti**: allega la sezione della dimora (per la Rocca `castello.png`, per il Palazzo `sezione.png`), così colori e stile restano quelli.",
+ "- **Muri e fregi**: allega il foglio pavimenti della stessa dimora.",
+ "- **Mobili**: allega il foglio muri della stessa dimora (stessa luce e stessa scala).", "",
  "**Consigli**",
  "- Genera i fogli di una dimora **nella stessa chat** del generatore, uno dopo l'altro: lo stile resta coerente.",
- "- Se in uno sfondo si vede una giuntura ai bordi non importa: la sistemo io (rendo i bordi continui o uso lo specchio).",
- "- Se in un foglio di mobili un pezzo viene male o ne manca uno, va bene lo stesso: dimmelo e lo salto.",
- "- **Prima prova:** per la Rocca fai solo *Sfondi foglio 1* e *Mobili foglio 1 e 2* e mandameli. Se il risultato ci piace, facciamo il resto.", "", "---", ""]
+ "- Se un campione ha una giuntura ai bordi non importa: la sistemo io.",
+ "- Se in un foglio un pezzo viene male o ne manca uno, va bene lo stesso: dimmelo e lo salto.",
+ "- **Rocca:** i muri dei due fogli di sfondi già fatti vanno bene e li riuso. Servono solo *Pavimenti* e *Mobili foglio 1 e 2*.", "", "---", ""]
 for k, nome, lv, stile in DIMORE:
     out += [f"## {nome}", "", "Disponibile da subito." if lv <= 1 else f"Si sblocca al livello {lv}.", ""]
-    for i, f in enumerate(FOGLI_SFONDI):
-        out += [f"### Sfondi · Foglio {i + 1}: " + ", ".join(NOMI[t] for t in f), "", "```", p_sfondi(stile, f), "```", ""]
+    out += ["### Materiali · Pavimenti (visti dall'alto)", "", "```", p_pavimenti(stile), "```", ""]
+    out += ["### Materiali · Muri", "", "```", p_muri(stile), "```", ""]
+    out += ["### Materiali · Fregi (battiscopa, boiserie, fasce, balaustra, siepe)", "", "```", p_fregi(stile), "```", ""]
     for i, (a, b) in enumerate(FOGLI_MOBILI):
         out += [f"### Mobili · Foglio {i + 1}: {NOMI[a]} (sopra) e {NOMI[b]} (sotto)", "", "```", p_mobili(stile, a, b), "```", ""]
     out += ["---", ""]
