@@ -13,7 +13,8 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 DIR = os.path.dirname(os.path.abspath(__file__))
-H, MURO, BATT = 96, 68, 3          # altezza stanza, riga dove finisce il muro, spessore battiscopa (pixel del disegno)
+H, BATT = 96, 3
+MURO = 68         # altezza stanza, riga dove finisce il muro, spessore battiscopa (pixel del disegno)
 Q = int(os.environ.get("Q", 6))     # pixel dell'immagine per pixel del disegno
 POSTI = os.environ.get("POSTI", "0") == "1"
 RELIQUIA = (18, 20)                 # posto a terra (larghezza, altezza) per una reliquia
@@ -72,7 +73,8 @@ def muro(n, alto):
     return senza_giunture(t, True, True)
 
 
-def pavimento(n, w=96, h=30, **g):
+def pavimento(n, w=96, h=None, **g):
+    h = h or max(30, H - MURO)
     t = carica(f"materiali/pavimenti_{n}.png").resize((S(w), S(h)), Image.LANCZOS)   # schiacciato in verticale: sembra a terra
     t = senza_giunture(t, True, False)
     return grade(t, **g) if CFG["gradare"] else t
@@ -145,11 +147,30 @@ def sfondo(W, r):
     # luce: ombra dal soffitto (non all'aperto), ombra del muro sul pavimento, bordi della sezione
     a = np.array(img).astype(float); y = (np.arange(S(H))[:, None] + .5) / Q; ombra = np.ones((S(H), 1)); lm = CFG["luce_min"]
     m = S(MURO)
+    if CFG.get("muro_gain") and not bordo: a[:m, :, :3] *= np.array(CFG["muro_gain"])
     if not bordo: ombra[:m] *= (lm + (1 - lm) * np.clip(y[:m] / (MURO * 0.55), 0, 1))
     ombra[m:] *= (0.62 + 0.38 * np.clip((y[m:] - MURO) / 6, 0, 1))
     x = (np.arange(S(W))[None, :] + .5) / Q; lati = 0.6 + 0.4 * np.clip(np.minimum(x, W - x) / 7, 0, 1)
     a[..., :3] *= (ombra * lati)[..., None]
-    return Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
+    img = Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
+    if CFG.get("cornice_stanza"): cornice_stanza(img)
+    return img
+
+
+def cornice_stanza(img):
+    """Cornice lilla della stanza, come nella sezione: filo scuro fuori, fascia lilla, ombra dentro."""
+    d = ImageDraw.Draw(img); w, h = img.size
+    spess = [(S(.8), (30, 22, 38, 255)), (S(1.7), (126, 108, 142, 255)), (S(.9), (58, 44, 72, 255))]
+    o = 0
+    for t, col in spess:
+        d.rectangle((o, o, w - 1 - o, h - 1 - o), outline=col, width=t); o += t
+
+
+
+def ingrandisci(im):
+    """Nella sezione i mobili sono più grandi rispetto alla stanza: CFG['scala'] li ingrandisce tutti (nitidi: i pezzi sono già ad alta risoluzione)."""
+    k = CFG.get("scala", 1)
+    return im if k == 1 else im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
 
 
 def pezzo(nome):
@@ -157,8 +178,8 @@ def pezzo(nome):
         ps = [carica(f"pezzi/{n}.png") for n in nome]
         g = Image.new("RGBA", (sum(p.width for p in ps) + (len(ps) - 1) * Q, max(p.height for p in ps))); x = 0
         for p in ps: g.alpha_composite(p, (x, g.height - p.height)); x += p.width + Q
-        return Pz(g)
-    return Pz(carica(f"pezzi/{nome}.png"))
+        return Pz(ingrandisci(g))
+    return Pz(ingrandisci(carica(f"pezzi/{nome}.png")))
 
 
 def appoggia(img, p, cx, base, ombra=True):
@@ -335,11 +356,31 @@ DIMORE = {
 }
 
 
+# ----------------------------------------------------------------------------------------------------------------
+# Aspetto "come la sezione": muri a mattoni lilla di tono medio, pavimenti grandi e luminosi (parquet arancione, ciottoli
+# grigio-lilla, piastrelle chiare nel bagno). Il campione di colore viene dai pavimenti/muri della sezione (img/castello.webp).
+# ----------------------------------------------------------------------------------------------------------------
+LEGNO = dict(sat=1.0, mult=(.70, .60, .52), luce=1.0)
+CIOTTOLI = dict(sat=.6, mult=(1.2, 1.14, 1.34), luce=1.0)
+PIASTRELLE = dict(sat=.5, mult=(1.72, 1.82, 2.2), luce=1.0)
+SCURO = dict(sat=.6, mult=(1.0, .94, 1.12), luce=.95)
+if os.environ.get("RIF", "1") == "1":
+    DIMORE["castello"]["muro_gain"] = (1.5, 1.34, 1.2); DIMORE["castello"]["luce_min"] = .9; DIMORE["castello"]["scala"] = float(os.environ.get("SC", 1.15)); DIMORE["castello"]["cornice_stanza"] = True; DIMORE["castello"]["muro_riga"] = 54
+    for _n, _r in STANZE_CASTELLO.items():
+        if _n in ("balcone", "terrazzo", "giardino"): continue
+        _r["m_alto"] = (1, 40); _r.pop("m_basso", None); _r.pop("fascia", None)
+    for _n, _p, _g in (("soggiorno", 1, LEGNO), ("camera", 1, LEGNO), ("studio", 1, LEGNO), ("cucina_soggiorno", 1, LEGNO),
+                       ("cucina", 5, CIOTTOLI), ("corridoio", 5, CIOTTOLI), ("ingresso", 5, CIOTTOLI), ("lavanderia", 5, CIOTTOLI),
+                       ("bagno", 5, PIASTRELLE), ("ripostiglio", 4, SCURO), ("cantina", 4, SCURO)):
+        STANZE_CASTELLO[_n]["pav"] = (_p,); STANZE_CASTELLO[_n]["pav_g"] = _g
+
+
 def usa(dimora):
     """Sceglie la dimora su cui lavorare (cartella con pezzi/, materiali/, fregi/)."""
-    global BASE, CFG
+    global BASE, CFG, MURO
     global GLOBALI
     BASE = os.path.join(DIR, dimora); CFG = DIMORE[dimora]; GLOBALI = {}
+    MURO = int(os.environ.get("MURO", CFG.get("muro_riga", 68)))
     return CFG["stanze"]
 
 
