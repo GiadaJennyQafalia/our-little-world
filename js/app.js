@@ -109,7 +109,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.40.2";
+const VERSIONE_APP = "3.40.3";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -1742,8 +1742,8 @@ function formFaccenda(f, modo) {
     <div class="field"><span class="lab">Difficoltà</span>${radio("diff", [1, 2, 3, 4, 5].map(n => [n, n]), f ? f.diff : 2)}</div>
     <div class="field"><span class="lab">Sbatti</span>${radio("sbatti", [1, 2, 3, 4, 5].map(n => [n, n]), f ? f.sbatti : 3)}<span class="muted small">1 = nessun problema, 5 = farei qualsiasi altra cosa</span></div>
     ${modo === "extra" ? "" : `<div class="field"><span class="lab">Tipo</span>${radio("tipo", [["ricorrente", "Ricorrente"], ["occorrenza", "All'occorrenza"], ["occasionale", "Una volta"]], tipo)}</div>
-    <div id="fRic" class="field" ${tipo === "ricorrente" ? "" : "hidden"}>
-      <span class="lab">Ogni quanti giorni</span>${radio("freqQ", [[3, "3"], [7, "7"], [14, "14"], [30, "30"], [60, "60"], [90, "90"], [180, "180"], [365, "365"]], f && f.freq ? f.freq : 7)}
+    <div id="fRic" class="field${tipo === "ricorrente" ? "" : " bloccato"}">
+      <span class="lab">Ogni quanti giorni</span><span class="muted small" id="fRicNota"${tipo === "ricorrente" ? ' style="display:none"' : ""}>Bloccato: solo le faccende ricorrenti hanno una scadenza.</span>${radio("freqQ", [[3, "3"], [7, "7"], [14, "14"], [30, "30"], [60, "60"], [90, "90"], [180, "180"], [365, "365"]], f && f.freq ? f.freq : 7)}
       <label for="fUlt" class="lab" style="margin-top:6px">Ultima volta fatta</label><input type="date" id="fUlt" name="ultima" value="${f && lastNow ? new Date(lastNow).toISOString().slice(0, 10) : oggi}" max="${oggi}">
     </div>`}
     <div class="preview"><span class="muted" id="fCat">Categoria</span><span class="pts num" id="fPts">0</span></div>
@@ -1753,7 +1753,8 @@ function formFaccenda(f, modo) {
       const m = +sh.querySelector("#fMin").value || 0, s = +val(sh, "sbatti");
       sh.querySelector("#fPts").textContent = m > 0 ? puntiBase(m, +val(sh, "diff"), s) + " punti" : "–";
       sh.querySelector("#fCat").textContent = "Categoria: " + CAT[categoria({ minuti: m, sbatti: s })].nome;
-      const ric = sh.querySelector("#fRic"); if (ric) ric.hidden = val(sh, "tipo") !== "ricorrente";
+      const ric = sh.querySelector("#fRic");           /* i giorni restano visibili ma bloccati se la faccenda non è ricorrente */
+      if (ric) { const on = val(sh, "tipo") === "ricorrente"; ric.classList.toggle("bloccato", !on); ric.querySelectorAll("input").forEach(i => { i.disabled = !on; }); sh.querySelector("#fRicNota").style.display = on ? "none" : ""; }
     };
     sh.addEventListener("input", upd); sh.addEventListener("change", upd); upd();
     const del = sh.querySelector("#fDel");

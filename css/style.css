@@ -344,6 +344,8 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
   background: #0f0b15; border: 2px solid #0c0911; box-shadow: inset 0 2px 0 #00000080, 0 0 0 1px var(--seam); border-radius: 3px; padding: 11px 12px; width: 100%; font-size: 1rem;
 }
 .radios { display: flex; flex-wrap: wrap; gap: 6px; }
+.field.bloccato > .radios, .field.bloccato > input { opacity: .4; filter: grayscale(1); }
+.field.bloccato .radios input, .field.bloccato input { cursor: not-allowed; }
 .radios label { position: relative; }
 .radios input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
 .radios span { display: inline-block; border: 2px solid var(--seam); border-radius: 3px; padding: 7px 12px; min-width: 2.7em; text-align: center; font-weight: 700; }
