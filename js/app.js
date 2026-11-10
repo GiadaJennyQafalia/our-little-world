@@ -22,6 +22,9 @@ const SOSTITUTI = { busto: ["longsleeve2", "longsleeve", "scoop", "vneck", "slee
 const PREZZO = { animale: 100, orecchie: 50, corna: 80, coda: 70, ali: 120, mantello: 70, cappello: 60, accessorio: 40, collo: 40, vita: 30, braccia: 40, schiena: 60, arma: 60, scudo: 60, barba: 30 };
 const PELLI = ["light", "amber", "olive", "taupe", "bronze", "brown", "black"];
 const STATI = ["Splendente", "In ordine", "Trascurata", "Abbandonata"];
+/* Il livello dipende da quante faccende ricorrenti sono scadute: 0 = splendente (scintille), 1 = in ordine, 2-3 = polvere, 4 o più = polvere fitta e ragnatele. */
+const livelloStanza = n => n <= 0 ? 0 : n === 1 ? 1 : n <= 3 ? 2 : 3;
+const SCINTILLE = {"img/stanze/bagno.webp":[[34.2,41.0],[25.1,42.3],[36.9,43.5],[11.7,49.7],[39.0,52.1],[7.2,56.4],[38.1,59.3]],"img/stanze/balcone.webp":[[18.8,49.3],[15.6,52.4],[41.1,54.0],[30.7,67.6],[57.9,69.5],[36.4,80.2]],"img/stanze/camera.webp":[[26.7,40.8],[20.3,41.0],[73.2,44.1],[57.1,50.3],[28.1,66.7]],"img/stanze/cucina.webp":[[67.6,26.9],[65.4,28.3],[68.6,29.9],[36.8,35.9],[73.1,44.2],[48.5,54.3],[28.2,66.7]],"img/stanze/ingresso.webp":[[82.6,35.1],[57.1,37.3],[23.3,68.0],[76.1,68.2],[52.4,80.2]],"img/stanze/sgabuzzino.webp":[[58.6,34.9],[54.4,42.3],[16.9,46.9],[18.6,49.3],[46.2,51.6],[73.3,56.8],[29.0,62.1],[13.1,70.3],[36.2,80.2],[59.3,83.9]],"img/stanze/soggiorno.webp":[[58.6,34.8],[54.6,42.3],[72.6,44.1],[16.9,46.9],[18.6,49.3],[46.2,51.5],[20.3,71.3],[61.0,83.3]]};  /* dove stavano le scintille dipinte (% dell'immagine), tolte dalle illustrazioni da tools/stanze/scintille.py: si ridisegnano animate solo a livello 0 */
 // Gemme accese sulla porta (0–5): seguono il livello, affinate dalla percentuale di scaduto
 const gemmeAccese = x => { const n = Math.round((1 - x.pct) * 5); return [5, 4, Math.min(3, Math.max(2, n)), Math.min(1, n)][x.livello]; };
 /* ---------- Pianta della casa e skin delle dimore ----------
@@ -109,7 +112,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.40.3";
+const VERSIONE_APP = "3.40.4";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -279,17 +282,17 @@ function stanze() {
 function statoStanze(now) {
   const ult = ultimeComp(), out = {};
   for (const r of stanze()) {
-    let tot = 0, scad = 0, urg = 0;
+    let tot = 0, scad = 0, urg = 0, nScad = 0;
     for (const f of S.faccende) {
       if (f.attiva === false) continue;
       if (f.stanza !== r && f.stanza !== "Tutta la casa") continue;
       const i = infoFaccenda(f, ult, now);
       if (f.stanza === r && i.evidenza && !i.riposo) urg++;
       if (f.tipo !== "ricorrente") continue;
-      tot += i.base; if (i.urgente) scad += i.base;
+      tot += i.base; if (i.urgente) { scad += i.base; nScad++; }
     }
     const pct = tot ? scad / tot : 0;
-    out[r] = { pct, livello: pct <= 0.10 ? 0 : pct <= 0.25 ? 1 : pct <= 0.50 ? 2 : 3, urg };
+    out[r] = { pct, scad: nScad, livello: livelloStanza(nScad), urg };
   }
   return out;
 }
@@ -462,10 +465,11 @@ function render() {
   }
 }
 
-/* Polvere e ragnatele sono disegnate da codice sopra l'immagine, in base allo stato della stanza (0 = splendente … 3 = abbandonata). */
+/* Polvere e ragnatele sono disegnate da codice sopra l'immagine, in base allo stato della stanza (0 = splendente, 1 = in ordine, 2 = polvere, 3 = polvere fitta e ragnatele). */
 function velo(livello, maschera) {
-  const web = [0, 0, 0.35, 0.85][livello], polvere = [0, 0.15, 0.55, 1][livello];
-  const tw = livello === 0 ? [[22, 30], [64, 20], [78, 58], [36, 70]].map(([x, y], k) => `<i class="tw" style="left:${x}%;top:${y}%;animation-delay:${k * 0.7}s"></i>`).join("") : "";
+  const web = [0, 0, 0, 0.85][livello], polvere = [0, 0, 0.5, 1][livello];
+  const pos = (maschera && SCINTILLE[maschera]) || [[22, 30], [64, 20], [78, 58], [36, 70]];      // scintille dipinte (tolte dall'immagine) oppure quattro posizioni fisse
+  const tw = livello === 0 ? pos.map(([x, y], k) => `<i class="tw" style="left:${x}%;top:${y}%;animation-delay:${(k * 0.7) % 3.2}s"></i>`).join("") : "";
   const m = maschera ? ` style="-webkit-mask:url(${maschera}) center/100% 100% no-repeat;mask:url(${maschera}) center/100% 100% no-repeat"` : "";
   return `<span class="veil v${livello}"${m} aria-hidden="true"><img class="cobweb l" src="${WEB}" alt="" style="opacity:${web}"><img class="cobweb r" src="${WEB}" alt="" style="opacity:${web}"><span class="dust" style="opacity:${polvere}"></span>${tw}</span>`;
 }
@@ -474,8 +478,9 @@ function statoUna(r, now, st) {
   if (st[r]) return st[r];
   if (r !== "Tutta la casa") return null;
   const k = Object.keys(st), media = k.length ? k.reduce((a, x) => a + st[x].pct, 0) / k.length : 0, ult = ultimeComp();
+  const lv = k.length ? Math.round(k.reduce((a, x) => a + st[x].livello, 0) / k.length) : 0;
   const urg = S.faccende.filter(f => { if (f.attiva === false || f.stanza !== "Tutta la casa") return false; const i = infoFaccenda(f, ult, now); return i.evidenza && !i.riposo; }).length;
-  return { pct: media, livello: media <= 0.10 ? 0 : media <= 0.25 ? 1 : media <= 0.50 ? 2 : 3, urg };
+  return { pct: media, livello: lv, urg };
 }
 function strisciaGiorno(now) {
   const mg = missioneGiorno(now);
@@ -623,7 +628,7 @@ function vCasa(now) {
   const cfg = S.config || {};
   const st = statoStanze(now), rs = Object.keys(st);
   const media = rs.length ? rs.reduce((a, r) => a + st[r].pct, 0) / rs.length : 0;
-  const liv = media <= 0.10 ? 0 : media <= 0.25 ? 1 : media <= 0.50 ? 2 : 3;
+  const liv = rs.length ? Math.round(rs.reduce((a, r) => a + st[r].livello, 0) / rs.length) : 0;
   const dim = dimoraMia();
   const sparks = [[14, 30], [30, 18], [52, 26], [72, 14], [86, 36], [44, 8]].map(([x, y]) => `<i class="spark" style="left:${x}%;top:${y}%"></i>`).join("");
   const webOp = [0, 0, 0.35, 0.8][liv], dustOp = [0, 0.2, 0.6, 1][liv];
