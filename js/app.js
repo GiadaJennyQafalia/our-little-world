@@ -112,7 +112,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.41.1";
+const VERSIONE_APP = "3.41.2";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -483,7 +483,7 @@ function velo(livello, maschera) {
     const [ax, ay] = g.angolo, chiaro = maschera && /reggia/.test(maschera) ? " chiaro" : "";
     if (maschera) {
       const lato = d => `left:${ax + d}%;top:${(ay + Math.abs(d) * 0.53 + 1).toFixed(1)}%`;
-      sporco += `<img class="ragnatela${chiaro}" src="img/veli/ragnatela_angolo.png" alt="" style="left:${ax}%;top:${ay}%;width:${(60 * k * 1.35).toFixed(1)}%">`
+      sporco += `<img class="ragnatela${chiaro}" src="img/veli/ragnatela_angolo.png" alt="" style="left:${ax}%;top:${ay}%;width:${(60 * k * 1.35).toFixed(1)}%;--w:${(60 * k * 1.35).toFixed(1)}%">`
         + `<img class="ragno fisso" src="img/veli/ragno.png" alt="" style="left:${ax + 6}%;top:${ay + 13}%;width:${(11 * k * 1.5).toFixed(1)}%">`
         + [[-26, 9, "0s"], [27, 13, "1.7s"]].map(([d, len, ritardo]) => `<span class="filo" style="${lato(d)};--l:${len}%;animation-delay:${ritardo}"><img class="ragno" src="img/veli/ragno.png" alt=""></span>`).join("");
     } else {

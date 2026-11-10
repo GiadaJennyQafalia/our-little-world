@@ -403,7 +403,8 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .veil .mucchio { position: absolute; transform: translate(-50%, -100%); height: auto; image-rendering: pixelated; transition: opacity .6s; }
 .veil .ragnatela { position: absolute; transform: translateX(-50%); height: auto; image-rendering: pixelated; opacity: .78; }
 .veil .ragnatela.lato { transform: none; } .veil .ragnatela.lato.dx { transform: scaleX(-1); }
-.veil.chiaro .ragnatela { filter: brightness(.3) contrast(1.4); opacity: .85; }
+.veil.chiaro .ragnatela { filter: brightness(.1) drop-shadow(0 0 1px rgba(255, 255, 255, .55)); opacity: .8; }
+.veil.chiaro .ragnatela:not(.lato) { width: calc(var(--w, 36%) * 1.25) !important; }
 .veil .ragno { height: auto; image-rendering: pixelated; display: block; }
 .veil .ragno.fisso { position: absolute; transform: translateX(-50%); }
 .veil .filo { position: absolute; display: flex; flex-direction: column; align-items: center; width: 7%; transform: translateX(-50%); }
