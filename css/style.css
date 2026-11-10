@@ -340,7 +340,7 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .sheet > * { flex-shrink: 0; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field > label, .field > .lab { font-size: .92rem; font-weight: 800; color: var(--ash); }
-.field input[type=text], .field input[type=number], .field input[type=date], .field input[type=email], .field input[type=password], .field select, .sheet input[type=text] {
+.field input[type=text], .field input[type=number], .field input[type=date], .field input[type=time], .field input[type=email], .field input[type=password], .field select, .sheet input[type=text] {
   background: #0f0b15; border: 2px solid #0c0911; box-shadow: inset 0 2px 0 #00000080, 0 0 0 1px var(--seam); border-radius: 3px; padding: 11px 12px; width: 100%; font-size: 1rem;
 }
 .radios { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -817,3 +817,9 @@ button.teca-ogg { cursor: pointer; }
 .pianta-info .p-frecce { display: flex; flex-wrap: wrap; gap: 6px; }
 .pianta-info .p-frecce .btn { align-self: auto; }
 #pPiano { align-self: flex-start; }
+
+/* notifiche */
+.ora-lab { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 13px; color: var(--muted, #b8aac6); }
+.ora-lab input[type=time] { width: auto; flex: 0 0 auto; }
+#nCorpo .field { margin-top: 14px; }
+#nCorpo.bloccato { opacity: .45; filter: grayscale(1); pointer-events: none; }

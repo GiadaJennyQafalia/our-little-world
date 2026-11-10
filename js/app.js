@@ -112,7 +112,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.40.4";
+const VERSIONE_APP = "3.41.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -458,6 +458,7 @@ function render() {
   document.querySelectorAll("canvas.pet-cv").forEach(c => window.OLW_SPRITE.animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 0, scala: 2, fps: 4 }));
   if (S.loaded.giocatori && S.loaded.faccende && S.loaded.config && S.config && me && S.giocatori[me] && !S.faccende.length && !S.config.setupFatto && !S.setupMostrato) { S.setupMostrato = true; apriSetup(false); }
   /* All'apertura: la schermata d'ingresso (se attiva, o se il telefono non ha ancora un eroe); senza eroi si crea il primo. */
+  if (S.loaded.giocatori && me && S.giocatori[me] && !S.pushRinnovato) { S.pushRinnovato = true; pushRinnova(); }
   if (S.loaded.giocatori && !S.ingressoFatto) {
     S.ingressoFatto = true;
     if (!Object.keys(S.giocatori).length) { S.onboardingShown = true; apriProfilo(null, true); }
@@ -1905,6 +1906,78 @@ function scelteDimora() {
     return ok ? `<label><input type="radio" name="dimora" value="${k}" ${k === cur ? "checked" : ""}><span>${esc(corto)}</span></label>`
       : `<span class="dim-chiusa" title="${pronta ? "Si sblocca al livello " + liv : "In arrivo"}">${esc(corto)} <small>${lv >= liv && !pronta ? "in arrivo" : "liv. " + liv}</small></span>`; }).join("")}</div>`;
 }
+/* ---------- Notifiche (Web Push, anche ad app chiusa) ----------
+   Ogni telefono salva in Supabase (collezione "push") il suo indirizzo di notifica e le sue scelte; una funzione sul server
+   (supabase/notifiche) le controlla ogni pochi minuti e manda a ciascun eroe solo le sue. Le scelte sono per telefono. */
+const VAPID_PUB = "BIuHiP8_R3eUQhsJTrDZV81KFqWMV6CvM85s-EqQd6ss5iA-vIQod2KL63nd2mdt51gdQa1N-zP3l3KDvQx7tk0";
+const PUSH_BASE = { on: false, missione: { on: true, ora: "09:00" }, scadenza: { on: true, ora: "18:00" }, mosse: true,
+  sfide: { proposta: true, risposta: true, ultimo: true, esito: true }, silenzio: { on: true, da: "22:30", a: "07:30" } };
+const pushPossibile = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+function idTelefono() { try { let d = localStorage.getItem("olw-dev"); if (!d) { d = Math.random().toString(36).slice(2, 10); localStorage.setItem("olw-dev", d); } return d; } catch (e) { return "tel"; } }
+const pushDocId = () => me + "_" + idTelefono();
+const unisci = (b, x) => { const o = { ...b }; for (const k of Object.keys(x || {})) o[k] = b[k] && typeof b[k] === "object" && !Array.isArray(b[k]) ? unisci(b[k], x[k]) : x[k]; return o; };
+const b64Uint8 = b => { const p = "=".repeat((4 - b.length % 4) % 4), r = atob((b + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); };
+async function pushPrefs() {
+  if (!db || !me) return unisci(PUSH_BASE, {});
+  try { const d = await db.doc("push/" + pushDocId()).get(); return unisci(PUSH_BASE, d.exists ? d.data().prefs : {}); } catch (e) { return unisci(PUSH_BASE, {}); }
+}
+async function pushIscrivi(prefs) {
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64Uint8(VAPID_PUB) });
+  await db.doc("push/" + pushDocId()).set({ eroe: me, tel: idTelefono(), sub: sub.toJSON(), prefs, tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Rome", ts: Date.now() });
+}
+async function pushSpegni() {
+  try { const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); } catch (e) { console.error("push", e); }
+  try { await db.doc("push/" + pushDocId()).delete(); } catch (e) { console.error("push", e); }
+}
+/* All'apertura: se le notifiche sono accese, rinnova l'indirizzo (può cambiare) e le scelte. */
+async function pushRinnova() {
+  if (!pushPossibile() || !db || !me || !S.giocatori[me] || Notification.permission !== "granted") return;
+  try { const pr = await pushPrefs(); if (pr.on) await pushIscrivi(pr); } catch (e) { console.error("push", e); }
+}
+async function apriNotifiche() {
+  if (!pushPossibile()) { toast("Questo telefono non supporta le notifiche dell'app"); return; }
+  const pr = await pushPrefs(), sfi = pr.sfide, sil = pr.silenzio;
+  const blocc = Notification.permission === "denied";
+  const sw = (id, on, testo, extra = "") => `<label class="rst"><input type="checkbox" id="${id}" ${on ? "checked" : ""}> <span>${testo}</span></label>${extra}`;
+  const ora = (id, v, lab) => `<label class="ora-lab" for="${id}">${lab}<input type="time" id="${id}" value="${v}"></label>`;
+  apriSheet(`<h2>Notifiche</h2>
+    <p class="muted small" style="margin:0">Arrivano anche ad app chiusa. Ricevi solo le tue, ${esc(nome(me))}: le scelte valgono per questo telefono.</p>
+    ${blocc ? `<div class="notice fr-stone small">Le notifiche sono bloccate per questo sito. Sbloccale dalle impostazioni del browser (lucchetto accanto all'indirizzo → Notifiche), poi riapri qui.</div>` : ""}
+    <div class="field">${sw("nOn", pr.on && !blocc, "<b>Notifiche su questo telefono</b>")}</div>
+    <div id="nCorpo" class="${pr.on && !blocc ? "" : "bloccato"}">
+      <div class="field"><span class="lab">Missione del giorno</span>${sw("nMis", pr.missione.on, "Ricordami la missione di oggi")}${ora("nMisOra", pr.missione.ora, "A che ora")}</div>
+      <div class="field"><span class="lab">Faccende in scadenza</span>${sw("nSca", pr.scadenza.on, "Avvisami il giorno prima della scadenza")}${ora("nScaOra", pr.scadenza.ora, "A che ora")}</div>
+      <div class="field"><span class="lab">L'altra persona</span>${sw("nMos", pr.mosse, "Quando completa una faccenda")}</div>
+      <div class="field"><span class="lab">Sfide</span>
+        ${sw("nSfP", sfi.proposta, "Qualcuno mi sfida")}${sw("nSfR", sfi.risposta, "Sfida accettata o rifiutata")}${sw("nSfU", sfi.ultimo, "Ultimo giorno della sfida")}${sw("nSfE", sfi.esito, "Esito e premio")}</div>
+      <div class="field"><span class="lab">Ore di silenzio</span>${sw("nSil", sil.on, "Non disturbarmi di notte (le notifiche aspettano la mattina)")}
+        <div class="row-actions">${ora("nSilDa", sil.da, "Dalle")}${ora("nSilA", sil.a, "Alle")}</div></div>
+    </div>
+    <div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button><button class="btn prime" id="nSalva">Salva</button></div>`, sh => {
+    const g = id => sh.querySelector("#" + id), c = id => g(id).checked;
+    const leggi = () => ({ on: c("nOn"), missione: { on: c("nMis"), ora: g("nMisOra").value || "09:00" }, scadenza: { on: c("nSca"), ora: g("nScaOra").value || "18:00" }, mosse: c("nMos"),
+      sfide: { proposta: c("nSfP"), risposta: c("nSfR"), ultimo: c("nSfU"), esito: c("nSfE") }, silenzio: { on: c("nSil"), da: g("nSilDa").value || "22:30", a: g("nSilA").value || "07:30" } });
+    const blocca = on => { g("nCorpo").classList.toggle("bloccato", !on); g("nCorpo").querySelectorAll("input").forEach(i => { i.disabled = !on; }); };
+    blocca(c("nOn"));
+    g("nOn").onchange = async e => {
+      if (!e.target.checked) { blocca(false); return; }
+      let perm = Notification.permission;
+      if (perm === "default") perm = await Notification.requestPermission();
+      if (perm !== "granted") { e.target.checked = false; blocca(false); toast("Senza il permesso le notifiche non possono arrivare"); return; }
+      blocca(true);
+    };
+    g("nSalva").onclick = async () => {
+      const nuove = leggi();
+      try {
+        if (nuove.on) { if (Notification.permission !== "granted") { toast("Serve il permesso per le notifiche"); return; } await pushIscrivi(nuove); }
+        else await pushSpegni();
+        chiudiSheet(); toast(nuove.on ? "Notifiche attive su questo telefono" : "Notifiche spente su questo telefono");
+      } catch (e) { console.error("push", e); toast("Non sono riuscita ad attivare le notifiche. Riprova."); }
+    };
+  });
+}
 function apriImpostazioni() {
   const cfg = S.config || {};
   apriSheet(`<h2>La casa</h2>
@@ -1913,6 +1986,7 @@ function apriImpostazioni() {
     <div class="field"><span class="lab">Pianta della casa</span><button class="btn" id="sPianta">Apri la pianta</button><span class="muted small">Le tue stanze vere, disegnate in piccolo. Valgono per ogni dimora.</span></div>
     <div class="field"><label for="sStanza">Aggiungi una stanza</label><div class="row-actions"><input type="text" id="sStanza" maxlength="30" style="flex:1;min-width:0;background:var(--ink);border:1px solid var(--seam);border-radius:10px;padding:10px 12px"><button class="btn" id="sAdd">Aggiungi</button></div><span class="muted small">${esc(stanze().join(", "))}</span></div>
     <div class="field"><span class="lab">Faccende classiche</span><button class="btn" id="sCat">Aggiungi dall'elenco</button><span class="muted small">Le faccende più comuni, già pronte: scegli quali tenere e regola tempo, difficoltà, sbatti e frequenza.</span></div>
+    <div class="field"><span class="lab">Notifiche</span><button class="btn" id="sNotifiche">Scegli le notifiche</button><span class="muted small">Missione del giorno, scadenze, mosse dell'altra persona e sfide, anche ad app chiusa.</span></div>
     <div class="field"><span class="lab">Crediti</span><button class="btn ghost" id="sCrediti">Chi ha disegnato i personaggi</button></div>
     <div class="field"><span class="lab">Dati</span><div class="row-actions"><button class="btn" id="sCsv">Scarica i dati (CSV)</button><button class="btn ghost danger" id="sReset">Reset</button></div><span class="muted small">Il CSV contiene faccende, missioni fatte, punti, premi e spesa. "Reset" riporta l'app a come nuova.</span></div>
     <div class="field"><span class="lab">Schermata d'ingresso</span><label class="rst"><input type="checkbox" id="sIngresso" ${ingressoAttivo() ? "checked" : ""}> <span>Mostrala a ogni apertura su questo telefono</span></label></div>
@@ -1920,6 +1994,7 @@ function apriImpostazioni() {
     <div class="field"><span class="lab">Account</span><div class="row-actions" style="align-items:center"><span class="muted small" style="flex:1;min-width:0;overflow-wrap:anywhere">${esc(utente ? utente.email : "")}</span><button class="btn sm ghost" id="sEsci">Esci</button></div></div>
     <div class="sheet-actions"><button class="btn ghost" data-close>Chiudi</button><button class="btn prime" id="sSalva">Salva</button></div>`, sh => {
     sh.querySelector("#sPianta").onclick = () => apriPianta();
+    sh.querySelector("#sNotifiche").onclick = () => apriNotifiche();
     sh.querySelector("#sIngresso").onchange = e => { try { localStorage.setItem("olw-ingresso", e.target.checked ? "si" : "no"); } catch (x) {} toast(e.target.checked ? "La schermata d'ingresso comparirà all'apertura" : "L'app si aprirà direttamente nella dimora"); };
     sh.querySelector("#sCrediti").onclick = () => apriCrediti();
     sh.querySelector("#sCsv").onclick = () => esportaCsv();
@@ -2450,7 +2525,7 @@ document.addEventListener("click", e => {
     case "vaiSfida": S.view = "premi"; S.premiTab = "sfida"; render(); window.scrollTo(0, 0); break;
     case "nuovasfida": if (Object.keys(S.giocatori).length < 2) toast("Serve un secondo eroe"); else formSfida(null); break;
     case "accettasfida": { const x = S.sfide[id]; if (x) formSfida({ ...x, id }); break; }
-    case "annullasfida": { const x = S.sfide[id]; if (x) conferma(x.stato === "proposta" ? (x.da === me ? "Ritirare la sfida?" : "Rifiutare la sfida?") : "Annullare la sfida?", x.stato === "proposta" ? "La proposta sparisce." : "La sfida in corso viene cancellata, senza vincitore.", "Sì", () => db.doc("sfide/" + id).delete()); break; }
+    case "annullasfida": { const x = S.sfide[id]; if (x) conferma(x.stato === "proposta" ? (x.da === me ? "Ritirare la sfida?" : "Rifiutare la sfida?") : "Annullare la sfida?", x.stato === "proposta" ? "La proposta sparisce." : "La sfida in corso viene cancellata, senza vincitore.", "Sì", () => x.stato === "proposta" && x.da !== me ? db.doc("sfide/" + id).update({ stato: "rifiutata" }) : db.doc("sfide/" + id).delete()); break; }
     case "sfidaConsegnato": db.doc("sfide/" + id).update({ consegnato: true }).catch(errore); break;
     case "sgab": S.sgab = b.dataset.t; render(); break;
     case "livello": case "scorta": case "finendo": case "delprodotto": azProdotto(act, id, b.dataset); break;
