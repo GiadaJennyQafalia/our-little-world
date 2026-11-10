@@ -112,7 +112,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.41.0";
+const VERSIONE_APP = "3.41.1";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -466,13 +466,32 @@ function render() {
   }
 }
 
-/* Polvere e ragnatele sono disegnate da codice sopra l'immagine, in base allo stato della stanza (0 = splendente, 1 = in ordine, 2 = polvere, 3 = polvere fitta e ragnatele). */
+/* Lo sporco è disegnato da codice sopra l'immagine, in base allo stato della stanza: 0 = splendente (scintille), 1 = in ordine,
+   2 = qualche mucchio di polvere, 3 = tanti mucchi, ragnatela nell'angolo e ragnetti. VELI dice dove stanno (% dell'immagine; tools/stanze/veli.py). */
+const VELI = {"img/dimore/reggia/stanze/bagno.webp":{"angolo":[49.7,3.6],"mucchi":[[24.0,73.7,"m"],[77.9,72.5,"l"],[46.1,79.3,"s"],[58.8,79.1,"m"],[36.9,72.9,"l"]]},"img/dimore/reggia/stanze/balcone.webp":{"angolo":[49.9,3.6],"mucchi":[[25.7,75.4,"m"],[72.1,77.7,"l"],[49.6,84.2,"s"],[10.1,57.0,"s"],[60.0,74.7,"m"],[88.9,59.6,"m"],[32.1,77.5,"l"]]},"img/dimore/reggia/stanze/camera.webp":{"angolo":[49.0,24.6],"mucchi":[[22.4,78.1,"m"],[70.4,79.3,"l"],[45.7,86.7,"s"],[8.3,70.1,"s"],[65.3,77.1,"m"],[83.1,65.5,"m"],[34.7,77.1,"l"]]},"img/dimore/reggia/stanze/cantina.webp":{"angolo":[50.0,21.0],"mucchi":[[20.4,68.6,"m"],[75.4,73.2,"l"],[52.2,87.1,"s"],[11.2,64.5,"s"],[62.4,77.7,"m"],[89.6,67.3,"m"],[36.8,84.6,"l"]]},"img/dimore/reggia/stanze/corridoio.webp":{"angolo":[53.1,3.4],"mucchi":[[22.5,77.8,"m"],[75.3,68.7,"l"],[48.9,90.7,"s"],[15.0,73.1,"s"],[58.8,77.2,"m"],[87.4,62.2,"m"],[38.3,82.6,"l"]]},"img/dimore/reggia/stanze/cucina.webp":{"angolo":[49.9,3.7],"mucchi":[[20.0,71.6,"m"],[70.4,69.4,"l"],[50.4,86.4,"s"],[65.8,71.2,"m"],[37.4,75.1,"l"]]},"img/dimore/reggia/stanze/cucina_soggiorno.webp":{"angolo":[49.9,3.6],"mucchi":[[21.0,70.7,"m"],[72.8,74.1,"l"],[47.4,84.3,"s"],[11.0,65.8,"s"],[63.9,81.5,"m"],[87.5,66.7,"m"],[34.9,84.0,"l"]]},"img/dimore/reggia/stanze/giardino.webp":{"angolo":[49.9,20.9],"mucchi":[[24.6,73.8,"m"],[75.4,72.2,"l"],[48.8,84.8,"s"],[11.8,66.7,"s"],[63.2,83.1,"m"],[87.9,70.0,"m"],[35.7,82.2,"l"]]},"img/dimore/reggia/stanze/ingresso.webp":{"angolo":[49.9,3.6],"mucchi":[[24.7,75.7,"m"],[71.5,78.0,"l"],[48.1,89.1,"s"],[14.3,71.3,"s"],[65.0,81.5,"m"],[86.2,70.9,"m"],[33.9,79.9,"l"]]},"img/dimore/reggia/stanze/lavanderia.webp":{"angolo":[49.7,3.6],"mucchi":[[27.4,72.0,"m"],[70.3,73.4,"l"],[47.5,84.2,"s"],[8.5,59.3,"s"],[58.1,77.1,"m"],[88.6,63.5,"m"],[35.4,72.3,"l"]]},"img/dimore/reggia/stanze/sgabuzzino.webp":{"angolo":[50.3,3.6],"mucchi":[[26.9,77.4,"m"],[75.7,66.7,"l"],[49.3,91.3,"s"],[8.8,66.9,"s"],[60.7,83.7,"m"],[82.6,65.2,"m"],[35.8,79.9,"l"]]},"img/dimore/reggia/stanze/soggiorno.webp":{"angolo":[49.9,17.8],"mucchi":[[25.8,79.0,"m"],[77.8,73.7,"l"],[48.1,91.1,"s"],[13.9,66.0,"s"],[64.9,73.4,"m"],[82.9,71.6,"m"],[38.6,85.1,"l"]]},"img/dimore/reggia/stanze/studio.webp":{"angolo":[49.9,21.6],"mucchi":[[21.9,77.2,"m"],[70.7,81.4,"l"],[52.6,83.4,"s"],[13.6,72.8,"s"],[59.6,85.4,"m"],[88.8,62.4,"m"],[35.3,78.0,"l"]]},"img/dimore/reggia/stanze/terrazzo.webp":{"angolo":[48.2,3.6],"mucchi":[[25.7,70.6,"m"],[77.5,75.4,"l"],[46.7,88.9,"s"],[10.8,66.3,"s"],[60.0,83.7,"m"],[85.1,65.5,"m"],[38.5,81.8,"l"]]},"img/stanze/bagno.webp":{"angolo":[49.9,10.7],"mucchi":[[24.7,68.6,"m"],[74.2,76.8,"l"],[49.2,83.6,"s"],[13.3,66.4,"s"],[65.0,76.9,"m"],[89.2,66.3,"m"],[36.4,77.5,"l"]]},"img/stanze/balcone.webp":{"angolo":[49.9,10.7],"mucchi":[[20.7,70.0,"m"],[72.9,78.1,"l"],[52.1,86.8,"s"],[13.3,67.5,"s"],[58.8,83.6,"m"],[86.1,64.2,"m"],[38.1,80.6,"l"]]},"img/stanze/camera.webp":{"angolo":[49.9,10.7],"mucchi":[[22.2,73.5,"m"],[70.0,75.3,"l"],[46.0,80.6,"s"],[8.8,58.4,"s"],[59.2,85.8,"m"],[88.6,67.9,"m"],[38.1,76.2,"l"]]},"img/stanze/cantina.webp":{"angolo":[50.0,10.7],"mucchi":[[25.3,69.8,"m"],[71.9,69.7,"l"],[48.5,82.7,"s"],[11.1,58.6,"s"],[63.2,83.1,"m"],[84.9,61.4,"m"],[36.5,84.5,"l"]]},"img/stanze/corridoio.webp":{"angolo":[49.9,10.2],"mucchi":[[24.3,73.4,"m"],[73.5,71.2,"l"],[51.1,83.3,"s"],[11.2,64.7,"s"],[61.7,77.8,"m"],[82.6,69.3,"m"],[36.5,81.4,"l"]]},"img/stanze/cucina.webp":{"angolo":[49.9,10.7],"mucchi":[[27.9,76.9,"m"],[73.5,70.9,"l"],[48.2,83.6,"s"],[15.7,71.6,"s"],[64.3,77.7,"m"],[83.5,63.3,"m"],[38.8,75.1,"l"]]},"img/stanze/cucina_soggiorno.webp":{"angolo":[51.8,36.1],"mucchi":[[22.6,69.2,"m"],[73.6,70.3,"l"],[51.2,86.8,"s"],[11.4,66.9,"s"],[63.6,75.1,"m"],[89.4,61.7,"m"],[34.7,75.3,"l"]]},"img/stanze/giardino.webp":{"angolo":[49.9,10.7],"mucchi":[[25.7,70.7,"m"],[71.4,75.4,"l"],[49.3,84.5,"s"],[62.8,77.7,"m"],[86.7,63.0,"m"],[37.5,73.8,"l"]]},"img/stanze/ingresso.webp":{"angolo":[49.9,10.7],"mucchi":[[24.2,67.5,"m"],[77.9,70.7,"l"],[49.3,84.0,"s"],[9.4,68.5,"s"],[62.5,80.8,"m"],[89.2,60.5,"m"],[33.6,72.2,"l"]]},"img/stanze/lavanderia.webp":{"angolo":[50.1,36.4],"mucchi":[[23.2,73.1,"m"],[70.1,78.8,"l"],[49.6,90.2,"s"],[15.4,66.3,"s"],[62.8,75.4,"m"],[82.4,65.4,"m"],[35.4,81.4,"l"]]},"img/stanze/sgabuzzino.webp":{"angolo":[49.9,10.7],"mucchi":[[26.1,75.3,"m"],[73.5,70.6,"l"],[49.7,81.7,"s"],[15.1,73.5,"s"],[64.0,74.4,"m"],[87.4,64.3,"m"],[39.0,79.4,"l"]]},"img/stanze/soggiorno.webp":{"angolo":[49.9,10.7],"mucchi":[[21.7,76.6,"m"],[72.6,79.0,"l"],[49.9,84.3,"s"],[13.3,67.8,"s"],[58.9,81.8,"m"],[84.0,66.1,"m"],[39.9,76.3,"l"]]},"img/stanze/studio.webp":{"angolo":[50.0,36.4],"mucchi":[[20.1,73.4,"m"],[73.9,76.6,"l"],[51.1,87.1,"s"],[12.8,63.8,"s"],[60.1,83.4,"m"],[89.2,63.0,"m"],[39.4,83.3,"l"]]}};
+const VELI_GEN = { angolo: [50, 12], mucchi: [[14, 90, "s"], [48, 94, "m"], [82, 89, "s"], [30, 80, "s"], [66, 82, "m"]] };
+const MUCCHIO_W = { s: 15, m: 20, l: 26 };      // larghezza del disegno in "pixel" del mucchio
 function velo(livello, maschera) {
-  const web = [0, 0, 0, 0.85][livello], polvere = [0, 0, 0.5, 1][livello];
+  const v = (maschera && VELI[maschera]) || null, k = maschera ? 0.45 : 0.7;
   const pos = (maschera && SCINTILLE[maschera]) || [[22, 30], [64, 20], [78, 58], [36, 70]];      // scintille dipinte (tolte dall'immagine) oppure quattro posizioni fisse
-  const tw = livello === 0 ? pos.map(([x, y], k) => `<i class="tw" style="left:${x}%;top:${y}%;animation-delay:${(k * 0.7) % 3.2}s"></i>`).join("") : "";
+  const tw = livello === 0 ? pos.map(([x, y], i) => `<i class="tw" style="left:${x}%;top:${y}%;animation-delay:${(i * 0.7) % 3.2}s"></i>`).join("") : "";
   const m = maschera ? ` style="-webkit-mask:url(${maschera}) center/100% 100% no-repeat;mask:url(${maschera}) center/100% 100% no-repeat"` : "";
-  return `<span class="veil v${livello}"${m} aria-hidden="true"><img class="cobweb l" src="${WEB}" alt="" style="opacity:${web}"><img class="cobweb r" src="${WEB}" alt="" style="opacity:${web}"><span class="dust" style="opacity:${polvere}"></span>${tw}</span>`;
+  const g = v || VELI_GEN, tutti = g.mucchi || [];
+  const scelti = livello >= 3 ? tutti : livello === 2 ? tutti.filter((_, i) => i % 3 === 1 || i === 5) : [];
+  let sporco = scelti.map(([x, y, t]) => `<img class="mucchio" src="img/veli/mucchio_${t}.png" alt="" style="left:${x}%;top:${y}%;width:${(MUCCHIO_W[t] * k).toFixed(1)}%">`).join("");
+  if (livello >= 3) {
+    const [ax, ay] = g.angolo, chiaro = maschera && /reggia/.test(maschera) ? " chiaro" : "";
+    if (maschera) {
+      const lato = d => `left:${ax + d}%;top:${(ay + Math.abs(d) * 0.53 + 1).toFixed(1)}%`;
+      sporco += `<img class="ragnatela${chiaro}" src="img/veli/ragnatela_angolo.png" alt="" style="left:${ax}%;top:${ay}%;width:${(60 * k * 1.35).toFixed(1)}%">`
+        + `<img class="ragno fisso" src="img/veli/ragno.png" alt="" style="left:${ax + 6}%;top:${ay + 13}%;width:${(11 * k * 1.5).toFixed(1)}%">`
+        + [[-26, 9, "0s"], [27, 13, "1.7s"]].map(([d, len, ritardo]) => `<span class="filo" style="${lato(d)};--l:${len}%;animation-delay:${ritardo}"><img class="ragno" src="img/veli/ragno.png" alt=""></span>`).join("");
+    } else {
+      sporco += `<img class="ragnatela lato${chiaro}" src="img/veli/ragnatela_lato.png" alt="" style="left:0;top:0;width:34%"><img class="ragnatela lato dx${chiaro}" src="img/veli/ragnatela_lato.png" alt="" style="right:0;top:0;width:28%">`
+        + `<span class="filo" style="left:62%;top:0;--l:14%"><img class="ragno" src="img/veli/ragno.png" alt=""></span>`;
+    }
+  }
+  return `<span class="veil v${livello}${maschera && /reggia/.test(maschera) ? " chiaro" : ""}"${m} aria-hidden="true">${sporco}${tw}</span>`;
 }
 /* "Tutta la casa" non è una stanza vera: nel castello è il corridoio e prende lo stato medio della casa. */
 function statoUna(r, now, st) {

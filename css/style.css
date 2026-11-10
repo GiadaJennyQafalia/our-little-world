@@ -400,9 +400,17 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 
 /* polvere, ragnatele e scintille disegnate da codice */
 .veil { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.veil .cobweb { position: absolute; top: 0; width: 46%; max-width: 130px; transition: opacity .6s; }
-.veil .cobweb.l { left: 0; } .veil .cobweb.r { right: 0; transform: scaleX(-1); }
-.veil .dust { position: absolute; inset: 0; background: radial-gradient(circle at 20% 70%, #b0a3bd44 0 2px, transparent 3px) 0 0/38px 31px, radial-gradient(circle at 60% 30%, #b0a3bd38 0 1.5px, transparent 2.5px) 0 0/53px 47px; transition: opacity .6s; }
+.veil .mucchio { position: absolute; transform: translate(-50%, -100%); height: auto; image-rendering: pixelated; transition: opacity .6s; }
+.veil .ragnatela { position: absolute; transform: translateX(-50%); height: auto; image-rendering: pixelated; opacity: .78; }
+.veil .ragnatela.lato { transform: none; } .veil .ragnatela.lato.dx { transform: scaleX(-1); }
+.veil.chiaro .ragnatela { filter: brightness(.3) contrast(1.4); opacity: .85; }
+.veil .ragno { height: auto; image-rendering: pixelated; display: block; }
+.veil .ragno.fisso { position: absolute; transform: translateX(-50%); }
+.veil .filo { position: absolute; display: flex; flex-direction: column; align-items: center; width: 7%; transform: translateX(-50%); }
+.veil .filo::before { content: ""; width: 1px; height: var(--l, 10%); min-height: 6px; background: rgba(226, 220, 238, .55); }
+.veil .filo .ragno { width: 100%; }
+@media (prefers-reduced-motion: no-preference) { .veil .filo { animation: olwFilo 5.5s ease-in-out infinite; } }
+@keyframes olwFilo { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(7px); } }
 .veil .tw { position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; background: var(--candle-hi); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); opacity: 0; }
 @media (prefers-reduced-motion: no-preference) { .veil .tw { animation: olwTw 3.2s ease-in-out infinite; } }
 @media (prefers-reduced-motion: reduce) { .veil .tw { opacity: .7; } }
@@ -413,8 +421,6 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .room-hero .room-scene > img { display: block; width: 100%; height: auto; }
 .room-hero .room-scene .veil { inset: 12px 6px 0; }
 .room-hero .room-scene .veil .tw { width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; }
-.room-hero .room-scene .veil .cobweb { width: 20%; top: 14%; }
-.room-hero .room-scene .veil .cobweb.l { left: 7%; } .room-hero .room-scene .veil .cobweb.r { right: 7%; }
 .bar.big { height: 14px; }
 
 /* striscia della missione del giorno (Dimora) */
