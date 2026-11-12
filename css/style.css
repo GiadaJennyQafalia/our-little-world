@@ -524,6 +524,8 @@ body.pre nav.tabs, body.pre .hud, body.pre .fab { display: none; }
 .tess b { font-size: .85rem; line-height: 1.15; }
 .tess-cv { width: 96px; height: 96px; image-rendering: pixelated; }
 .tess-pet { width: 64px; height: 64px; image-rendering: pixelated; margin: 16px 0; }
+.ap-prev { display: flex; justify-content: center; padding: 8px 0; }
+.ap-prev canvas { width: 160px; height: 160px; image-rendering: pixelated; background: #0c0911; border-radius: 6px; }
 .tess .btn { margin-top: 4px; }
 
 /* Catalogo faccende */

@@ -164,21 +164,88 @@
   const hexDi = (mat, nome) => rgb2hex(rampa(mat, nome)[Math.floor(rampa(mat, nome).length * 0.66)]);
 
   /* ---------- Animali ----------
-     Fogli 512×160 di celle 32×32: 4 colori da 4 colonne; righe 0 = destra, 1 = su, 2 = giù, 3 = sinistra. Colonne 0–2 = passi, 3 = sdraiato. */
+     Fogli 512×160 di celle 32×32: 4 colori da 4 colonne; righe 0 = destra, 1 = su, 2 = giù, 3 = sinistra. Colonne 0–2 = passi, 3 = sdraiato.
+     I primi 4 colori sono disegnati nel foglio; gli altri ("extra") nascono dal primo cambiando le tinte una per una (cambio di palette:
+     i fogli usano pochissimi colori, quindi il risultato resta pulito). Gli occhi sono pixel noti, ricolorati a richiesta.
+     Il pezzo finale (4 colonne di un solo colore, con gli occhi scelti) si costruisce una volta e resta in memoria. */
+  const E = (nome, hex, ...t) => ({ nome, hex, t });
+  const BASE_FELINO = ["#efe9e7", "#b7b3b2", "#827c7c", "#d6b39d", "#bc8b6d"];
+  const NASO_ROSSO = ["#ba6c4c", "#b14e45"], NASO_ROSA = ["#d6b39d", "#bc8b6d"];
+  const felino = (nome, hex, c, naso) => E(nome, hex, c[0], c[1], c[2], naso[0], naso[1]);
   const ANIMALI = {
-    gatto: { nome: "Gatto", file: "assets/pets/gatto.png", colori: ["bianco", "dorato", "rosso", "nero"] },
-    cane: { nome: "Cane", file: "assets/pets/cane.png", colori: ["bianco", "marrone", "dorato", "nero"] },
-    scimmia: { nome: "Scimmia", file: "assets/pets/scimmia.png", colori: ["marrone", "dorato", "grigio", "nero"] },
+    gatto: { nome: "Gatto", file: "assets/pets/gatto.png", colori: ["bianco", "dorato", "rosso", "nero"], occhi: true,
+      hexNativi: { bianco: "#f2f0ee", dorato: "#e0b24a", rosso: "#b5532f", nero: "#2b2b33" }, base: BASE_FELINO, extra: [
+        felino("grigio", "#8e8c93", ["#a9a8ae", "#85838b", "#5c5a63"], NASO_ROSA), felino("arancio", "#d9802f", ["#e9913d", "#cc7326", "#9b4f18"], NASO_ROSSO),
+        felino("cioccolato", "#5a382a", ["#6e4636", "#563526", "#3d2319"], NASO_ROSSO), felino("viola", "#7d5aa6", ["#9470bb", "#7552a0", "#553a7a"], NASO_ROSSO),
+        felino("rosa", "#e48fb4", ["#f2adc9", "#d686a8", "#ab5f84"], NASO_ROSA), felino("azzurro", "#6fa4d0", ["#94c8ec", "#6fa4d0", "#4c7ca8"], NASO_ROSA)] },
+    cane: { nome: "Cane", file: "assets/pets/cane.png", colori: ["bianco", "marrone", "dorato", "nero"], occhi: true,
+      hexNativi: { bianco: "#f2f0ee", marrone: "#8a5430", dorato: "#e0b24a", nero: "#2b2b33" }, base: BASE_FELINO, extra: [
+        felino("grigio", "#8e8c93", ["#a9a8ae", "#85838b", "#5c5a63"], NASO_ROSA), felino("arancio", "#d9802f", ["#e9913d", "#cc7326", "#9b4f18"], NASO_ROSSO),
+        felino("crema", "#e6d4a8", ["#f1e1be", "#d8c096", "#b69a70"], NASO_ROSA), felino("viola", "#7d5aa6", ["#9470bb", "#7552a0", "#553a7a"], NASO_ROSSO),
+        felino("rosa", "#e48fb4", ["#f2adc9", "#d686a8", "#ab5f84"], NASO_ROSA), felino("azzurro", "#6fa4d0", ["#94c8ec", "#6fa4d0", "#4c7ca8"], NASO_ROSA)] },
+    scimmia: { nome: "Scimmia", file: "assets/pets/scimmia.png", colori: ["marrone", "dorato", "grigio", "nero"], occhi: true,
+      hexNativi: { marrone: "#7a4a2a", dorato: "#c98b3a", grigio: "#8a8580", nero: "#40383e" },
+      base: ["#7a4a2a", "#341c10", "#e2b48a", "#b98463", "#54301a"], extra: [
+        E("bianco", "#ece6e0", "#ece6e0", "#8f8a86", "#f7d9c4", "#dbb9a2", "#bdb7b2"), E("arancio", "#cd6a2c", "#cd6a2c", "#5a2410", "#f1c48e", "#d19c6a", "#98431b"),
+        E("crema", "#e8d6ac", "#e8d6ac", "#8a7554", "#f8eed6", "#dac6a0", "#c0aa80"), E("viola", "#7f5aa6", "#7f5aa6", "#2f1d48", "#e2c4da", "#ba93b2", "#55397a"),
+        E("rosa", "#e592b4", "#e592b4", "#7a3a58", "#f9dbe3", "#daabbc", "#b3637f"), E("azzurro", "#6498c8", "#6498c8", "#1f3b5c", "#e6dccb", "#c2b4a0", "#426f9f")] },
     /* Volanti: colonne 0–2 = battito d'ali, 3 = posato a terra. Volano accanto alla spalla dell'eroe; quando si ferma il corvo si posa a terra, il pipistrello si appende a testa in giù. */
-    corvo: { nome: "Corvo", file: "assets/pets/corvo.png", colori: ["nero", "blu", "grigio", "bianco"], vola: true },
-    pipistrello: { nome: "Pipistrello", file: "assets/pets/pipistrello.png", colori: ["viola", "nero", "marrone", "argento"], vola: true, appeso: true }
+    corvo: { nome: "Corvo", file: "assets/pets/corvo.png", colori: ["nero", "blu", "grigio", "bianco"], vola: true, occhi: false,
+      hexNativi: { nero: "#3a313a", blu: "#343b4c", grigio: "#767276", bianco: "#d4d3d4" },
+      base: ["#302732", "#4b444c", "#3a313a", "#1d131e", "#cbba7b"], extra: [
+        E("viola", "#5e467a", "#3a2850", "#5e467a", "#4a3562", "#241636", "#b090e0"), E("rosso", "#7e444c", "#4f2228", "#7e444c", "#62313a", "#2f1015", "#e08080"),
+        E("verde", "#466e52", "#24402c", "#466e52", "#33523c", "#14261b", "#90d090"), E("rosa", "#8a6475", "#5a3a4a", "#8a6475", "#6e4a5a", "#3a2230", "#e8b0c8")] },
+    pipistrello: { nome: "Pipistrello", file: "assets/pets/pipistrello.png", colori: ["viola", "nero", "marrone", "argento"], vola: true, appeso: true, occhi: true,
+      hexNativi: { viola: "#6b4c8f", nero: "#2b2b33", marrone: "#8a5430", argento: "#cfcbd6" },
+      base: ["#1d181e", "#432f53", "#5c436f", "#7784a2", "#5f5f7b", "#b572b1"], extra: [
+        E("blu", "#3d6490", "#14202e", "#2c4a6a", "#3d6490", "#7fa6c8", "#5c82a8", "#9fc0e0"), E("rosso", "#7a3342", "#200f12", "#5c2230", "#7a3342", "#b8707c", "#9a5560", "#e09aa8"),
+        E("verde", "#3d7a52", "#10201a", "#2c5a3e", "#3d7a52", "#80b08c", "#5c9068", "#a8d4b0"), E("arancio", "#9a6430", "#251912", "#7a4a22", "#9a6430", "#d0a070", "#b07f4a", "#e8c090")] }
   };
+  for (const A of Object.values(ANIMALI)) { A.hex = { ...A.hexNativi }; for (const e of A.extra) { A.colori.push(e.nome); A.hex[e.nome] = e.hex; } A.nNativi = 4; }
+  /* Colori degli occhi: due tonalità (chiara e scura); gli animali con un solo pixel per occhio usano la chiara. "" = come disegnati. */
+  const OCCHI = { verde: ["#499231", "#006b46"], azzurro: ["#7cc4f4", "#2f78c0"], ambra: ["#f0b440", "#a8700c"], viola: ["#c08af0", "#7a42b8"], rosso: ["#f06060", "#a81c1c"] };
+  /* Pixel degli occhi: "riga_colonna" → [[x, y, tonalità]]; la sagoma è uguale in tutti i colori, quindi vale per ognuno. */
+  const OCCHI_PX = {"gatto":{"0_0":[[24,14,0],[24,15,1]],"0_1":[[24,13,0],[24,14,1]],"0_2":[[24,14,0],[24,15,1]],"2_0":[[14,18,0],[18,18,0],[14,19,1],[18,19,1]],"2_1":[[14,19,0],[18,19,0],[14,20,1],[18,20,1]],"2_2":[[14,18,0],[18,18,0],[14,19,1],[18,19,1]],"3_0":[[7,14,0],[7,15,1]],"3_1":[[7,13,0],[7,14,1]],"3_2":[[7,14,0],[7,15,1]],"4_0":[[14,19,0],[18,19,0],[14,20,1],[18,20,1]],"4_1":[[14,20,0],[18,20,0],[14,21,1],[18,21,1]]},"cane":{"0_0":[[24,14,0],[24,15,1]],"0_1":[[24,13,0],[24,14,1]],"0_2":[[24,14,0],[24,15,1]],"1_3":[[8,9,0],[8,10,1],[12,9,0],[12,10,1]],"2_0":[[14,18,0],[14,19,1],[18,18,0],[18,19,1]],"2_1":[[14,19,0],[14,20,1],[18,19,0],[18,20,1]],"2_2":[[14,19,0],[14,20,1],[18,19,0],[18,20,1]],"3_0":[[7,14,0],[7,15,1]],"3_1":[[7,13,0],[7,14,1]],"3_2":[[7,14,0],[7,15,1]],"4_0":[[14,19,0],[14,20,1],[18,19,0],[18,20,1]],"4_1":[[14,20,0],[14,21,1],[18,20,0],[18,21,1]]},"scimmia":{"0_0":[[21,13,0]],"0_1":[[21,13,0]],"0_2":[[21,13,0]],"0_3":[[18,13,0]],"2_0":[[14,12,0],[17,12,0]],"2_1":[[14,12,0],[17,12,0]],"2_2":[[14,12,0],[17,12,0]],"3_0":[[10,13,0]],"3_1":[[10,13,0]],"3_2":[[10,13,0]],"3_3":[[13,13,0]]},"pipistrello":{"0_0":[[23,17,0]],"0_1":[[23,15,0]],"0_2":[[23,14,0]],"0_3":[[13,21,0],[17,21,0]],"1_3":[[13,21,0],[17,21,0]],"2_0":[[14,14,0],[18,14,0]],"2_1":[[14,15,0],[18,15,0]],"2_2":[[14,17,0],[18,17,0]],"2_3":[[13,21,0],[17,21,0]],"3_0":[[8,17,0]],"3_1":[[8,15,0]],"3_2":[[8,14,0]],"3_3":[[13,21,0],[17,21,0]]}};
+  const rgbDi = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const fogli = new Map();
   const foglio = f => { if (!fogli.has(f)) fogli.set(f, new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error("manca " + f)); i.src = f; })); return fogli.get(f); };
+  /* Il foglio con tutti i colori: i 4 disegnati e, di seguito, i blocchi extra ottenuti cambiando le tinte del primo. */
+  const estesi = new Map();
+  const foglioEsteso = specie => {
+    if (!estesi.has(specie)) estesi.set(specie, foglio(ANIMALI[specie].file).then(img => {
+      const A = ANIMALI[specie], c = document.createElement("canvas"); c.width = 512 + A.extra.length * 128; c.height = 256;
+      const x = c.getContext("2d", { willReadFrequently: true }); x.imageSmoothingEnabled = false; x.drawImage(img, 0, 0);
+      A.extra.forEach((e, k) => {
+        const blocco = x.getImageData(0, 0, 128, 256), d = blocco.data, m = new Map();
+        A.base.forEach((b, i) => { const [r, g, bl] = rgbDi(b), [r2, g2, b2] = rgbDi(e.t[i]); m.set((r << 16) | (g << 8) | bl, [r2, g2, b2]); });
+        for (let p = 0; p < d.length; p += 4) { if (!d[p + 3]) continue; const n = m.get((d[p] << 16) | (d[p + 1] << 8) | d[p + 2]); if (n) { d[p] = n[0]; d[p + 1] = n[1]; d[p + 2] = n[2]; } }
+        x.putImageData(blocco, 512 + k * 128, 0);
+      });
+      return c;
+    }));
+    return estesi.get(specie);
+  };
+  /* Il pezzo di un animale: 4 colonne (passi e sdraiato) di un solo colore, con gli occhi scelti. Promessa di { img, c0 } (c0 = prima colonna). */
+  const blocchiPet = new Map();
+  function sheetPet(pet) {
+    const A = ANIMALI[pet.specie], col = Math.max(0, Math.min(A.colori.length - 1, pet.col | 0)), occ = A.occhi && OCCHI[pet.occhi] ? pet.occhi : "", chiave = pet.specie + "|" + col + "|" + occ;
+    if (!blocchiPet.has(chiave)) blocchiPet.set(chiave, foglioEsteso(pet.specie).then(sheet => {
+      const c = document.createElement("canvas"); c.width = 128; c.height = 256;
+      const x = c.getContext("2d", { willReadFrequently: true }); x.imageSmoothingEnabled = false;
+      const sx = col < 4 ? col * 128 : 512 + (col - 4) * 128; x.drawImage(sheet, sx, 0, 128, 256, 0, 0, 128, 256);
+      if (occ) {
+        const im = x.getImageData(0, 0, 128, 256), d = im.data, t = OCCHI[occ], px = OCCHI_PX[pet.specie] || {};
+        for (const k in px) { const [r, cc] = k.split("_").map(Number); for (const [ex, ey, ton] of px[k]) { const o = ((r * 32 + ey) * 128 + cc * 32 + ex) * 4; if (!d[o + 3]) continue; const [R, G, B] = rgbDi(t[Math.min(ton, t.length - 1)]); d[o] = R; d[o + 1] = G; d[o + 2] = B; } }
+        x.putImageData(im, 0, 0);
+      }
+      return c;
+    }));
+    return blocchiPet.get(chiave).then(img => ({ img, c0: 0 }));
+  }
   function animaPet(canvas, pet, { riga = 0, scala = 3, fps = 5, fermo = false } = {}) {
     let attivo = true; const A = ANIMALI[pet && pet.specie]; if (!A) return () => {};
-    const rid = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches, c0 = Math.max(0, Math.min(3, pet.col | 0)) * 4;
-    foglio(A.file).then(img => {
+    const rid = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    sheetPet(pet).then(({ img, c0 }) => {
       canvas.width = 32 * scala; canvas.height = 32 * scala; const x = canvas.getContext("2d"); x.imageSmoothingEnabled = false; let k = 0; const seq = [0, 1, 2, 1];
       const giro = () => {
         if (!attivo || !canvas.isConnected) return;
@@ -236,7 +303,7 @@
       if (a.pet && ANIMALI[a.pet.specie]) {
         A = ANIMALI[a.pet.specie]; pcv = document.createElement("canvas"); pcv.width = 32; pcv.height = 32; pcv.className = "abit-pet" + (nuovaStanza ? " nuovo" : ""); pcv.setAttribute("aria-hidden", "true");
         pcv.style.width = pc(32 * a.scala, w); host.appendChild(pcv);
-        foglio(A.file).then(i => { imgPet = i; }).catch(() => {});
+        sheetPet(a.pet).then(r => { imgPet = r.img; }).catch(() => {});
       }
       if (st.px == null) st.px = st.x;
       const base = a.faccia || a.pg.faccia || "neutral", fr = {}, chiesti = new Set();
@@ -326,7 +393,7 @@
           const inMoto = Math.abs(meta - st.px) > 2 && !rid, r = st.px < meta - 2 ? 0 : st.px > meta + 2 ? 3 : (verso > 0 ? 0 : 3);
           if (moto) st.pverso = verso;
           if (o.imgPet) {
-            const vola = o.A && o.A.vola && (st.vol || 0) > 0.15, c0 = Math.max(0, Math.min(3, (a.pet.col | 0))) * 4, cc = inMoto || vola ? [0, 1, 2, 1][Math.floor(t / (vola ? 110 : 160)) % 4] : 3, kp = r + "_" + cc;
+            const vola = o.A && o.A.vola && (st.vol || 0) > 0.15, c0 = 0, cc = inMoto || vola ? [0, 1, 2, 1][Math.floor(t / (vola ? 110 : 160)) % 4] : 3, kp = r + "_" + cc;
             if (o.ultimoP !== kp) { const x = o.pcv.getContext("2d"); x.imageSmoothingEnabled = false; x.clearRect(0, 0, 32, 32); x.drawImage(o.imgPet, (c0 + cc) * 32, r * 32, 32, 32, 0, 0, 32, 32); o.ultimoP = kp; }
           }
           /* Gli animali che volano salgono all'altezza della spalla quando l'eroe cammina e scendono a terra quando si ferma. */
@@ -344,5 +411,5 @@
     giroAbitanti = requestAnimationFrame(passo);
   }
 
-  window.OLW_SPRITE = { abita, emozione, emoAttiva, facce, set alFinireEmo(fn) { alFinireEmo = fn; }, provaDialogo(tipo) { prossimoTipo = tipo; for (const d of Object.values(DIALOGO)) if (d.fase === "attesa") d.prossima = 0; }, pezzoSolo, ANIMALI, animaPet, carica, disegna, anima, ritratto, fotogramma, elenco, palette, hexDi, catalogo: () => CAT, compatibile };
+  window.OLW_SPRITE = { abita, emozione, emoAttiva, facce, set alFinireEmo(fn) { alFinireEmo = fn; }, provaDialogo(tipo) { prossimoTipo = tipo; for (const d of Object.values(DIALOGO)) if (d.fase === "attesa") d.prossima = 0; }, pezzoSolo, ANIMALI, OCCHI_PET: OCCHI, animaPet, carica, disegna, anima, ritratto, fotogramma, elenco, palette, hexDi, catalogo: () => CAT, compatibile };
 })();

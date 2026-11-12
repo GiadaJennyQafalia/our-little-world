@@ -112,7 +112,7 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.41.3";
+const VERSIONE_APP = "3.42.0";
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -455,7 +455,7 @@ function render() {
   controllaTitoli();
   if (S.view === "eroe" || S.view === "premi") disegnaOggetti($("#view"));
   if (window.OLW_SPRITE) { const cs = document.querySelector(".castle"), rc = document.querySelector(".room-chars"); if (cs) abitantiCastello(cs); else if (rc) abitantiStanza(rc); }
-  document.querySelectorAll("canvas.pet-cv").forEach(c => window.OLW_SPRITE.animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 0, scala: 2, fps: 4 }));
+  document.querySelectorAll("canvas.pet-cv").forEach(c => window.OLW_SPRITE.animaPet(c, petDa(c), { riga: 0, scala: 2, fps: 4 }));
   if (S.loaded.giocatori && S.loaded.faccende && S.loaded.config && S.config && me && S.giocatori[me] && !S.faccende.length && !S.config.setupFatto && !S.setupMostrato) { S.setupMostrato = true; apriSetup(false); }
   /* All'apertura: la schermata d'ingresso (se attiva, o se il telefono non ha ancora un eroe); senza eroi si crea il primo. */
   if (S.loaded.giocatori && me && S.giocatori[me] && !S.pushRinnovato) { S.pushRinnovato = true; pushRinnova(); }
@@ -800,7 +800,7 @@ function vetrina(eroe) {
   const A = SP().ANIMALI, pet = eroe.pet && A[eroe.pet.specie] ? eroe.pet : null;
   if (pet) righe.push(`<div class="vrow spec"><span class="muted">Animale</span><span>${esc(A[pet.specie].nome)}${pet.nome ? ` <span class="muted small">· ${esc(pet.nome)}</span>` : ""}</span></div>`);
   return `<section class="vetrina fr-stone">
-    <div class="vet-scena"><canvas class="vet-eroe" aria-label="${esc(eroe.nome)}, figura intera"></canvas>${pet ? `<canvas class="vet-pet" data-specie="${pet.specie}" data-col="${pet.col | 0}" aria-label="${esc(pet.nome || A[pet.specie].nome)}"></canvas>` : ""}</div>
+    <div class="vet-scena"><canvas class="vet-eroe" aria-label="${esc(eroe.nome)}, figura intera"></canvas>${pet ? `<canvas class="vet-pet" data-specie="${pet.specie}" data-col="${pet.col | 0}" data-occhi="${esc(pet.occhi || "")}" aria-label="${esc(pet.nome || A[pet.specie].nome)}"></canvas>` : ""}</div>
     <div class="vet-lista">${righe.join("") || '<span class="muted small">Nessun pezzo indossato.</span>'}</div>
     <div class="row-actions"><button class="btn sm" data-act="gira">Gira</button><button class="btn sm" data-act="armadio">Armadio</button><button class="btn sm ghost" data-act="profilo">Modifica</button></div>
   </section>`;
@@ -810,26 +810,28 @@ function avviaVetrina() {
   const riga = S.vetRiga == null ? 2 : S.vetRiga;
   SP().anima(cv, pgConUmore(me) || S.giocatori[me].pg, { riga, scala: 4 });
   const pc = document.querySelector("canvas.vet-pet");
-  if (pc) SP().animaPet(pc, { specie: pc.dataset.specie, col: +pc.dataset.col }, { riga: riga === 1 ? 3 : riga === 3 ? 0 : riga === 0 ? 1 : 2, scala: 3, fps: 5 });
+  if (pc) SP().animaPet(pc, petDa(pc), { riga: riga === 1 ? 3 : riga === 3 ? 0 : riga === 0 ? 1 : 2, scala: 3, fps: 5 });
 }
 
 /* ---------- L'armadio fisico ----------
    Un mobile con le ante, nella scheda Eroe. Dentro, su ripiani, ci sono tutti i pezzi speciali e gli animali che possiedi:
    quelli indossati sono segnati. Toccando un oggetto lo si indossa o lo si toglie. */
+/* Animale letto dai data-attributi di un canvas (specie, colore, occhi). */
+const petDa = c => ({ specie: c.dataset.specie, col: +c.dataset.col || 0, occhi: c.dataset.occhi || "" });
 function oggettiArmadio(g) {
   const A = SP().ANIMALI, pg = g.pg, sbl = g.sbloccati || [], mem = g.memoria || {}, visti = new Set(), out = [];
   for (const sl of ORDINE_SLOT) { const x = pg[sl]; if (x && x.id && pezzoDi(sl, x.id) && prezzoDi(sl, x.id)) { visti.add(sl + "/" + x.id); out.push({ t: "p", sl, id: x.id, col: x.col, ind: true }); } }
   for (const k of sbl) { const [sl, pid] = k.split("/"); if (sl === "pet" || visti.has(k) || !LPC().slot[sl] || !pezzoDi(sl, pid) || !prezzoDi(sl, pid)) continue; visti.add(k); out.push({ t: "p", sl, id: pid, col: mem[k] || null, ind: false }); }
   out.sort((a, b) => ORDINE_SLOT.indexOf(a.sl) - ORDINE_SLOT.indexOf(b.sl));
   const specie = new Set();
-  if (g.pet && A[g.pet.specie]) { specie.add(g.pet.specie); out.push({ t: "pet", id: g.pet.specie, col: g.pet.col | 0, ind: true }); }
-  for (const k of sbl) if (k.startsWith("pet/") && A[k.slice(4)] && !specie.has(k.slice(4))) { specie.add(k.slice(4)); out.push({ t: "pet", id: k.slice(4), col: 0, ind: false }); }
+  if (g.pet && A[g.pet.specie]) { specie.add(g.pet.specie); out.push({ t: "pet", id: g.pet.specie, col: g.pet.col | 0, occhi: g.pet.occhi || "", nome: g.pet.nome || "", ind: true }); }
+  for (const k of sbl) if (k.startsWith("pet/") && A[k.slice(4)] && !specie.has(k.slice(4))) { specie.add(k.slice(4)); const m = mem[k] || {}; out.push({ t: "pet", id: k.slice(4), col: m.col | 0, occhi: m.occhi || "", nome: m.nome || "", ind: false }); }
   return out;
 }
 function cellaOggetto(o, corpo) {
   if (o.t === "pet") {
     const a = SP().ANIMALI[o.id];
-    return `<button class="wd-item${o.ind ? " on" : ""}" data-act="armItem" data-t="pet" data-id="${esc(o.id)}"><canvas class="tess-pet" data-specie="${esc(o.id)}" data-col="${o.col | 0}" aria-hidden="true"></canvas><b>${esc(a.nome)}</b>${o.ind ? '<span class="wd-tag">Con te</span>' : '<span class="muted small">Animale</span>'}</button>`;
+    return `<button class="wd-item${o.ind ? " on" : ""}" data-act="apriAnimale" data-id="${esc(o.id)}"><canvas class="tess-pet" data-specie="${esc(o.id)}" data-col="${o.col | 0}" data-occhi="${esc(o.occhi || "")}" aria-hidden="true"></canvas><b>${esc(o.nome || a.nome)}</b>${o.ind ? '<span class="wd-tag">Con te</span>' : `<span class="muted small">${o.nome ? esc(a.nome) : "Animale"}</span>`}</button>`;
   }
   const v = pezzoDi(o.sl, o.id), ok = SP().compatibile(v, corpo);
   return `<button class="wd-item${o.ind ? " on" : ""}${ok ? "" : " no"}" data-act="armItem" data-t="p" data-sl="${o.sl}" data-id="${esc(o.id)}" ${ok ? "" : "disabled"}><canvas class="tess-cv" data-sl="${o.sl}" data-id="${esc(o.id)}" data-col="${esc(o.col || "")}" aria-hidden="true"></canvas><b>${esc(v.nome)}</b>${o.ind ? '<span class="wd-tag">Indossato</span>' : `<span class="muted small">${ok ? SLOT_NOME[o.sl] : "Non adatto a questo corpo"}</span>`}</button>`;
@@ -852,19 +854,16 @@ function disegnaOggetti(radice) {
   const g = me && S.giocatori[me]; if (!g || !g.pg || !window.OLW_SPRITE || !SP().catalogo()) return;
   const corpo = g.pg.corpo === "male" ? "male" : "female";
   radice.querySelectorAll("canvas.tess-cv").forEach(c => SP().pezzoSolo(c, corpo, c.dataset.sl, { id: c.dataset.id, col: c.dataset.col || null }, 96).catch(() => {}));
-  radice.querySelectorAll("canvas.tess-pet").forEach(c => SP().animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 0, scala: 2, fps: 4 }));
+  radice.querySelectorAll("canvas.tess-pet").forEach(c => SP().animaPet(c, petDa(c), { riga: 0, scala: 2, fps: 4 }));
 }
 /* Indossa o toglie un oggetto: quello che si toglie torna nell'armadio col suo colore. */
 async function azArmadio(t, sl, pid) {
   const g = S.giocatori[me]; if (!g || !g.pg) return;
-  const A = SP().ANIMALI, pg = g.pg, sbl = g.sbloccati || [], memoria = g.memoria || {};
+  const pg = g.pg, sbl = g.sbloccati || [], memoria = g.memoria || {};
   const nuovo = { ...pg }, sbloccati = [...sbl], mem = { ...memoria };
   const segna = chiave => { if (!sbloccati.includes(chiave)) sbloccati.push(chiave); };
   try {
-    if (t === "pet") {
-      if (g.pet && g.pet.specie === pid) { segna("pet/" + pid); await db.doc("giocatori/" + me).update({ pet: null, sbloccati }); toast("L'animale resta a casa"); }
-      else { if (g.pet) segna("pet/" + g.pet.specie); segna("pet/" + pid); await db.doc("giocatori/" + me).update({ pet: { specie: pid, col: 0, nome: "" }, sbloccati }); toast(A[pid].nome + " è con te"); }
-    } else if (pg[sl] && pg[sl].id === pid) {
+    if (pg[sl] && pg[sl].id === pid) {
       const x = nuovo[sl]; segna(sl + "/" + x.id); mem[sl + "/" + x.id] = x.col || null; nuovo[sl] = null;
       await db.doc("giocatori/" + me).update({ pg: nuovo, sbloccati, memoria: mem }); toast("Nell'armadio");
     } else {
@@ -874,6 +873,56 @@ async function azArmadio(t, sl, pid) {
       await db.doc("giocatori/" + me).update({ pg: nuovo, sbloccati, memoria: mem }); toast("Indossato: " + v.nome);
     }
   } catch (er) { errore(er); }
+}
+
+/* Salva colore, occhi e nome di un animale (e li ricorda per quando torna nell'armadio); porta: true = con te, false = a casa, null = com'era. */
+async function salvaAnimale(pid, imp, porta) {
+  const g = S.giocatori[me]; if (!g) return;
+  const sbloccati = [...(g.sbloccati || [])], mem = { ...(g.memoria || {}) };
+  const segna = k => { if (!sbloccati.includes(k)) sbloccati.push(k); };
+  const dati = { specie: pid, col: imp.col | 0, occhi: imp.occhi || "", nome: (imp.nome || "").trim().slice(0, 20) };
+  const portato = !!(g.pet && g.pet.specie === pid), vuole = porta == null ? portato : porta;
+  segna("pet/" + pid); mem["pet/" + pid] = { col: dati.col, occhi: dati.occhi, nome: dati.nome };
+  const upd = { sbloccati, memoria: mem };
+  if (vuole) {
+    if (g.pet && !portato) { segna("pet/" + g.pet.specie); mem["pet/" + g.pet.specie] = { col: g.pet.col | 0, occhi: g.pet.occhi || "", nome: g.pet.nome || "" }; }
+    upd.pet = dati;
+  } else if (portato) upd.pet = null;
+  await db.doc("giocatori/" + me).update(upd);
+}
+/* La scheda dell'animale, dall'armadio: colore del pelo, occhi, nome. */
+function apriAnimale(pid) {
+  const g = me && S.giocatori[me], A = window.OLW_SPRITE && SP().ANIMALI[pid]; if (!g || !A) return;
+  const portato = !!(g.pet && g.pet.specie === pid), m = (g.memoria || {})["pet/" + pid] || {};
+  const D = portato ? { col: g.pet.col | 0, occhi: g.pet.occhi || "", nome: g.pet.nome || "" } : { col: m.col | 0, occhi: m.occhi || "", nome: m.nome || "" };
+  const OC = SP().OCCHI_PET || {}, lab = pid === "corvo" ? "Colore delle piume" : pid === "pipistrello" ? "Colore" : "Colore del pelo";
+  const sw = (att, v, hex, on, tit) => `<button type="button" class="sw${on ? " on" : ""}" ${att}="${esc(v)}" style="background:${hex}" title="${esc(tit)}" aria-label="${esc(tit)}"></button>`;
+  const corpo = () => `<h2>${esc(A.nome)}</h2>
+    <div class="ap-prev"><canvas id="apPrev" aria-label="Anteprima di ${esc(A.nome)}"></canvas></div>
+    <div class="field"><span class="lab">${lab}</span><div class="sws">${A.colori.map((c, i) => sw("data-apcol", i, A.hex[c], D.col === i, c)).join("")}</div></div>
+    ${A.occhi ? `<div class="field"><span class="lab">Colore degli occhi</span><div class="sws">${sw("data-apocc", "", "linear-gradient(135deg,#f2f0ee 50%,#2b2b33 50%)", !D.occhi, "Originali")}${Object.entries(OC).map(([k, t]) => sw("data-apocc", k, t[0], D.occhi === k, k)).join("")}</div></div>` : ""}
+    <div class="field"><label for="apNome">Nome</label><input type="text" id="apNome" maxlength="20" value="${esc(D.nome)}" placeholder="${esc(A.nome)}"></div>
+    <div class="sheet-actions"><button class="btn prime" id="apSalva">Salva</button><button class="btn" id="apPorta">${portato ? "Lascia a casa" : "Porta con me"}</button><button class="btn ghost" data-close>Chiudi</button></div>`;
+  apriSheet(corpo(), sh => {
+    let stop = null;
+    const anteprima = () => { if (stop) stop(); stop = SP().animaPet(sh.querySelector("#apPrev"), { specie: pid, col: D.col, occhi: D.occhi }, { riga: 0, scala: 5, fps: 4 }); };
+    const evidenzia = () => {
+      sh.querySelectorAll("[data-apcol]").forEach(b => b.classList.toggle("on", +b.dataset.apcol === D.col));
+      sh.querySelectorAll("[data-apocc]").forEach(b => b.classList.toggle("on", b.dataset.apocc === D.occhi));
+    };
+    anteprima();
+    sh.addEventListener("click", e => {
+      const c = e.target.closest("[data-apcol]"), o = e.target.closest("[data-apocc]");
+      if (c) { D.col = +c.dataset.apcol; evidenzia(); anteprima(); }
+      else if (o) { D.occhi = o.dataset.apocc; evidenzia(); anteprima(); }
+    });
+    sh.addEventListener("input", e => { if (e.target.id === "apNome") D.nome = e.target.value; });
+    const chiudi = () => { if (stop) stop(); chiudiSheet(); };
+    sh.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => { if (stop) stop(); }));
+    const fai = (porta, msg) => salvaAnimale(pid, D, porta).then(() => { chiudi(); toast(msg); }, errore);
+    sh.querySelector("#apSalva").onclick = () => fai(null, "Animale aggiornato");
+    sh.querySelector("#apPorta").onclick = () => fai(!portato, portato ? "L'animale resta a casa" : (D.nome.trim() || A.nome) + " è con te");
+  });
 }
 
 function vEroe(now) {
@@ -894,7 +943,7 @@ function vEroe(now) {
   return `
   <section class="hero-card fr-stone">
     ${avatar(eroe)}
-    ${eroe.pet && !eroe.pg && window.OLW_SPRITE && OLW_SPRITE.ANIMALI[eroe.pet.specie] ? `<canvas class="pet-cv" data-specie="${eroe.pet.specie}" data-col="${eroe.pet.col | 0}" aria-label="${esc(eroe.pet.nome || OLW_SPRITE.ANIMALI[eroe.pet.specie].nome)}"></canvas>` : ""}
+    ${eroe.pet && !eroe.pg && window.OLW_SPRITE && OLW_SPRITE.ANIMALI[eroe.pet.specie] ? `<canvas class="pet-cv" data-specie="${eroe.pet.specie}" data-col="${eroe.pet.col | 0}" data-occhi="${esc(eroe.pet.occhi || "")}" aria-label="${esc(eroe.pet.nome || OLW_SPRITE.ANIMALI[eroe.pet.specie].nome)}"></canvas>` : ""}
     <div class="stack">
       <span class="hn">${esc(eroe.nome)}</span>
       <span class="muted small">${esc(CLASSI[eroe.classe] || "Avventuriero")} · livello ${L.lv}</span>
@@ -1543,7 +1592,7 @@ function mostraIngresso() {
   const stelle = Array.from({ length: 18 }, (_, i) => `<i class="ing-stella" style="left:${(i * 37) % 100}%;top:${(i * 53) % 46}%;animation-delay:${(i % 6) * .45}s"></i>`).join("");
   const card = id => { const g = S.giocatori[id], A = window.OLW_SPRITE && SP().ANIMALI, pet = g.pet && A && A[g.pet.specie] ? g.pet : null;
     return `<button class="ing-eroe${id === sel ? " on" : ""}" data-id="${id}" aria-pressed="${id === sel}">
-      <span class="ing-fig">${g.pg ? `<canvas class="ing-cv" data-id="${id}" aria-hidden="true"></canvas>` : avatar(g)}${pet ? `<canvas class="ing-pet" data-specie="${pet.specie}" data-col="${pet.col | 0}" aria-hidden="true"></canvas>` : ""}</span>
+      <span class="ing-fig">${g.pg ? `<canvas class="ing-cv" data-id="${id}" aria-hidden="true"></canvas>` : avatar(g)}${pet ? `<canvas class="ing-pet" data-specie="${pet.specie}" data-col="${pet.col | 0}" data-occhi="${esc(pet.occhi || "")}" aria-hidden="true"></canvas>` : ""}</span>
       <b>${esc(g.nome)}</b><span class="small">${esc(CLASSI[g.classe] || "")} · livello ${livelloDa(xpDi(id)).lv}</span></button>`; };
   el.innerHTML = `<div class="ing-cielo">${stelle}<img class="ing-castello" src="img/castello.webp" alt=""></div>
     <div class="ing-cont">
@@ -1567,7 +1616,7 @@ function mostraIngresso() {
   /* Le figure camminano sul posto non appena il catalogo dei pezzi è pronto. */
   if (window.OLW_SPRITE) SP().carica().then(() => {
     el.querySelectorAll("canvas.ing-cv").forEach(c => SP().anima(c, pgConUmore(c.dataset.id) || S.giocatori[c.dataset.id].pg, { riga: 2, scala: 3, fps: 7 }));
-    el.querySelectorAll("canvas.ing-pet").forEach(c => SP().animaPet(c, { specie: c.dataset.specie, col: +c.dataset.col }, { riga: 2, scala: 2, fps: 5 }));
+    el.querySelectorAll("canvas.ing-pet").forEach(c => SP().animaPet(c, petDa(c), { riga: 2, scala: 2, fps: 5 }));
   }).catch(() => {});
 }
 function apriChi() {
@@ -1654,13 +1703,12 @@ function apriProfilo(id, obbligatorio) {
       const chips = lista.map(v => { const ok = possiede(slot, v.id); return `<button type="button" class="opt${v.id === cur ? " on" : ""}${ok ? "" : " lock"}" data-slot="${slot}" data-id="${v.id}">${esc(v.nome)}${ok ? "" : ` <span class="prz">${ICON.coin()}<b class="num">${prezzoDi(slot, v.id)}</b></span>`}</button>`; }).join("");
       return `<div class="field"><span class="lab">${titolo}</span><div class="opts">${nessuno ? `<button type="button" class="opt${cur ? "" : " on"}" data-slot="${slot}" data-id="">Nessuno</button>` : ""}${chips}</div>${colori(slot)}</div>`;
     };
-    const HEX_PET = { bianco: "#f2f0ee", dorato: "#e0b24a", rosso: "#b5532f", nero: "#2b2b33", marrone: "#8a5430", grigio: "#8f8a86", blu: "#2f4a7a", viola: "#6b4c8f", argento: "#cfcbd6" };
     const pannelloAnimali = () => {
       const A = SP().ANIMALI, cur = D.pet && D.pet.specie;
       const chips = Object.entries(A).map(([k, a]) => { const ok = D.sbloccati.includes("pet/" + k); return `<button type="button" class="opt${k === cur ? " on" : ""}${ok ? "" : " lock"}" data-pet="${k}">${a.nome}${ok ? "" : regalo() ? ` <span class="prz"><b>In regalo</b></span>` : ` <span class="prz">${ICON.coin()}<b class="num">${PREZZO.animale}</b></span>`}</button>`; }).join("");
       const mancano = Math.max(0, XP_SOGLIE[LV_ANIMALE - 1] - xpAttuale());
       const nota = regalo() ? `Hai raggiunto il livello ${LV_ANIMALE}: il tuo primo animale è un regalo, scegli quello che preferisci.` : !haPet() ? `Al livello ${LV_ANIMALE} scegli il tuo primo animale in regalo${mancano ? ` (ti mancano ${fmt(mancano)} XP)` : ""}. Intanto puoi comprarlo con le monete.` : "";
-      const cols = cur ? `<div class="field"><span class="lab">${cur === "corvo" ? "Colore delle piume" : cur === "pipistrello" ? "Colore" : "Colore del pelo"}</span><div class="sws">${A[cur].colori.map((c, i) => `<button type="button" class="sw${(D.pet.col | 0) === i ? " on" : ""}" data-petcol="${i}" style="background:${HEX_PET[c]}" title="${c}" aria-label="${c}"></button>`).join("")}</div></div><div class="field"><label for="cPetNome">Nome dell'animale</label><input type="text" id="cPetNome" maxlength="20" value="${esc(D.pet.nome || "")}"></div>` : "";
+      const cols = cur ? `<div class="field"><span class="lab">${cur === "corvo" ? "Colore delle piume" : cur === "pipistrello" ? "Colore" : "Colore del pelo"}</span><div class="sws">${A[cur].colori.map((c, i) => `<button type="button" class="sw${(D.pet.col | 0) === i ? " on" : ""}" data-petcol="${i}" style="background:${A[cur].hex[c]}" title="${c}" aria-label="${c}"></button>`).join("")}</div></div>${A[cur].occhi ? `<div class="field"><span class="lab">Colore degli occhi</span><div class="sws"><button type="button" class="sw${D.pet.occhi ? "" : " on"}" data-petocc="" style="background:linear-gradient(135deg,#f2f0ee 50%,#2b2b33 50%)" title="Originali" aria-label="Originali"></button>${Object.entries(SP().OCCHI_PET).map(([k, t]) => `<button type="button" class="sw${D.pet.occhi === k ? " on" : ""}" data-petocc="${k}" style="background:${t[0]}" title="${k}" aria-label="${k}"></button>`).join("")}</div></div>` : ""}<div class="field"><label for="cPetNome">Nome dell'animale</label><input type="text" id="cPetNome" maxlength="20" value="${esc(D.pet.nome || "")}"></div>` : "";
       return `<div class="field"><span class="lab">Compagno di avventure</span><div class="opts"><button type="button" class="opt${cur ? "" : " on"}" data-pet="">Nessuno</button>${chips}</div></div>${cols}<p class="muted small" style="margin:0">${nota ? nota + " " : ""}Ne hai ${fmt(monete())} monete. L'animale ti accompagna e compare nella tua scheda e nel castello.</p>`;
     };
     const pannello = () => {
@@ -1705,17 +1753,18 @@ function apriProfilo(id, obbligatorio) {
     };
     sh.addEventListener("input", e => { if (e.target.id === "cPetNome" && D.pet) D.pet.nome = e.target.value; });
     sh.addEventListener("click", e => {
-      const pb = e.target.closest("[data-pet]"), pc = e.target.closest("[data-petcol]");
+      const pb = e.target.closest("[data-pet]"), pc = e.target.closest("[data-petcol]"), po = e.target.closest("[data-petocc]");
       if (pb) {
         const k = pb.dataset.pet;
         if (!k) { D.pet = null; pannello(); anteprima(); return; }
-        const metti = () => { D.pet = { specie: k, col: D.pet && D.pet.specie === k ? D.pet.col : 0, nome: (D.pet && D.pet.nome) || "" }; pannello(); anteprima(); };
+        const metti = () => { D.pet = { specie: k, col: D.pet && D.pet.specie === k ? D.pet.col : 0, occhi: D.pet && D.pet.specie === k ? D.pet.occhi || "" : "", nome: (D.pet && D.pet.nome) || "" }; pannello(); anteprima(); };
         if (D.sbloccati.includes("pet/" + k)) metti();
         else if (regalo()) { if (gratis) D.sbloccati = D.sbloccati.filter(x => x !== "pet/" + gratis); gratis = k; D.sbloccati.push("pet/" + k); metti(); toast("Il tuo primo animale! Salva per tenerlo"); }
         else acquista("pet/" + k, SP().ANIMALI[k].nome, PREZZO.animale, metti);
         return;
       }
       if (pc) { D.pet = { ...D.pet, col: +pc.dataset.petcol }; pannello(); anteprima(); return; }
+      if (po) { D.pet = { ...D.pet, occhi: po.dataset.petocc }; pannello(); anteprima(); return; }
       const cl = e.target.closest("[data-classe]"), op = e.target.closest(".opt"), co = e.target.closest(".sw[data-col]");
       if (cl) { D.pg = applicaKit(D.pg, cl.dataset.classe, false); tutto(); return; }
       if (co) { cambia(p => setCol(p, co.dataset.for, co.dataset.col)); return; }
@@ -2540,6 +2589,7 @@ document.addEventListener("click", e => {
     case "regaloPet": { const g = S.giocatori[me]; if (g && regaloPet(g)) { const sb = [...(g.sbloccati || []), "pet/" + id]; db.doc("giocatori/" + me).update({ sbloccati: sb }).then(() => toast("Il tuo primo animale! Lo trovi nell'armadio"), errore); } break; }
     case "armadioPorte": S.armadioAperto = !S.armadioAperto; render(); break;
     case "armItem": azArmadio(b.dataset.t, b.dataset.sl, id); break;
+    case "apriAnimale": apriAnimale(id); break;
     case "vaiBottega": S.view = "premi"; S.premiTab = "bottega"; render(); window.scrollTo(0, 0); break;
     case "vaiSfida": S.view = "premi"; S.premiTab = "sfida"; render(); window.scrollTo(0, 0); break;
     case "nuovasfida": if (Object.keys(S.giocatori).length < 2) toast("Serve un secondo eroe"); else formSfida(null); break;
