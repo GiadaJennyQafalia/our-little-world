@@ -226,9 +226,78 @@
     return estesi.get(specie);
   };
   /* Il pezzo di un animale: 4 colonne (passi e sdraiato) di un solo colore, con gli occhi scelti. Promessa di { img, c0 } (c0 = prima colonna). */
+  /* ---------- Accessori degli animali ----------
+     Disegnati in codice sopra ogni fotogramma, agganciati alla testa (punto-occhi) di ogni posa. Un accessorio sta in uno "slot":
+     collo (collare, fiocco), testa (cappello). Per aggiungerne altri (ali, mantelline: slot "schiena") basta una voce in ACCESSORI,
+     una funzione in DISEGNA_ACC e, se serve, l'ancora nello stesso GEO. pet.acc = { collo: {id, col}, testa: {id, col} }. */
+  const COLORI_ACC = { rosso: ["#c23b3b", "#7e1f1f", "#ee7a7a"], blu: ["#3b6fc2", "#22427a", "#7aa6ee"], verde: ["#3f9a52", "#245c30", "#82d494"], viola: ["#8a4fc2", "#53307c", "#be8af0"], oro: ["#e0b24a", "#9a6f1a", "#f6dc8a"], rosa: ["#e86aa6", "#a03468", "#f6a6cc"], nero: ["#34343e", "#17171d", "#6a6a78"] };
+  const SLOT_ACC = { collo: "Collo", testa: "Testa" };
+  const ACCESSORI = { collare: { slot: "collo", nome: "Collare" }, fiocco: { slot: "collo", nome: "Fiocco" }, strega: { slot: "testa", nome: "Cappello da strega" } };
+  const ORDINE_ACC = ["schiena", "collo", "testa"];
+  /* Punto-occhi di ogni posa (riga 0 = verso destra, 2 = di fronte; la 3 è la 0 specchiata, la 1 è la 2 vista da dietro). s = di lato, f = di fronte; g = pipistrello appeso. */
+  const ANCORE = {
+    gatto: { s: [[24, 14.5], [24, 13.5], [24, 14.5], [25, 13.5]], f: [[16, 18.5], [16, 19.5], [16, 18.5]] },
+    cane: { s: [[24, 14.5], [24, 13.5], [24, 14.5], [25, 14.5]], f: [[16, 18.5], [16, 19.5], [16, 19.5]] },
+    scimmia: { s: [[21, 13], [21, 13], [21, 13], [21, 13]], f: [[15.5, 12], [15.5, 12], [15.5, 12]] },
+    corvo: { s: [[23, 15], [22, 15], [22, 13], [23, 13]], f: [[16, 14], [16, 13], [16, 13]] },
+    pipistrello: { s: [[23, 17], [23, 15], [23, 14]], f: [[16, 14], [16, 15], [16, 17]], g: [16, 21] }
+  };
+  /* Quanto distano cappello (t = base della tesa) e collo (c) dal punto-occhi. Di lato: c = [dx, da y, a y]; di fronte/dietro: c = [dy, mezza larghezza]. */
+  const GEO = {
+    gatto: { cap: "g", s: { t: [-1, -3], c: [-5, 1, 5] }, f: { t: [0, -8], c: [4, 5] }, b: { t: [0, -10], c: [-3, 5] } },
+    cane: { cap: "g", s: { t: [-1, -3], c: [-5, 1, 5] }, f: { t: [0, -8], c: [4, 5] }, b: { t: [0, -10], c: [-3, 5] } },
+    scimmia: { cap: "g", s: { t: [-1, -2], c: [-4, 2, 7] }, f: { t: [0, -3], c: [4, 4] }, b: { t: [0, -3], c: [4, 4] } },
+    corvo: { cap: "p", s: { t: [-1, -2], c: [-4, 1, 5] }, f: { t: [0, -3], c: [1, 2] }, b: { t: [0, -3], c: [1, 2] } },
+    pipistrello: { cap: "p", s: { t: [-1, -3], c: [-4, -1, 4] }, f: { t: [0, -5], c: [3, 3] }, b: { t: [0, -5], c: [3, 3] }, g: { t: [0, 4], c: [3, 3] } }
+  };
+  const CAPPELLO = {
+    g: ["......cc...", ".....ccc...", ".....cccc..", "....ccccc..", "...ccccccc.", "...bbbbbbb.", "ddddddddddd", ".ddddddddd."],
+    p: ["...cc..", "..ccc..", ".bbbbb.", "ddddddd", ".ddddd."]
+  };
+  const FIOCCO = ["cc.cc", "ccdcc", "cc.cc"];
+  const DISEGNA_ACC = {
+    collare(x, op, g, c) {
+      const [m, sc, lu] = c;
+      if (g.dir === "s") {
+        const x0 = Math.round(g.ax + g.sign * g.geo.c[0]);
+        for (let y = Math.round(g.ay + g.geo.c[1]); y <= Math.round(g.ay + g.geo.c[2]); y++) for (let k = 0; k < 2; k++) { const px = x0 - g.sign * k; if (op(px, y)) { x.fillStyle = k ? sc : m; x.fillRect(g.ox + px, g.oy + y, 1, 1); } }
+        const ym = Math.round(g.ay + g.geo.c[2]); if (op(x0, ym + 1)) { x.fillStyle = lu; x.fillRect(g.ox + x0, g.oy + ym + 1, 1, 1); }
+      } else {
+        const y0 = Math.round(g.ay + g.geo.c[0]), hw = g.geo.c[1];
+        for (let k = 0; k < 2; k++) for (let px = Math.round(g.ax - hw); px <= Math.round(g.ax + hw); px++) if (op(px, y0 + k)) { x.fillStyle = k ? sc : m; x.fillRect(g.ox + px, g.oy + y0 + k, 1, 1); }
+        if (g.dir === "f" && op(Math.round(g.ax), y0 + 2)) { x.fillStyle = "#f6dc8a"; x.fillRect(g.ox + Math.round(g.ax), g.oy + y0 + 2, 1, 1); }
+      }
+    },
+    fiocco(x, op, g, c) {
+      if (g.dir === "b") return;
+      const [m, sc] = c, cx = g.dir === "s" ? Math.round(g.ax + g.sign * g.geo.c[0]) + g.sign : Math.round(g.ax), cy = g.dir === "s" ? Math.round(g.ay + g.geo.c[2]) - 1 : Math.round(g.ay + g.geo.c[0]) + 1;
+      FIOCCO.forEach((riga, j) => { for (let i = 0; i < 5; i++) { const ch = riga[i]; if (ch === ".") continue; x.fillStyle = ch === "c" ? m : sc; x.fillRect(g.ox + cx - 2 + i, g.oy + cy - 1 + j, 1, 1); } });
+    },
+    strega(x, op, g, c) {
+      const sp = CAPPELLO[g.cap], w = sp[0].length, h = sp.length, bx = Math.round(g.ax + g.sign * g.geo.t[0]), by = Math.round(g.ay + g.geo.t[1]);
+      const fascia = c === COLORI_ACC.oro ? COLORI_ACC.rosso[0] : COLORI_ACC.oro[0];
+      sp.forEach((riga, j) => { for (let i = 0; i < w; i++) { const ch = riga[i]; if (ch === ".") continue; x.fillStyle = ch === "c" ? c[0] : ch === "b" ? fascia : c[1]; const yy = g.giu ? by + (h - 1 - j) : by - (h - 1 - j); x.fillRect(g.ox + bx - (w >> 1) + i, g.oy + yy, 1, 1); } });
+    }
+  };
+  function applicaAccessori(x, pet) {
+    const im = x.getImageData(0, 0, 128, 256).data, geo = GEO[pet.specie], anc = ANCORE[pet.specie];
+    if (!geo || !anc) return;
+    for (const slot of ORDINE_ACC) {
+      const a = pet.acc && pet.acc[slot], def = a && ACCESSORI[a.id]; if (!def || def.slot !== slot) continue;
+      const col = COLORI_ACC[a.col] || COLORI_ACC.rosso;
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+        const lato = r === 0 || r === 3, sign = r === 3 ? -1 : 1;
+        let dir = lato ? "s" : r === 1 ? "b" : "f", pt, giu = false, gm = geo[dir];
+        if (pet.specie === "pipistrello" && c === 3 && lato) { dir = "f"; pt = anc.g; giu = true; gm = geo.g; }
+        else { pt = (lato ? anc.s : anc.f)[c]; if (!pt) continue; if (lato && r === 3) pt = [31 - pt[0], pt[1]]; }
+        const op = (px, py) => px >= 0 && px < 32 && py >= 0 && py < 32 && im[(((r * 32) + py) * 128 + c * 32 + px) * 4 + 3] > 0;
+        DISEGNA_ACC[a.id](x, op, { ox: c * 32, oy: r * 32, ax: pt[0], ay: pt[1], sign: dir === "s" ? sign : 1, dir, geo: gm, cap: geo.cap, giu }, col);
+      }
+    }
+  }
   const blocchiPet = new Map();
   function sheetPet(pet) {
-    const A = ANIMALI[pet.specie], col = Math.max(0, Math.min(A.colori.length - 1, pet.col | 0)), occ = A.occhi && OCCHI[pet.occhi] ? pet.occhi : "", chiave = pet.specie + "|" + col + "|" + occ;
+    const A = ANIMALI[pet.specie], col = Math.max(0, Math.min(A.colori.length - 1, pet.col | 0)), occ = A.occhi && OCCHI[pet.occhi] ? pet.occhi : "", accs = pet.acc ? JSON.stringify(pet.acc) : "", chiave = pet.specie + "|" + col + "|" + occ + "|" + accs;
     if (!blocchiPet.has(chiave)) blocchiPet.set(chiave, foglioEsteso(pet.specie).then(sheet => {
       const c = document.createElement("canvas"); c.width = 128; c.height = 256;
       const x = c.getContext("2d", { willReadFrequently: true }); x.imageSmoothingEnabled = false;
@@ -238,6 +307,7 @@
         for (const k in px) { const [r, cc] = k.split("_").map(Number); for (const [ex, ey, ton] of px[k]) { const o = ((r * 32 + ey) * 128 + cc * 32 + ex) * 4; if (!d[o + 3]) continue; const [R, G, B] = rgbDi(t[Math.min(ton, t.length - 1)]); d[o] = R; d[o + 1] = G; d[o + 2] = B; } }
         x.putImageData(im, 0, 0);
       }
+      if (accs) applicaAccessori(x, pet);
       return c;
     }));
     return blocchiPet.get(chiave).then(img => ({ img, c0: 0 }));
@@ -411,5 +481,5 @@
     giroAbitanti = requestAnimationFrame(passo);
   }
 
-  window.OLW_SPRITE = { abita, emozione, emoAttiva, facce, set alFinireEmo(fn) { alFinireEmo = fn; }, provaDialogo(tipo) { prossimoTipo = tipo; for (const d of Object.values(DIALOGO)) if (d.fase === "attesa") d.prossima = 0; }, pezzoSolo, ANIMALI, OCCHI_PET: OCCHI, animaPet, carica, disegna, anima, ritratto, fotogramma, elenco, palette, hexDi, catalogo: () => CAT, compatibile };
+  window.OLW_SPRITE = { abita, emozione, emoAttiva, facce, set alFinireEmo(fn) { alFinireEmo = fn; }, provaDialogo(tipo) { prossimoTipo = tipo; for (const d of Object.values(DIALOGO)) if (d.fase === "attesa") d.prossima = 0; }, pezzoSolo, ANIMALI, OCCHI_PET: OCCHI, COLORI_ACC, SLOT_ACC, ACCESSORI, sheetPet, animaPet, carica, disegna, anima, ritratto, fotogramma, elenco, palette, hexDi, catalogo: () => CAT, compatibile };
 })();

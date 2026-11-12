@@ -112,7 +112,9 @@ const LIVELLI_PRODOTTO = ["pieno", "metà", "quasi finito", "finito"];
 /* Un prodotto finito senza confezioni di scorta sparisce dallo scaffale: resta solo nella lista della spesa, e torna quando lo compri. */
 const sulloScaffale = p => !(p.livello === "finito" && !((p.scorta || 0) > 0));
 const XP_SOGLIE = [0, 200, 450, 750, 1100, 1500, 2000];
-const VERSIONE_APP = "3.42.0";
+const VERSIONE_APP = "3.43.0";
+const LV_ACC = 3; /* dal livello 3 il primo accessorio per animali è un regalo; gli altri si comprano */
+const PREZZO_ACC = { collare: 30, fiocco: 30, strega: 50 };
 const LV_ANIMALE = 2; /* dal livello 2 il primo animale è un regalo; gli altri si comprano con le monete */
 const SBLOCCHI = ["personaggio base", "il tuo primo animale, in regalo", "cappelli e accessori", "segni particolari", "accessori per animali", "animali fantasy", "oggetti rari"];
 const CAT = {
@@ -800,7 +802,7 @@ function vetrina(eroe) {
   const A = SP().ANIMALI, pet = eroe.pet && A[eroe.pet.specie] ? eroe.pet : null;
   if (pet) righe.push(`<div class="vrow spec"><span class="muted">Animale</span><span>${esc(A[pet.specie].nome)}${pet.nome ? ` <span class="muted small">· ${esc(pet.nome)}</span>` : ""}</span></div>`);
   return `<section class="vetrina fr-stone">
-    <div class="vet-scena"><canvas class="vet-eroe" aria-label="${esc(eroe.nome)}, figura intera"></canvas>${pet ? `<canvas class="vet-pet" data-specie="${pet.specie}" data-col="${pet.col | 0}" data-occhi="${esc(pet.occhi || "")}" aria-label="${esc(pet.nome || A[pet.specie].nome)}"></canvas>` : ""}</div>
+    <div class="vet-scena"><canvas class="vet-eroe" aria-label="${esc(eroe.nome)}, figura intera"></canvas>${pet ? `<canvas class="vet-pet" data-specie="${pet.specie}" data-col="${pet.col | 0}" data-occhi="${esc(pet.occhi || "")}"${accAttr(pet)} aria-label="${esc(pet.nome || A[pet.specie].nome)}"></canvas>` : ""}</div>
     <div class="vet-lista">${righe.join("") || '<span class="muted small">Nessun pezzo indossato.</span>'}</div>
     <div class="row-actions"><button class="btn sm" data-act="gira">Gira</button><button class="btn sm" data-act="armadio">Armadio</button><button class="btn sm ghost" data-act="profilo">Modifica</button></div>
   </section>`;
@@ -817,21 +819,32 @@ function avviaVetrina() {
    Un mobile con le ante, nella scheda Eroe. Dentro, su ripiani, ci sono tutti i pezzi speciali e gli animali che possiedi:
    quelli indossati sono segnati. Toccando un oggetto lo si indossa o lo si toglie. */
 /* Animale letto dai data-attributi di un canvas (specie, colore, occhi). */
-const petDa = c => ({ specie: c.dataset.specie, col: +c.dataset.col || 0, occhi: c.dataset.occhi || "" });
+const petDa = c => { let acc; try { acc = c.dataset.acc ? JSON.parse(c.dataset.acc) : undefined; } catch (e) {} return { specie: c.dataset.specie, col: +c.dataset.col || 0, occhi: c.dataset.occhi || "", acc }; };
+const accAttr = p => (p && p.acc && (p.acc.collo || p.acc.testa) ? ` data-acc="${esc(JSON.stringify(p.acc))}"` : "");
 function oggettiArmadio(g) {
   const A = SP().ANIMALI, pg = g.pg, sbl = g.sbloccati || [], mem = g.memoria || {}, visti = new Set(), out = [];
   for (const sl of ORDINE_SLOT) { const x = pg[sl]; if (x && x.id && pezzoDi(sl, x.id) && prezzoDi(sl, x.id)) { visti.add(sl + "/" + x.id); out.push({ t: "p", sl, id: x.id, col: x.col, ind: true }); } }
   for (const k of sbl) { const [sl, pid] = k.split("/"); if (sl === "pet" || visti.has(k) || !LPC().slot[sl] || !pezzoDi(sl, pid) || !prezzoDi(sl, pid)) continue; visti.add(k); out.push({ t: "p", sl, id: pid, col: mem[k] || null, ind: false }); }
   out.sort((a, b) => ORDINE_SLOT.indexOf(a.sl) - ORDINE_SLOT.indexOf(b.sl));
-  const specie = new Set();
-  if (g.pet && A[g.pet.specie]) { specie.add(g.pet.specie); out.push({ t: "pet", id: g.pet.specie, col: g.pet.col | 0, occhi: g.pet.occhi || "", nome: g.pet.nome || "", ind: true }); }
-  for (const k of sbl) if (k.startsWith("pet/") && A[k.slice(4)] && !specie.has(k.slice(4))) { specie.add(k.slice(4)); const m = mem[k] || {}; out.push({ t: "pet", id: k.slice(4), col: m.col | 0, occhi: m.occhi || "", nome: m.nome || "", ind: false }); }
+  return out;
+}
+/* Il mini armadio degli animali: i compagni che possiedi e gli accessori comprati. */
+function oggettiAnimali(g) {
+  const A = SP().ANIMALI, sbl = g.sbloccati || [], mem = g.memoria || {}, specie = new Set(), out = [];
+  if (g.pet && A[g.pet.specie]) { specie.add(g.pet.specie); out.push({ t: "pet", id: g.pet.specie, col: g.pet.col | 0, occhi: g.pet.occhi || "", acc: g.pet.acc, nome: g.pet.nome || "", ind: true }); }
+  for (const k of sbl) if (k.startsWith("pet/") && A[k.slice(4)] && !specie.has(k.slice(4))) { specie.add(k.slice(4)); const m = mem[k] || {}; out.push({ t: "pet", id: k.slice(4), col: m.col | 0, occhi: m.occhi || "", acc: m.acc, nome: m.nome || "", ind: false }); }
+  const AC = SP().ACCESSORI, base = g.pet && A[g.pet.specie] ? g.pet : out.length ? { specie: out[0].id, col: out[0].col, occhi: out[0].occhi } : { specie: "gatto", col: 0, occhi: "" };
+  for (const k of sbl) if (k.startsWith("acc/") && AC[k.slice(4)]) { const id = k.slice(4), a = AC[id], ind = !!(g.pet && g.pet.acc && g.pet.acc[a.slot] && g.pet.acc[a.slot].id === id); out.push({ t: "acc", id, specie: base.specie, col: base.col | 0, occhi: base.occhi || "", acc: { [a.slot]: { id, col: ind ? g.pet.acc[a.slot].col : a.slot === "testa" ? "viola" : "rosso" } }, ind }); }
   return out;
 }
 function cellaOggetto(o, corpo) {
+  if (o.t === "acc") {
+    const a = SP().ACCESSORI[o.id];
+    return `<button class="wd-item${o.ind ? " on" : ""}" data-act="armAcc" data-id="${esc(o.id)}"><canvas class="tess-pet" data-specie="${esc(o.specie)}" data-col="${o.col | 0}" data-occhi="${esc(o.occhi || "")}"${accAttr(o)} aria-hidden="true"></canvas><b>${esc(a.nome)}</b>${o.ind ? '<span class="wd-tag">Indossato</span>' : `<span class="muted small">${SP().SLOT_ACC[a.slot]}</span>`}</button>`;
+  }
   if (o.t === "pet") {
     const a = SP().ANIMALI[o.id];
-    return `<button class="wd-item${o.ind ? " on" : ""}" data-act="apriAnimale" data-id="${esc(o.id)}"><canvas class="tess-pet" data-specie="${esc(o.id)}" data-col="${o.col | 0}" data-occhi="${esc(o.occhi || "")}" aria-hidden="true"></canvas><b>${esc(o.nome || a.nome)}</b>${o.ind ? '<span class="wd-tag">Con te</span>' : `<span class="muted small">${o.nome ? esc(a.nome) : "Animale"}</span>`}</button>`;
+    return `<button class="wd-item${o.ind ? " on" : ""}" data-act="apriAnimale" data-id="${esc(o.id)}"><canvas class="tess-pet" data-specie="${esc(o.id)}" data-col="${o.col | 0}" data-occhi="${esc(o.occhi || "")}"${accAttr(o)} aria-hidden="true"></canvas><b>${esc(o.nome || a.nome)}</b>${o.ind ? '<span class="wd-tag">Con te</span>' : `<span class="muted small">${o.nome ? esc(a.nome) : "Animale"}</span>`}</button>`;
   }
   const v = pezzoDi(o.sl, o.id), ok = SP().compatibile(v, corpo);
   return `<button class="wd-item${o.ind ? " on" : ""}${ok ? "" : " no"}" data-act="armItem" data-t="p" data-sl="${o.sl}" data-id="${esc(o.id)}" ${ok ? "" : "disabled"}><canvas class="tess-cv" data-sl="${o.sl}" data-id="${esc(o.id)}" data-col="${esc(o.col || "")}" aria-hidden="true"></canvas><b>${esc(v.nome)}</b>${o.ind ? '<span class="wd-tag">Indossato</span>' : `<span class="muted small">${ok ? SLOT_NOME[o.sl] : "Non adatto a questo corpo"}</span>`}</button>`;
@@ -848,6 +861,29 @@ function armadioFisico(eroe) {
       <div class="wd-body"><div class="wd-inside"${aperto ? "" : " inert"}>${dentro}</div>${porta("l")}${porta("r")}</div>
       <div class="wd-feet"><i></i><i></i></div></div>
     <p class="muted small" style="margin:6px 0 0">${aperto ? "Tocca un oggetto per indossarlo o toglierlo. Tocca le ante per chiudere." : "Tocca le ante per aprire l'armadio."}</p></section>`;
+}
+function armadioAnimali(eroe) {
+  if (!eroe.pg || !window.OLW_SPRITE || !SP().catalogo()) return "";
+  const og = oggettiAnimali(eroe), aperto = !!S.armadioAnimAperto;
+  const ripiani = []; for (let i = 0; i < og.length; i += 3) ripiani.push(og.slice(i, i + 3));
+  const dentro = og.length ? ripiani.map(r => `<div class="wd-shelf">${r.map(o => cellaOggetto(o, "female")).join("")}</div>`).join("")
+    : `<div class="wd-vuoto"><p class="muted small" style="margin:0">Qui vivono i tuoi animali e i loro accessori. Quello che compri nella Bottega, reparti Animali e Per animali, finisce qui.</p><button class="btn sm" data-act="vaiBottega">Vai alla Bottega</button></div>`;
+  const porta = lato => `<button class="wd-door ${lato}" data-act="armadioAnimPorte" aria-expanded="${aperto}" aria-label="${aperto ? "Chiudi" : "Apri"} l'armadio degli animali"></button>`;
+  return `<section class="sec" id="armadioAnimali"><div class="sec-head"><h3>Armadio degli animali</h3><span class="muted small">${og.length} ${og.length === 1 ? "oggetto" : "oggetti"}</span></div>
+    <div class="wardrobe mini${aperto ? " open" : ""}"><div class="wd-crown"></div>
+      <div class="wd-body"><div class="wd-inside"${aperto ? "" : " inert"}>${dentro}</div>${porta("l")}${porta("r")}</div>
+      <div class="wd-feet"><i></i><i></i></div></div>
+    <p class="muted small" style="margin:6px 0 0">${aperto ? "Tocca un animale per vestirlo e dargli un nome, un accessorio per metterlo o toglierlo a chi è con te." : "Tocca le ante per aprire l'armadio degli animali."}</p></section>`;
+}
+/* Mette o toglie un accessorio all'animale che è con te. */
+async function azAccessorio(id) {
+  const g = S.giocatori[me], def = SP().ACCESSORI[id]; if (!g || !def) return;
+  if (!g.pet || !SP().ANIMALI[g.pet.specie]) { toast("Porta con te un animale per fargli indossare qualcosa"); return; }
+  const acc = { ...(g.pet.acc || {}) }, cur = acc[def.slot], mem = { ...(g.memoria || {}) };
+  if (cur && cur.id === id) delete acc[def.slot]; else acc[def.slot] = { id, col: (cur && cur.col) || (def.slot === "testa" ? "viola" : "rosso") };
+  const pet = { ...g.pet, acc };
+  mem["pet/" + pet.specie] = { col: pet.col | 0, occhi: pet.occhi || "", nome: pet.nome || "", acc };
+  try { await db.doc("giocatori/" + me).update({ pet, memoria: mem }); toast(cur && cur.id === id ? def.nome + " tolto" : "Indossato: " + def.nome); } catch (er) { errore(er); }
 }
 /* Disegna le anteprime dei pezzi e gli animali (armadio e bottega). */
 function disegnaOggetti(radice) {
@@ -880,12 +916,13 @@ async function salvaAnimale(pid, imp, porta) {
   const g = S.giocatori[me]; if (!g) return;
   const sbloccati = [...(g.sbloccati || [])], mem = { ...(g.memoria || {}) };
   const segna = k => { if (!sbloccati.includes(k)) sbloccati.push(k); };
-  const dati = { specie: pid, col: imp.col | 0, occhi: imp.occhi || "", nome: (imp.nome || "").trim().slice(0, 20) };
+  const acc = {}; for (const sl of ["collo", "testa"]) if (imp.acc && imp.acc[sl]) acc[sl] = imp.acc[sl];
+  const dati = { specie: pid, col: imp.col | 0, occhi: imp.occhi || "", nome: (imp.nome || "").trim().slice(0, 20), acc };
   const portato = !!(g.pet && g.pet.specie === pid), vuole = porta == null ? portato : porta;
-  segna("pet/" + pid); mem["pet/" + pid] = { col: dati.col, occhi: dati.occhi, nome: dati.nome };
+  segna("pet/" + pid); mem["pet/" + pid] = { col: dati.col, occhi: dati.occhi, nome: dati.nome, acc };
   const upd = { sbloccati, memoria: mem };
   if (vuole) {
-    if (g.pet && !portato) { segna("pet/" + g.pet.specie); mem["pet/" + g.pet.specie] = { col: g.pet.col | 0, occhi: g.pet.occhi || "", nome: g.pet.nome || "" }; }
+    if (g.pet && !portato) { segna("pet/" + g.pet.specie); mem["pet/" + g.pet.specie] = { col: g.pet.col | 0, occhi: g.pet.occhi || "", nome: g.pet.nome || "", acc: g.pet.acc || {} }; }
     upd.pet = dati;
   } else if (portato) upd.pet = null;
   await db.doc("giocatori/" + me).update(upd);
@@ -894,24 +931,34 @@ async function salvaAnimale(pid, imp, porta) {
 function apriAnimale(pid) {
   const g = me && S.giocatori[me], A = window.OLW_SPRITE && SP().ANIMALI[pid]; if (!g || !A) return;
   const portato = !!(g.pet && g.pet.specie === pid), m = (g.memoria || {})["pet/" + pid] || {};
-  const D = portato ? { col: g.pet.col | 0, occhi: g.pet.occhi || "", nome: g.pet.nome || "" } : { col: m.col | 0, occhi: m.occhi || "", nome: m.nome || "" };
+  const D = portato ? { col: g.pet.col | 0, occhi: g.pet.occhi || "", nome: g.pet.nome || "", acc: { ...(g.pet.acc || {}) } } : { col: m.col | 0, occhi: m.occhi || "", nome: m.nome || "", acc: { ...(m.acc || {}) } };
   const OC = SP().OCCHI_PET || {}, lab = pid === "corvo" ? "Colore delle piume" : pid === "pipistrello" ? "Colore" : "Colore del pelo";
   const sw = (att, v, hex, on, tit) => `<button type="button" class="sw${on ? " on" : ""}" ${att}="${esc(v)}" style="background:${hex}" title="${esc(tit)}" aria-label="${esc(tit)}"></button>`;
   const corpo = () => `<h2>${esc(A.nome)}</h2>
     <div class="ap-prev"><canvas id="apPrev" aria-label="Anteprima di ${esc(A.nome)}"></canvas></div>
     <div class="field"><span class="lab">${lab}</span><div class="sws">${A.colori.map((c, i) => sw("data-apcol", i, A.hex[c], D.col === i, c)).join("")}</div></div>
     ${A.occhi ? `<div class="field"><span class="lab">Colore degli occhi</span><div class="sws">${sw("data-apocc", "", "linear-gradient(135deg,#f2f0ee 50%,#2b2b33 50%)", !D.occhi, "Originali")}${Object.entries(OC).map(([k, t]) => sw("data-apocc", k, t[0], D.occhi === k, k)).join("")}</div></div>` : ""}
+    ${["collo", "testa"].map(sl => `<div class="field" data-slotacc="${sl}"></div>`).join("")}
     <div class="field"><label for="apNome">Nome</label><input type="text" id="apNome" maxlength="20" value="${esc(D.nome)}" placeholder="${esc(A.nome)}"></div>
     <div class="sheet-actions"><button class="btn prime" id="apSalva">Salva</button><button class="btn" id="apPorta">${portato ? "Lascia a casa" : "Porta con me"}</button><button class="btn ghost" data-close>Chiudi</button></div>`;
   apriSheet(corpo(), sh => {
     let stop = null;
-    const anteprima = () => { if (stop) stop(); stop = SP().animaPet(sh.querySelector("#apPrev"), { specie: pid, col: D.col, occhi: D.occhi }, { riga: 0, scala: 5, fps: 4 }); };
+    const anteprima = () => { if (stop) stop(); stop = SP().animaPet(sh.querySelector("#apPrev"), { specie: pid, col: D.col, occhi: D.occhi, acc: D.acc }, { riga: 0, scala: 5, fps: 4 }); };
     const evidenzia = () => {
       sh.querySelectorAll("[data-apcol]").forEach(b => b.classList.toggle("on", +b.dataset.apcol === D.col));
       sh.querySelectorAll("[data-apocc]").forEach(b => b.classList.toggle("on", b.dataset.apocc === D.occhi));
     };
-    anteprima();
+    const AC = SP().ACCESSORI, CA = SP().COLORI_ACC, SA = SP().SLOT_ACC;
+    const pannelloAcc = () => sh.querySelectorAll("[data-slotacc]").forEach(f => {
+      const sl = f.dataset.slotacc, cur = D.acc[sl], ids = Object.keys(AC).filter(k => AC[k].slot === sl && haAcc(S.giocatori[me], k));
+      f.innerHTML = `<span class="lab">${SA[sl]}</span><div class="opts"><button type="button" class="opt${cur ? "" : " on"}" data-apacc="${sl}:">Nessuno</button>${ids.map(k => `<button type="button" class="opt${cur && cur.id === k ? " on" : ""}" data-apacc="${sl}:${k}">${esc(AC[k].nome)}</button>`).join("")}</div>${ids.length ? "" : '<p class="muted small" style="margin:4px 0 0">Non ne hai ancora: li trovi nella Bottega, reparto Per animali.</p>'}${cur ? `<div class="sws" style="margin-top:6px">${Object.entries(CA).map(([k, t]) => sw("data-apaccol", sl + ":" + k, t[0], cur.col === k, k)).join("")}</div>` : ""}`;
+    });
+    pannelloAcc(); anteprima();
     sh.addEventListener("click", e => {
+      const aa = e.target.closest("[data-apacc]"), ac = e.target.closest("[data-apaccol]");
+      if (aa) { const [sl, id] = aa.dataset.apacc.split(":");
+        if (id) D.acc[sl] = { id, col: (D.acc[sl] && D.acc[sl].col) || "viola" }; else delete D.acc[sl]; pannelloAcc(); anteprima(); return; }
+      if (ac) { const [sl, col] = ac.dataset.apaccol.split(":"); D.acc[sl] = { ...D.acc[sl], col }; pannelloAcc(); anteprima(); return; }
       const c = e.target.closest("[data-apcol]"), o = e.target.closest("[data-apocc]");
       if (c) { D.col = +c.dataset.apcol; evidenzia(); anteprima(); }
       else if (o) { D.occhi = o.dataset.apocc; evidenzia(); anteprima(); }
@@ -943,7 +990,7 @@ function vEroe(now) {
   return `
   <section class="hero-card fr-stone">
     ${avatar(eroe)}
-    ${eroe.pet && !eroe.pg && window.OLW_SPRITE && OLW_SPRITE.ANIMALI[eroe.pet.specie] ? `<canvas class="pet-cv" data-specie="${eroe.pet.specie}" data-col="${eroe.pet.col | 0}" data-occhi="${esc(eroe.pet.occhi || "")}" aria-label="${esc(eroe.pet.nome || OLW_SPRITE.ANIMALI[eroe.pet.specie].nome)}"></canvas>` : ""}
+    ${eroe.pet && !eroe.pg && window.OLW_SPRITE && OLW_SPRITE.ANIMALI[eroe.pet.specie] ? `<canvas class="pet-cv" data-specie="${eroe.pet.specie}" data-col="${eroe.pet.col | 0}" data-occhi="${esc(eroe.pet.occhi || "")}"${accAttr(eroe.pet)} aria-label="${esc(eroe.pet.nome || OLW_SPRITE.ANIMALI[eroe.pet.specie].nome)}"></canvas>` : ""}
     <div class="stack">
       <span class="hn">${esc(eroe.nome)}</span>
       <span class="muted small">${esc(CLASSI[eroe.classe] || "Avventuriero")} · livello ${L.lv}</span>
@@ -953,6 +1000,7 @@ function vEroe(now) {
   </section>
   ${vetrina(eroe)}
   ${armadioFisico(eroe)}
+  ${armadioAnimali(eroe)}
   ${museo(me)}
   <div class="kv"><span class="muted">Sbloccato al livello ${L.lv}</span><span>${esc(L.sblocco)}</span></div>
   <div class="kv"><span class="muted">Minuti di pulizia negli ultimi 7 giorni</span><span class="num">${fmt(minSett)}</span></div>
@@ -996,7 +1044,7 @@ function cronologia(now) {
 const TUTTI_SLOT = ["capelli", "busto", "gambe", "scarpe", "mantello", "cappello", "accessorio", "collo", "vita", "braccia", "schiena"];
 const REPARTI = [["abiti", "Abiti", ["mantello", "cappello"]], ["speciali", "Abiti speciali", TUTTI_SLOT, "abito"], ["armature", "Armature", TUTTI_SLOT, "armatura"],
   ["acconciature", "Acconciature", ["capelli"], "acconciatura"], ["gioielli", "Gioielli", TUTTI_SLOT, "gioiello"], ["accessori", "Accessori", ["accessorio", "collo", "vita", "braccia", "schiena", "barba"]],
-  ["fantasia", "Fantasia", ["orecchie", "corna", "coda", "ali"]], ["armi", "Armi e scudi", ["arma", "scudo"]], ["arredi", "Arredi", []], ["animali", "Animali", []], ["bonus", "Bonus", []]];
+  ["fantasia", "Fantasia", ["orecchie", "corna", "coda", "ali"]], ["armi", "Armi e scudi", ["arma", "scudo"]], ["arredi", "Arredi", []], ["animali", "Animali", []], ["accanimali", "Per animali", []], ["bonus", "Bonus", []]];
 /* ---------- Arredi ----------
    Reliquie, oggetti di casa e hobby, strumenti (a terra) e dipinti o arazzi (a parete). Catalogo in assets/arredi/arredi.json.
    Ogni eroe compra i suoi (sbloccati "arredo/<id>") e li mette nelle stanze: 3 posti a terra e fino a 2 a parete,
@@ -1235,6 +1283,8 @@ function rifiutaMissione(f) {
   });
 }
 const possiedePezzo = (g, sl, pid) => (((KIT[g.pg && g.pg.classe] || {})[sl] || {}).id === pid) || (g.sbloccati || []).includes(sl + "/" + pid) || !!(g.pg && g.pg[sl] && g.pg[sl].id === pid);
+const haAcc = (g, id) => (g.sbloccati || []).includes("acc/" + id);
+const regaloAcc = g => livelloDa(xpDi(me)).lv >= LV_ACC && !(g.sbloccati || []).some(k => k.startsWith("acc/"));
 const regaloPet = g => livelloDa(xpDi(me)).lv >= LV_ANIMALE && !(g.sbloccati || []).some(k => k.startsWith("pet/"));
 function vBottega() {
   const g = S.giocatori[me], monete = moneteDi(me);
@@ -1259,6 +1309,12 @@ function vBottega() {
   } else if (rep[0] === "animali") {
     carte = Object.entries(A).map(([k, a]) => { const ha = (g.sbloccati || []).includes("pet/" + k), ind = !!(g.pet && g.pet.specie === k);
       return { ha, html: `<div class="bt-card fr-stone"><canvas class="tess-pet" data-specie="${k}" data-col="0" aria-hidden="true"></canvas><b>${esc(a.nome)}</b><span class="muted small">Animale</span>${stato(ind, ha, PREZZO.animale, "pet", "", k, regaloPet(g))}</div>` }; });
+  } else if (rep[0] === "accanimali") {
+    const AC = SP().ACCESSORI, base = g.pet && A[g.pet.specie] ? g.pet : { specie: (Object.keys(A).find(k => (g.sbloccati || []).includes("pet/" + k)) || "gatto"), col: 0, occhi: "" };
+    carte = Object.entries(AC).map(([k, a]) => { const ha = haAcc(g, k), prz = PREZZO_ACC[k], prova = { collo: undefined, testa: undefined }; prova[a.slot] = { id: k, col: a.slot === "testa" ? "viola" : "rosso" };
+      return { ha, html: `<div class="bt-card fr-stone"><canvas class="tess-pet" data-specie="${base.specie}" data-col="${base.col | 0}" data-occhi="${esc(base.occhi || "")}" data-acc="${esc(JSON.stringify(prova))}" aria-hidden="true"></canvas><b>${esc(a.nome)}</b><span class="muted small">${SP().SLOT_ACC[a.slot]} · per animali</span>${ha ? '<span class="muted small">Lo scegli nella scheda dell\'animale</span>'
+        : regaloAcc(g) ? `<button class="btn sm prime" data-act="regaloAcc" data-id="${esc(k)}">In regalo</button>`
+        : `<button class="btn sm${monete >= prz ? " prime" : ""}" data-act="compra" data-t="acc" data-sl="" data-id="${esc(k)}" ${monete >= prz ? "" : "disabled"}>${ICON.coin()}<b class="num">${fmt(prz)}</b></button>${monete >= prz ? "" : `<span class="muted small">ne mancano ${fmt(prz - monete)}</span>`}`}</div>` }; });
   } else {
     carte = rep[2].flatMap(sl => (LPC().slot[sl] || []).filter(v => SP().compatibile(v, corpo) && (rep[3] ? v.gruppo === rep[3] : !v.gruppo && prezzoDi(sl, v.id))).map(v => {
       const ha = possiedePezzo(g, sl, v.id), ind = !!(g.pg[sl] && g.pg[sl].id === v.id);
@@ -1268,19 +1324,20 @@ function vBottega() {
   if (rep[0] !== "arredi") carte.sort((a, b) => a.ha - b.ha);
   return `<div class="banco" aria-label="Bottega"><div class="tenda"></div><div class="banco-in"><span class="insegna">Bottega</span><span class="chip gold num">${fmt(monete)} monete</span></div></div>
     <div class="reparti" role="group" aria-label="Reparti">${REPARTI.map(([k, n]) => `<button data-act="reparto" data-k="${k}" aria-pressed="${k === rep[0]}">${n}</button>`).join("")}</div>
+    ${regaloAcc(g) && rep[0] !== "accanimali" ? `<div class="notice fr-stone small">Hai raggiunto il livello ${LV_ACC}: nel reparto Per animali il primo accessorio è in regalo.</div>` : ""}
     ${regaloPet(g) && rep[0] !== "animali" ? `<div class="notice fr-stone small">Hai raggiunto il livello ${LV_ANIMALE}: nel reparto Animali il primo compagno è in regalo.</div>` : ""}
     <div class="bt-griglia">${carte.map(c => c.html).join("")}</div>
-    <p class="muted small" style="margin:0">${rep[0] === "arredi" ? "Gli arredi vanno nella teca, nella scheda Eroe; li sistemi nelle stanze con il pulsante Arreda." : rep[0] === "bonus" ? "I bonus si usano dal menu ⋯ delle missioni (passa, rinvia) e dalla missione del giorno (cambio extra)." : "Quello che compri va nell'armadio, nella scheda Eroe."} Le monete si guadagnano con le faccende.</p>`;
+    <p class="muted small" style="margin:0">${rep[0] === "arredi" ? "Gli arredi vanno nella teca, nella scheda Eroe; li sistemi nelle stanze con il pulsante Arreda." : rep[0] === "bonus" ? "I bonus si usano dal menu ⋯ delle missioni (passa, rinvia) e dalla missione del giorno (cambio extra)." : rep[0] === "accanimali" ? "Gli accessori si mettono dalla scheda dell'animale, nell'armadio della scheda Eroe. I colori sono tutti gratis." : "Quello che compri va nell'armadio, nella scheda Eroe."} Le monete si guadagnano con le faccende.</p>`;
 }
 function compraOggetto(t, sl, pid) {
   const g = S.giocatori[me]; if (!g) return;
-  const prezzo = t === "pet" ? PREZZO.animale : prezzoDi(sl, pid), nm = t === "pet" ? SP().ANIMALI[pid].nome : pezzoDi(sl, pid).nome, chiave = t === "pet" ? "pet/" + pid : sl + "/" + pid;
+  const prezzo = t === "pet" ? PREZZO.animale : t === "acc" ? PREZZO_ACC[pid] : prezzoDi(sl, pid), nm = t === "pet" ? SP().ANIMALI[pid].nome : t === "acc" ? SP().ACCESSORI[pid].nome : pezzoDi(sl, pid).nome, chiave = t === "pet" ? "pet/" + pid : t === "acc" ? "acc/" + pid : sl + "/" + pid;
   if (moneteDi(me) < prezzo) { toast(`Ti servono ${fmt(prezzo)} monete: ne hai ${fmt(moneteDi(me))}`); return; }
   conferma("Comprare questo oggetto?", `${esc(nm)} costa ${fmt(prezzo)} monete. Te ne restano ${fmt(moneteDi(me) - prezzo)}.`, "Compra", async () => {
     try {
       await db.collection("riscatti").add({ nome: "Negozio: " + nm, costo: prezzo, giocatore: me, ts: Date.now(), consegnato: true, negozio: true });
       const sb = [...(S.giocatori[me].sbloccati || [])]; if (!sb.includes(chiave)) sb.push(chiave);
-      await db.doc("giocatori/" + me).update({ sbloccati: sb }); toast("Comprato: " + nm + ". Lo trovi nell'armadio");
+      await db.doc("giocatori/" + me).update({ sbloccati: sb }); toast(t === "acc" ? "Comprato: " + nm + ". Lo metti dalla scheda dell'animale" : "Comprato: " + nm + ". Lo trovi nell'armadio");
     } catch (er) { errore(er); }
   });
 }
@@ -1592,7 +1649,7 @@ function mostraIngresso() {
   const stelle = Array.from({ length: 18 }, (_, i) => `<i class="ing-stella" style="left:${(i * 37) % 100}%;top:${(i * 53) % 46}%;animation-delay:${(i % 6) * .45}s"></i>`).join("");
   const card = id => { const g = S.giocatori[id], A = window.OLW_SPRITE && SP().ANIMALI, pet = g.pet && A && A[g.pet.specie] ? g.pet : null;
     return `<button class="ing-eroe${id === sel ? " on" : ""}" data-id="${id}" aria-pressed="${id === sel}">
-      <span class="ing-fig">${g.pg ? `<canvas class="ing-cv" data-id="${id}" aria-hidden="true"></canvas>` : avatar(g)}${pet ? `<canvas class="ing-pet" data-specie="${pet.specie}" data-col="${pet.col | 0}" data-occhi="${esc(pet.occhi || "")}" aria-hidden="true"></canvas>` : ""}</span>
+      <span class="ing-fig">${g.pg ? `<canvas class="ing-cv" data-id="${id}" aria-hidden="true"></canvas>` : avatar(g)}${pet ? `<canvas class="ing-pet" data-specie="${pet.specie}" data-col="${pet.col | 0}" data-occhi="${esc(pet.occhi || "")}"${accAttr(pet)} aria-hidden="true"></canvas>` : ""}</span>
       <b>${esc(g.nome)}</b><span class="small">${esc(CLASSI[g.classe] || "")} · livello ${livelloDa(xpDi(id)).lv}</span></button>`; };
   el.innerHTML = `<div class="ing-cielo">${stelle}<img class="ing-castello" src="img/castello.webp" alt=""></div>
     <div class="ing-cont">
@@ -2586,7 +2643,10 @@ document.addEventListener("click", e => {
     case "premiTab": S.premiTab = b.dataset.t; render(); break;
     case "reparto": S.reparto = b.dataset.k; render(); break;
     case "compra": compraOggetto(b.dataset.t, b.dataset.sl, id); break;
+    case "regaloAcc": { const g = S.giocatori[me]; if (g && regaloAcc(g) && SP().ACCESSORI[id]) { const sb = [...(g.sbloccati || []), "acc/" + id]; db.doc("giocatori/" + me).update({ sbloccati: sb }).then(() => toast("Il tuo primo accessorio! Lo metti dalla scheda dell'animale"), errore); } break; }
     case "regaloPet": { const g = S.giocatori[me]; if (g && regaloPet(g)) { const sb = [...(g.sbloccati || []), "pet/" + id]; db.doc("giocatori/" + me).update({ sbloccati: sb }).then(() => toast("Il tuo primo animale! Lo trovi nell'armadio"), errore); } break; }
+    case "armadioAnimPorte": S.armadioAnimAperto = !S.armadioAnimAperto; render(); break;
+    case "armAcc": azAccessorio(id); break;
     case "armadioPorte": S.armadioAperto = !S.armadioAperto; render(); break;
     case "armItem": azArmadio(b.dataset.t, b.dataset.sl, id); break;
     case "apriAnimale": apriAnimale(id); break;

@@ -832,3 +832,6 @@ button.teca-ogg { cursor: pointer; }
 .ora-lab input[type=time] { width: auto; flex: 0 0 auto; }
 #nCorpo .field { margin-top: 14px; }
 #nCorpo.bloccato { opacity: .45; filter: grayscale(1); pointer-events: none; }
+.wardrobe.mini { max-width: 88%; margin-left: auto; margin-right: auto; }
+.wardrobe.mini .wd-body { height: 190px; }
+.wardrobe.mini.open .wd-body { height: auto; min-height: 190px; }
