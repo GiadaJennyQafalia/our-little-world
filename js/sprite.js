@@ -231,9 +231,13 @@
      collo (collare, fiocco), testa (cappello). Per aggiungerne altri (ali, mantelline: slot "schiena") basta una voce in ACCESSORI,
      una funzione in DISEGNA_ACC e, se serve, l'ancora nello stesso GEO. pet.acc = { collo: {id, col}, testa: {id, col} }. */
   const COLORI_ACC = { rosso: ["#c23b3b", "#7e1f1f", "#ee7a7a"], blu: ["#3b6fc2", "#22427a", "#7aa6ee"], verde: ["#3f9a52", "#245c30", "#82d494"], viola: ["#8a4fc2", "#53307c", "#be8af0"], oro: ["#e0b24a", "#9a6f1a", "#f6dc8a"], rosa: ["#e86aa6", "#a03468", "#f6a6cc"], nero: ["#34343e", "#17171d", "#6a6a78"] };
-  const SLOT_ACC = { collo: "Collo", testa: "Testa" };
-  const ACCESSORI = { collare: { slot: "collo", nome: "Collare" }, fiocco: { slot: "collo", nome: "Fiocco" }, strega: { slot: "testa", nome: "Cappello da strega" } };
-  const ORDINE_ACC = ["schiena", "collo", "testa"];
+  const SLOT_ACC = { testa: "Testa", viso: "Viso", collo: "Collo" };
+  const ACCESSORI = {
+    collare: { slot: "collo", nome: "Collare", col: "rosso" }, fiocco: { slot: "collo", nome: "Fiocco", col: "blu" }, sciarpa: { slot: "collo", nome: "Sciarpa", col: "rosso" },
+    campanellino: { slot: "collo", nome: "Campanellino", col: "verde" }, medaglione: { slot: "collo", nome: "Medaglione", col: "viola" },
+    strega: { slot: "testa", nome: "Cappello da strega", col: "viola" }, corona: { slot: "testa", nome: "Corona", col: "oro" }, occhiali: { slot: "viso", nome: "Occhiali", col: "nero" }
+  };
+  const ORDINE_ACC = ["schiena", "collo", "viso", "testa"];
   /* Punto-occhi di ogni posa (riga 0 = verso destra, 2 = di fronte; la 3 è la 0 specchiata, la 1 è la 2 vista da dietro). s = di lato, f = di fronte; g = pipistrello appeso. */
   const ANCORE = {
     gatto: { s: [[24, 14.5], [24, 13.5], [24, 14.5], [25, 13.5]], f: [[16, 18.5], [16, 19.5], [16, 18.5]] },
@@ -246,7 +250,7 @@
   const GEO = {
     gatto: { cap: "g", s: { t: [-1, -3], c: [-5, 1, 5] }, f: { t: [0, -8], c: [4, 5] }, b: { t: [0, -10], c: [-3, 5] } },
     cane: { cap: "g", s: { t: [-1, -3], c: [-5, 1, 5] }, f: { t: [0, -8], c: [4, 5] }, b: { t: [0, -10], c: [-3, 5] } },
-    scimmia: { cap: "g", s: { t: [-1, -2], c: [-4, 2, 7] }, f: { t: [0, -3], c: [4, 4] }, b: { t: [0, -3], c: [4, 4] } },
+    scimmia: { cap: "g", dc: -2, s: { t: [-1, -2], c: [-4, 2, 7] }, f: { t: [0, -3], c: [4, 4] }, b: { t: [0, -3], c: [4, 4] } },
     corvo: { cap: "p", s: { t: [-1, -2], c: [-4, 1, 5] }, f: { t: [0, -3], c: [1, 2] }, b: { t: [0, -3], c: [1, 2] } },
     pipistrello: { cap: "p", s: { t: [-1, -3], c: [-4, -1, 4] }, f: { t: [0, -5], c: [3, 3] }, b: { t: [0, -5], c: [3, 3] }, g: { t: [0, 4], c: [3, 3] } }
   };
@@ -255,18 +259,60 @@
     p: ["...cc..", "..ccc..", ".bbbbb.", "ddddddd", ".ddddd."]
   };
   const FIOCCO = ["cc.cc", "ccdcc", "cc.cc"];
+  const CORONA = {
+    g: ["c...c...c", "cc.ccc.cc", "ccccgcccc", "ddddddddd"],
+    p: ["c..c..c", "ccccccc", "cccgccc", "ddddddd"]
+  };
+  /* Fascia attorno al collo che segue la sagoma (colora solo pixel dell'animale). colori = righe/colonne dello spessore; ritorna lo spessore. */
+  function banda(x, op, g, colori, ext) {
+    const sp = colori.length;
+    if (g.dir === "s") {
+      const x0 = Math.round(g.ax + g.sign * g.geo.c[0]);
+      for (let y = Math.round(g.ay + g.geo.c[1]); y <= Math.round(g.ay + g.geo.c[2]); y++) for (let k = 0; k < sp; k++) { const px = x0 - g.sign * k; if (op(px, y)) { x.fillStyle = colori[k]; x.fillRect(g.ox + px, g.oy + y, 1, 1); } }
+      if (ext) { const ym = Math.round(g.ay + g.geo.c[2]); if (op(x0, ym + 1)) { x.fillStyle = ext; x.fillRect(g.ox + x0, g.oy + ym + 1, 1, 1); } }
+    } else {
+      const y0 = Math.round(g.ay + g.geo.c[0]), hw = g.geo.c[1];
+      for (let k = 0; k < sp; k++) for (let px = Math.round(g.ax - hw); px <= Math.round(g.ax + hw); px++) if (op(px, y0 + k)) { x.fillStyle = colori[k]; x.fillRect(g.ox + px, g.oy + y0 + k, 1, 1); }
+      if (ext && g.dir === "f" && op(Math.round(g.ax), y0 + 2)) { x.fillStyle = "#f6dc8a"; x.fillRect(g.ox + Math.round(g.ax), g.oy + y0 + 2, 1, 1); }
+    }
+    return sp;
+  }
+  /* Punto appena sotto la fascia, dove pendono campanellino e medaglione. */
+  function puntoGiu(g, spess) {
+    if (g.dir === "s") return [Math.round(g.ax + g.sign * g.geo.c[0]) + (g.sign > 0 ? 1 : -2), Math.round(g.ay + g.geo.c[2]) + 1];
+    return [Math.round(g.ax) - 1, Math.round(g.ay + g.geo.c[0]) + spess];
+  }
   const DISEGNA_ACC = {
-    collare(x, op, g, c) {
-      const [m, sc, lu] = c;
-      if (g.dir === "s") {
-        const x0 = Math.round(g.ax + g.sign * g.geo.c[0]);
-        for (let y = Math.round(g.ay + g.geo.c[1]); y <= Math.round(g.ay + g.geo.c[2]); y++) for (let k = 0; k < 2; k++) { const px = x0 - g.sign * k; if (op(px, y)) { x.fillStyle = k ? sc : m; x.fillRect(g.ox + px, g.oy + y, 1, 1); } }
-        const ym = Math.round(g.ay + g.geo.c[2]); if (op(x0, ym + 1)) { x.fillStyle = lu; x.fillRect(g.ox + x0, g.oy + ym + 1, 1, 1); }
-      } else {
-        const y0 = Math.round(g.ay + g.geo.c[0]), hw = g.geo.c[1];
-        for (let k = 0; k < 2; k++) for (let px = Math.round(g.ax - hw); px <= Math.round(g.ax + hw); px++) if (op(px, y0 + k)) { x.fillStyle = k ? sc : m; x.fillRect(g.ox + px, g.oy + y0 + k, 1, 1); }
-        if (g.dir === "f" && op(Math.round(g.ax), y0 + 2)) { x.fillStyle = "#f6dc8a"; x.fillRect(g.ox + Math.round(g.ax), g.oy + y0 + 2, 1, 1); }
-      }
+    collare(x, op, g, c) { banda(x, op, g, [c[0], c[1]], c[2]); },
+    sciarpa(x, op, g, c) {
+      const sp = banda(x, op, g, [c[0], c[1], c[0]], null);
+      let tx, ty;
+      if (g.dir === "s") { tx = Math.round(g.ax + g.sign * g.geo.c[0]) - g.sign * (sp + 1); ty = Math.round(g.ay + g.geo.c[2]); } else { tx = Math.round(g.ax) + 2; ty = Math.round(g.ay + g.geo.c[0]) + sp; }
+      for (let j = 0; j < 4; j++) for (let i = 0; i < 2; i++) { x.fillStyle = j % 2 ? c[1] : c[0]; x.fillRect(g.ox + tx + i, g.oy + ty + j, 1, 1); }
+    },
+    campanellino(x, op, g, c) {
+      banda(x, op, g, [c[0], c[1]], null);
+      const [bx, by] = puntoGiu(g, 2);
+      x.fillStyle = "#f6dc8a"; x.fillRect(g.ox + bx, g.oy + by, 2, 1); x.fillStyle = "#e0b24a"; x.fillRect(g.ox + bx, g.oy + by + 1, 2, 1); x.fillStyle = "#9a6f1a"; x.fillRect(g.ox + bx + (g.sign > 0 ? 1 : 0), g.oy + by + 1, 1, 1);
+    },
+    medaglione(x, op, g, c) {
+      if (g.dir === "b") return;
+      banda(x, op, g, ["#e0b24a"], null);
+      const [bx, by] = puntoGiu(g, 1);
+      x.fillStyle = "#9a6f1a"; x.fillRect(g.ox + bx - 1, g.oy + by - 1, 4, 4); x.fillStyle = c[0]; x.fillRect(g.ox + bx, g.oy + by, 2, 2); x.fillStyle = c[2]; x.fillRect(g.ox + bx, g.oy + by, 1, 1);
+    },
+    corona(x, op, g, c) {
+      const sp = CORONA[g.cap], w = sp[0].length, h = sp.length, bx = Math.round(g.ax + g.sign * g.geo.t[0]), by = Math.round(g.ay + g.geo.t[1]) + 1 + (g.dc || 0), gemma = c === COLORI_ACC.rosso ? COLORI_ACC.blu[0] : COLORI_ACC.rosso[0];
+      sp.forEach((riga, j) => { for (let i = 0; i < w; i++) { const ch = riga[i]; if (ch === ".") continue; x.fillStyle = ch === "c" ? c[0] : ch === "g" ? gemma : c[1]; const yy = g.giu ? by + (h - 1 - j) : by - (h - 1 - j); x.fillRect(g.ox + bx - (w >> 1) + i, g.oy + yy, 1, 1); } });
+    },
+    occhiali(x, op, g, c) {
+      if (g.dir === "b" || !g.occhi || !g.occhi.length) return;
+      const gruppi = g.dir === "s" ? [g.occhi] : [g.occhi.filter(p => p[0] < g.ax), g.occhi.filter(p => p[0] >= g.ax)].filter(a => a.length);
+      const colM = c === COLORI_ACC.nero ? "#7a7a8c" : c[0], px = (a, b) => { x.fillStyle = colM; x.fillRect(g.ox + a, g.oy + b, 1, 1); };
+      const anelli = gruppi.map(a => ({ x0: Math.min(...a.map(p => p[0])) - 1, x1: Math.max(...a.map(p => p[0])) + 1, y0: Math.min(...a.map(p => p[1])) - 1, y1: Math.max(...a.map(p => p[1])) + 1 }));
+      for (const r of anelli) for (let i = r.x0; i <= r.x1; i++) for (let j = r.y0; j <= r.y1; j++) if (i === r.x0 || i === r.x1 || j === r.y0 || j === r.y1) px(i, j);
+      if (anelli.length === 2) { const y = Math.round((anelli[0].y0 + anelli[0].y1) / 2); for (let i = anelli[0].x1 + 1; i < anelli[1].x0; i++) px(i, y); }
+      if (g.dir === "s") { const r = anelli[0]; for (let k = 1; k <= 3; k++) px(g.sign > 0 ? r.x0 - k : r.x1 + k, r.y0 + 1); }
     },
     fiocco(x, op, g, c) {
       if (g.dir === "b") return;
@@ -279,6 +325,13 @@
       sp.forEach((riga, j) => { for (let i = 0; i < w; i++) { const ch = riga[i]; if (ch === ".") continue; x.fillStyle = ch === "c" ? c[0] : ch === "b" ? fascia : c[1]; const yy = g.giu ? by + (h - 1 - j) : by - (h - 1 - j); x.fillRect(g.ox + bx - (w >> 1) + i, g.oy + yy, 1, 1); } });
     }
   };
+  /* Pixel degli occhi di una posa (per gli occhiali); il corvo non ne ha, li ricavo dalla testa. */
+  function occhiCella(specie, r, c, dir, pt) {
+    const e = OCCHI_PX[specie] && OCCHI_PX[specie][r + "_" + c];
+    if (e) return e.map(p => [p[0], p[1]]);
+    if (specie === "corvo") return dir === "s" ? [[Math.round(pt[0] + (r === 3 ? 1 : -1)), Math.round(pt[1]) - 1]] : [[Math.round(pt[0]) - 2, Math.round(pt[1])], [Math.round(pt[0]) + 2, Math.round(pt[1])]];
+    return null;
+  }
   function applicaAccessori(x, pet) {
     const im = x.getImageData(0, 0, 128, 256).data, geo = GEO[pet.specie], anc = ANCORE[pet.specie];
     if (!geo || !anc) return;
@@ -291,7 +344,7 @@
         if (pet.specie === "pipistrello" && c === 3 && lato) { dir = "f"; pt = anc.g; giu = true; gm = geo.g; }
         else { pt = (lato ? anc.s : anc.f)[c]; if (!pt) continue; if (lato && r === 3) pt = [31 - pt[0], pt[1]]; }
         const op = (px, py) => px >= 0 && px < 32 && py >= 0 && py < 32 && im[(((r * 32) + py) * 128 + c * 32 + px) * 4 + 3] > 0;
-        DISEGNA_ACC[a.id](x, op, { ox: c * 32, oy: r * 32, ax: pt[0], ay: pt[1], sign: dir === "s" ? sign : 1, dir, geo: gm, cap: geo.cap, giu }, col);
+        DISEGNA_ACC[a.id](x, op, { occhi: occhiCella(pet.specie, r, c, dir, pt), ox: c * 32, oy: r * 32, ax: pt[0], ay: pt[1], sign: dir === "s" ? sign : 1, dir, geo: gm, cap: geo.cap, dc: geo.dc, giu }, col);
       }
     }
   }
